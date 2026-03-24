@@ -1,0 +1,6 @@
+{
+  "projectDir": ".",
+  "meetingsDir": "./meetings",
+  "agentsDir": ".claude/agents",
+  "port": 3000
+}

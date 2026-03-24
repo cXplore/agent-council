@@ -1,0 +1,5 @@
+{
+  "name": "Standard",
+  "description": "Balanced 5-agent team for most projects",
+  "agents": ["project-manager", "critic", "north-star", "developer", "architect"]
+}

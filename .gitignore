@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# meetings (generated during use, don't commit)
+/meetings/*.md
+
+# claude
+.claude/

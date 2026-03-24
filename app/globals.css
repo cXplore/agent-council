@@ -1,26 +1,56 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --bg: #0a0a0b;
+  --bg-card: #141416;
+  --bg-elevated: #1a1a1e;
+  --border: #2a2a2e;
+  --border-focus: #3a3a40;
+  --text-primary: #e8e6e3;
+  --text-secondary: #a8a5a0;
+  --text-muted: #6b6966;
+  --accent: #7c6dd8;
+  --accent-hover: #9080e0;
+  --accent-muted: rgba(124, 109, 216, 0.15);
+  --live-green: #4ade80;
+  --live-green-muted: rgba(74, 222, 128, 0.15);
+  --error: #ef4444;
+  --warning: #f59e0b;
+  --success: #22c55e;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+::selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+/* Meeting content fade-in for new content */
+.meeting-content p,
+.meeting-content h2,
+.meeting-content h3,
+.meeting-content hr {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading shimmer for meeting start */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: 200px 0; }
+}
+
+.loading-shimmer {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.5s infinite;
 }

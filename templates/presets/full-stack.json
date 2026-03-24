@@ -1,0 +1,5 @@
+{
+  "name": "Full Stack",
+  "description": "Complete 8-agent team for large projects",
+  "agents": ["project-manager", "critic", "north-star", "developer", "architect", "designer", "qa-engineer", "devops"]
+}

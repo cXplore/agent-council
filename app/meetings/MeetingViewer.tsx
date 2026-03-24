@@ -1,0 +1,501 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import ReactMarkdown from 'react-markdown';
+import type { MeetingListItem, MeetingDetail } from '@/lib/types';
+
+const POLL_INTERVAL = 2000;
+
+function getAgentColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 55%, 65%)`;
+}
+
+function formatType(type: string): string {
+  return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatTimeAgo(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+export default function MeetingViewer() {
+  const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MeetingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
+  const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
+
+  const [chatInput, setChatInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [lastContentLength, setLastContentLength] = useState(0);
+  const [recentlyUpdated, setRecentlyUpdated] = useState(false);
+
+  const contentRef = useRef<HTMLDivElement>(null);
+  const lastModifiedRef = useRef<string>('');
+  const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  // Fetch meeting list
+  const fetchList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/meetings');
+      const data = await res.json();
+      setMeetings(Array.isArray(data) ? data : []);
+
+      // Auto-select if exactly one is in-progress (but not if user explicitly went back)
+      if (!selected && !userExplicitlyBack) {
+        const inProgress = data.filter((m: MeetingListItem) => m.status === 'in-progress');
+        if (inProgress.length === 1) {
+          setSelected(inProgress[0].filename);
+        }
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [selected, userExplicitlyBack]);
+
+  // Fetch single meeting content
+  const fetchDetail = useCallback(async (filename: string) => {
+    try {
+      const res = await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`);
+      if (!res.ok) return;
+      const data: MeetingDetail = await res.json();
+
+      // Only update if content changed
+      if (data.modifiedAt !== lastModifiedRef.current) {
+        lastModifiedRef.current = data.modifiedAt;
+
+        // Track if content grew (new agent response)
+        const newLength = data.content?.length ?? 0;
+        if (newLength > lastContentLength) {
+          setRecentlyUpdated(true);
+          setTimeout(() => setRecentlyUpdated(false), 3000);
+        }
+        setLastContentLength(newLength);
+
+        setDetail(data);
+
+        // Auto-scroll if user hasn't scrolled up
+        if (!userScrolledUp && contentRef.current) {
+          requestAnimationFrame(() => {
+            contentRef.current?.scrollTo({
+              top: contentRef.current.scrollHeight,
+              behavior: 'smooth',
+            });
+          });
+        }
+      }
+
+      // Stop polling if complete
+      if (data.status === 'complete' && pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = undefined;
+      }
+    } catch {
+      // silent
+    }
+  }, [userScrolledUp]);
+
+  // Initial list load + periodic refresh
+  useEffect(() => {
+    fetchList();
+    const interval = setInterval(fetchList, 5000);
+    return () => clearInterval(interval);
+  }, [fetchList]);
+
+  // Poll selected meeting
+  useEffect(() => {
+    if (!selected) return;
+
+    lastModifiedRef.current = '';
+    setDetail(null);
+    setUserScrolledUp(false);
+    fetchDetail(selected);
+
+    pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [selected, fetchDetail]);
+
+  // Track scroll position
+  const handleScroll = useCallback(() => {
+    if (!contentRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setUserScrolledUp(!nearBottom);
+  }, []);
+
+  const scrollToBottom = () => {
+    contentRef.current?.scrollTo({
+      top: contentRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+    setUserScrolledUp(false);
+  };
+
+  const deleteMeeting = async (filename: string) => {
+    if (!confirm('Delete this meeting?')) return;
+    try {
+      await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      setMeetings(prev => prev.filter(m => m.filename !== filename));
+    } catch {
+      // silent
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!chatInput.trim() || !selected || sending) return;
+    setSending(true);
+    try {
+      await fetch('/api/meetings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: selected, message: chatInput.trim() }),
+      });
+      setChatInput('');
+      fetchDetail(selected);
+    } catch {
+      // silent
+    } finally {
+      setSending(false);
+    }
+  };
+
+  // ─── List View ───
+  if (!selected) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-3xl mx-auto px-6 py-12">
+          <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+            Meetings
+          </h1>
+          <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
+            Watch agent meetings unfold live or review past conversations.
+          </p>
+
+          {loading ? (
+            <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+          ) : meetings.length === 0 ? (
+            <div
+              className="rounded-lg p-8 text-center"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            >
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                No meetings yet. Start a meeting in Claude Code and it will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {meetings.map((m) => (
+                <button
+                  key={m.filename}
+                  onClick={() => { setSelected(m.filename); setUserExplicitlyBack(false); }}
+                  className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group"
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: m.status === 'in-progress'
+                      ? '1px solid var(--live-green)'
+                      : '1px solid var(--border)',
+                  }}
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${m.status === 'in-progress' ? 'animate-pulse' : ''}`}
+                      style={{
+                        background: m.status === 'in-progress' ? 'var(--live-green)' : 'var(--text-muted)',
+                      }}
+                    />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {m.title || formatType(m.type)}
+                    </span>
+                    {m.status === 'in-progress' && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)' }}
+                      >
+                        LIVE
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-5 mb-1">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {formatType(m.type)}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {m.date}
+                    </span>
+                  </div>
+
+                  {m.participants.length > 0 && (
+                    <div className="text-xs mt-1 ml-5" style={{ color: 'var(--text-muted)' }}>
+                      {m.participants.join(', ')}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-2 ml-5">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {formatTimeAgo(m.modifiedAt)}
+                      {m.participants.length > 0 && ` \u00b7 ${m.participants.length} agents`}
+                    </span>
+                    {m.status !== 'in-progress' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteMeeting(m.filename); }}
+                        className="text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Detail View ───
+  const isLive = detail?.status === 'in-progress';
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+      {/* Sticky header */}
+      <div
+        className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4"
+        style={{
+          background: 'var(--bg-elevated)',
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
+        <button
+          onClick={() => { setSelected(null); setUserExplicitlyBack(true); }}
+          className="text-sm hover:underline"
+          style={{ color: 'var(--accent)' }}
+        >
+          &larr; All meetings
+        </button>
+
+        <div className="flex-1" />
+
+        {detail && (
+          <>
+            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              {detail.title || formatType(detail.type)}
+            </span>
+
+            {isLive && (
+              <span className="flex items-center gap-1.5">
+                <span
+                  className="inline-block w-2 h-2 rounded-full animate-pulse"
+                  style={{ background: 'var(--live-green)' }}
+                />
+                <span className="text-xs" style={{ color: 'var(--live-green)' }}>LIVE</span>
+              </span>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Participants bar */}
+      {detail && detail.participants.length > 0 && (
+        <div
+          className="px-6 py-2 text-xs flex items-center gap-3 flex-wrap"
+          style={{
+            background: 'var(--bg)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <span style={{ color: 'var(--text-muted)' }}>Participants:</span>
+          {detail.participants.map((p) => (
+            <span
+              key={p}
+              className="px-2 py-0.5 rounded"
+              style={{
+                color: getAgentColor(p),
+                background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
+              }}
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Content area */}
+      <div
+        ref={contentRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-6 py-8"
+      >
+        <div className="max-w-3xl mx-auto">
+          {!detail ? (
+            <div className="space-y-4">
+              <div className="loading-shimmer h-8 w-64 rounded" />
+              <div className="loading-shimmer h-4 w-96 rounded" />
+              <div className="loading-shimmer h-4 w-80 rounded" />
+              <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>Loading meeting...</p>
+            </div>
+          ) : (
+            <div className="prose prose-sm prose-invert max-w-none meeting-content">
+              <ReactMarkdown
+                components={{
+                  h1: ({ children }) => (
+                    <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
+                      {children}
+                    </h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
+                      {children}
+                    </h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--text-primary)' }}>
+                      {children}
+                    </h3>
+                  ),
+                  p: ({ children }) => (
+                    <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {children}
+                    </p>
+                  ),
+                  strong: ({ children }) => {
+                    const name = String(children).replace(/:$/, '');
+                    const color = getAgentColor(name);
+                    return <strong style={{ color }}>{children}</strong>;
+                  },
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
+                      {children}
+                    </ol>
+                  ),
+                  li: ({ children }) => (
+                    <li className="leading-relaxed">{children}</li>
+                  ),
+                  hr: () => (
+                    <hr className="my-6" style={{ borderColor: 'var(--border)' }} />
+                  ),
+                  blockquote: ({ children }) => (
+                    <blockquote
+                      className="pl-4 my-4 italic"
+                      style={{ borderLeft: '2px solid var(--accent)', color: 'var(--text-muted)' }}
+                    >
+                      {children}
+                    </blockquote>
+                  ),
+                  code: ({ children }) => (
+                    <code
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ background: 'var(--border)', color: 'var(--accent)' }}
+                    >
+                      {children}
+                    </code>
+                  ),
+                  input: ({ checked, ...props }) => (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      readOnly
+                      className="mr-2"
+                      {...props}
+                    />
+                  ),
+                }}
+              >
+                {detail.content.replace(/<!--[\s\S]*?-->\n?/g, '')}
+              </ReactMarkdown>
+
+              {isLive && (
+                <div className="mt-8 flex items-center gap-2">
+                  <span
+                    className={`inline-block w-1.5 h-1.5 rounded-full ${recentlyUpdated ? 'animate-ping' : 'animate-pulse'}`}
+                    style={{ background: recentlyUpdated ? 'var(--live-green)' : 'var(--accent)' }}
+                  />
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {recentlyUpdated ? 'New response received' : 'Agents deliberating...'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chat input for live meetings */}
+      {isLive && (
+        <div
+          className="sticky bottom-0 px-6 py-3"
+          style={{
+            background: 'var(--bg-elevated)',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <div className="max-w-3xl mx-auto flex gap-3">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              placeholder="Write into the meeting..."
+              disabled={sending}
+              className="flex-1 px-4 py-2.5 rounded-lg text-sm outline-none"
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!chatInput.trim() || sending}
+              className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--bg)',
+              }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Scroll to bottom button */}
+      {userScrolledUp && isLive && (
+        <button
+          onClick={scrollToBottom}
+          className="fixed bottom-20 right-6 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"
+          style={{
+            background: 'var(--accent)',
+            color: 'var(--bg)',
+          }}
+        >
+          Scroll to latest &darr;
+        </button>
+      )}
+    </div>
+  );
+}
