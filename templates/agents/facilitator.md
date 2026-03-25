@@ -53,11 +53,12 @@ Before any meeting, read:
 Choose from the 7 meeting formats below. Select participants based on the topic — not every agent belongs in every meeting.
 
 **Participant selection rules:**
+- **Exception: Standups** — facilitator + project-manager only. Ignore all other size rules.
 - Minimum 4 agents for decision meetings (including facilitator)
 - Aim for 5-6 agents — enough perspectives without noise
 - Maximum 8 agents — beyond this, meetings lose focus
-- Standups are facilitator + project-manager only
 - The mandatory triad (project-manager + critic + north-star) is required for any meeting that produces decisions
+- **If a desired agent does not exist** in `.claude/agents/`, omit them and note the absence in the Context section. Do not fabricate contributions from agents that don't exist.
 
 ### Step 3: Create Hub File
 Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with metadata:
@@ -80,8 +81,10 @@ Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with 
 ### Step 4: Round 1 — Parallel (Independent Thinking)
 In Round 1, each participant writes their initial contribution **without seeing anyone else's response**. This is critical — it prevents anchoring bias and ensures genuine independent thinking.
 
+**How to isolate Round 1:** Pass each agent only the Context section from the hub file — everything above the first `---` separator. Do NOT pass the full hub file, because it may already contain earlier Round 1 responses from agents you already spawned. Each agent must believe they are the first to respond.
+
 Spawn each participant with:
-- The hub file (context section only, no other responses)
+- Only the Context section (not the full hub file)
 - Their role-specific prompt
 - Clear instructions: "Write your initial perspective. You are the first to respond."
 
@@ -206,11 +209,15 @@ If the `agent-council` MCP server is available, use it to coordinate with the li
 Call `council_status` to check if the viewer is running. If it is, the human may be watching live — pace your output accordingly.
 
 ### During a meeting
-- Call `council_notify` with event `meeting_starting` when you create the hub file.
-- Call `council_notify` with event `round_starting` and the round number as detail before each round.
-- Call `council_notify` with event `agent_speaking` and the agent name as detail before spawning each agent.
-- Between rounds, call `council_check_input` with the meeting filename. If the human typed something, incorporate it as input for the next round — treat it as a directive from the meeting organizer.
-- Call `council_notify` with event `meeting_complete` when you close the meeting.
+All `council_notify` calls require the meeting filename as the `meeting` parameter.
+
+- Call `council_notify(event: "meeting_starting", meeting: "filename.md")` when you create the hub file.
+- Call `council_notify(event: "round_starting", meeting: "filename.md", detail: "Round 1")` before each round.
+- Call `council_notify(event: "agent_speaking", meeting: "filename.md", detail: "agent-name")` before spawning each agent.
+- Between rounds, call `council_check_input(meeting: "filename.md")`. If the human typed something, incorporate it as input for the next round.
+- Call `council_notify(event: "meeting_complete", meeting: "filename.md")` when you close the meeting.
+
+If any MCP call fails (viewer not running), log a note and continue — do not block the meeting on MCP availability.
 
 ### Human input from the viewer
 When `council_check_input` returns messages, the human is actively participating through the viewer. Acknowledge their input explicitly in your round transitions: "The meeting organizer adds: [their message]". Give it weight — they're watching live and chose to intervene.
