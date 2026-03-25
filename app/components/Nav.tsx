@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home' },
@@ -11,6 +11,240 @@ const NAV_ITEMS = [
   { href: '/meetings', label: 'Meetings' },
   { href: '/agents', label: 'Agents' },
 ];
+
+interface ProjectInfo {
+  name: string;
+  path: string;
+}
+
+interface ProjectsResponse {
+  projects: ProjectInfo[];
+  activeProject: string;
+  hasWorkspace: boolean;
+}
+
+function ProjectSwitcher({ inline }: { inline?: boolean }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<ProjectsResponse | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setData(d))
+      .catch(() => {});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleSwitch = useCallback(async (name: string) => {
+    if (!data || name === data.activeProject) {
+      setOpen(false);
+      return;
+    }
+    setSwitching(true);
+    try {
+      await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'switch', name }),
+      });
+      setOpen(false);
+      router.refresh();
+      window.location.reload();
+    } catch {
+      setSwitching(false);
+    }
+  }, [data, router]);
+
+  if (!data) return null;
+
+  const activeLabel = data.activeProject === 'workspace'
+    ? 'Workspace'
+    : data.projects.find(p => p.name === data.activeProject)?.name ?? data.activeProject;
+
+  return (
+    <div ref={ref} className={inline ? 'w-full' : 'relative'}>
+      <button
+        onClick={() => setOpen(!open)}
+        disabled={switching}
+        className="flex items-center gap-1.5 text-sm transition-colors"
+        style={{
+          color: 'var(--text-secondary)',
+          opacity: switching ? 0.5 : 1,
+          width: inline ? '100%' : undefined,
+          padding: inline ? '8px 12px' : undefined,
+          borderRadius: inline ? '8px' : undefined,
+          background: inline ? 'var(--bg-elevated)' : undefined,
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-block',
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'var(--accent)',
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {activeLabel}
+        </span>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          style={{
+            flexShrink: 0,
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 150ms',
+          }}
+        >
+          <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: inline ? 'relative' : 'absolute',
+            top: inline ? 4 : '100%',
+            left: inline ? 0 : undefined,
+            right: inline ? undefined : 0,
+            marginTop: inline ? 0 : 8,
+            width: inline ? '100%' : 280,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            padding: 4,
+            zIndex: 100,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Workspace option — always first */}
+          <button
+            onClick={() => handleSwitch('workspace')}
+            className="w-full text-left transition-colors"
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: data.activeProject === 'workspace' ? 'var(--accent-muted)' : 'transparent',
+            }}
+          >
+            <span
+              style={{
+                width: 4,
+                height: 28,
+                borderRadius: 2,
+                background: data.activeProject === 'workspace' ? 'var(--accent)' : 'transparent',
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div
+                className="text-sm"
+                style={{
+                  color: data.activeProject === 'workspace' ? 'var(--accent)' : 'var(--text-primary)',
+                  fontWeight: data.activeProject === 'workspace' ? 600 : 400,
+                }}
+              >
+                Workspace
+              </div>
+              <div
+                className="text-xs"
+                style={{
+                  color: 'var(--text-muted)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Agent Council workspace
+              </div>
+            </div>
+          </button>
+
+          {data.projects.length > 0 && (
+            <div
+              style={{
+                height: 1,
+                background: 'var(--border)',
+                margin: '4px 10px',
+              }}
+            />
+          )}
+
+          {/* Connected projects */}
+          {data.projects.map(project => (
+            <button
+              key={project.name}
+              onClick={() => handleSwitch(project.name)}
+              className="w-full text-left transition-colors"
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: data.activeProject === project.name ? 'var(--accent-muted)' : 'transparent',
+              }}
+            >
+              <span
+                style={{
+                  width: 4,
+                  height: 28,
+                  borderRadius: 2,
+                  background: data.activeProject === project.name ? 'var(--accent)' : 'transparent',
+                  flexShrink: 0,
+                }}
+              />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  className="text-sm"
+                  style={{
+                    color: data.activeProject === project.name ? 'var(--accent)' : 'var(--text-primary)',
+                    fontWeight: data.activeProject === project.name ? 600 : 400,
+                  }}
+                >
+                  {project.name}
+                </div>
+                <div
+                  className="text-xs"
+                  style={{
+                    color: 'var(--text-muted)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {project.path}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Nav() {
   const pathname = usePathname();
@@ -32,6 +266,11 @@ export default function Nav() {
         >
           Agent Council
         </Link>
+
+        {/* Desktop project switcher */}
+        <div className="hidden sm:block">
+          <ProjectSwitcher />
+        </div>
 
         <div className="flex-1" />
 
@@ -73,6 +312,11 @@ export default function Nav() {
       {/* Mobile dropdown */}
       {open && (
         <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
+          {/* Mobile project switcher — above nav items */}
+          <div style={{ marginBottom: 8 }}>
+            <ProjectSwitcher inline />
+          </div>
+
           {NAV_ITEMS.map(item => {
             const isActive = item.href === '/'
               ? pathname === '/'

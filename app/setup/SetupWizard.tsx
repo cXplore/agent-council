@@ -94,13 +94,12 @@ export default function SetupWizard() {
       }
 
       // Save the config and get agent info
-      const fullMeetingsPath = `${projectPath.trim().replace(/\\/g, '/')}/${foundMeetingsDir}`;
       const connectData = await fetch('/api/setup/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectDir: projectPath.trim(),
-          meetingsDir: fullMeetingsPath,
+          projectPath: projectPath.trim(),
+          meetingsDir: foundMeetingsDir,
         }),
       }).then(r => r.json());
 

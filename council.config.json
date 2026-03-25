@@ -1,6 +1,15 @@
 {
-  "projectDir": ".",
-  "meetingsDir": "./meetings",
-  "agentsDir": ".claude/agents",
-  "port": 3000
+  "projects": {
+    "integrated-human": {
+      "path": "C:/Projects/integrated-human",
+      "meetingsDir": "docs/10-meetings",
+      "agentsDir": ".claude/agents"
+    }
+  },
+  "activeProject": "integrated-human",
+  "workspace": {
+    "agentsDir": "./agents",
+    "meetingsDir": "./meetings"
+  },
+  "port": 3001
 }

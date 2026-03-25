@@ -12,29 +12,33 @@ interface AgentInfo {
   content: string;
 }
 
+interface AgentsResponse {
+  agents: AgentInfo[];
+  project: string;
+}
+
 export default function AgentsPage() {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [project, setProject] = useState<string>('');
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [projectDir, setProjectDir] = useState('');
-
-  const fetchAgents = async (dir?: string) => {
-    setLoading(true);
-    try {
-      const url = dir ? `/api/agents?dir=${encodeURIComponent(dir)}` : '/api/agents';
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setAgents(data);
-      }
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
+    const fetchAgents = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/agents');
+        if (res.ok) {
+          const data: AgentsResponse = await res.json();
+          setAgents(data.agents);
+          setProject(data.project);
+        }
+      } catch {
+        // silent
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchAgents();
   }, []);
 
@@ -85,32 +89,19 @@ export default function AgentsPage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-          Installed Agents
+        <h1 className="text-2xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+          Agents
         </h1>
-        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Agent files from .claude/agents/ in your project.
-        </p>
-
-        {/* Project directory input */}
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={projectDir}
-            onChange={(e) => setProjectDir(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') fetchAgents(projectDir); }}
-            placeholder="Project path (leave empty for current directory)"
-            className="flex-1 px-3 py-2 rounded-lg text-sm"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-          />
-          <button
-            onClick={() => fetchAgents(projectDir)}
-            className="px-4 py-2 rounded-lg text-sm"
-            style={{ background: 'var(--accent)', color: 'white' }}
-          >
-            Load
-          </button>
-        </div>
+        {project && (
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+            {project} &middot; {agents.length} agent{agents.length !== 1 ? 's' : ''}
+          </p>
+        )}
+        {!project && !loading && (
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+            No active project
+          </p>
+        )}
 
         {loading ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
@@ -120,7 +111,8 @@ export default function AgentsPage() {
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              No agents found. <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>Set up a team</a> to get started.
+              No agents found for {project || 'this project'}. Connect a project with agents or{' '}
+              <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>set up a new team</a>.
             </p>
           </div>
         ) : (

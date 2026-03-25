@@ -1,40 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { getConfig, resolveDir } from '@/lib/config';
+import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const projectParam = searchParams.get('project');
     const dirParam = searchParams.get('dir');
 
     let agentsDir: string;
+    let projectName: string;
+
     if (dirParam) {
-      // Resolve and constrain to .claude/agents within the given directory
+      // Direct directory override (legacy support)
       const resolved = path.resolve(dirParam);
       agentsDir = path.join(resolved, '.claude', 'agents');
-    } else {
+      projectName = path.basename(resolved);
+    } else if (projectParam) {
+      // Specific project by name
       const config = await getConfig();
-      agentsDir = resolveDir(config.agentsDir);
+      const projectConfig = getProjectConfig(config, projectParam);
+      if (!projectConfig) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
+      agentsDir = projectConfig.agentsDir;
+      projectName = projectParam;
+    } else {
+      // Active project
+      const config = await getConfig();
+      const active = getActiveProjectConfig(config);
+      agentsDir = active.agentsDir;
+      projectName = active.name;
     }
 
-    // List .md files in the agents directory
     let files: string[];
     try {
       const entries = await readdir(agentsDir);
       files = entries.filter(f => f.endsWith('.md'));
     } catch (err: any) {
       if (err.code === 'ENOENT') {
-        return NextResponse.json(
-          { error: 'Agents directory not found' },
-          { status: 404 },
-        );
+        return NextResponse.json({ agents: [], project: projectName, error: 'Agents directory not found' });
       }
       throw err;
     }
 
-    // Parse each agent file
     const agents = await Promise.all(
       files.map(async (filename) => {
         const filePath = path.join(agentsDir, filename);
@@ -53,12 +64,9 @@ export async function GET(req: NextRequest) {
       }),
     );
 
-    return NextResponse.json(agents);
+    return NextResponse.json({ agents, project: projectName });
   } catch (err: any) {
     console.error('Agents list error:', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

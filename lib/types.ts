@@ -36,10 +36,24 @@ export interface Preset {
   agents: string[];
 }
 
-export interface CouncilConfig {
-  projectDir: string;
+/** A connected project that agents can work on */
+export interface ProjectConfig {
+  path: string;
   meetingsDir: string;
   agentsDir: string;
+}
+
+/** Top-level council configuration */
+export interface CouncilConfig {
+  /** Connected projects keyed by name */
+  projects: Record<string, ProjectConfig>;
+  /** The currently active project name, or "workspace" */
+  activeProject: string;
+  /** Workspace mode — agents and meetings live in agent-council itself */
+  workspace: {
+    agentsDir: string;
+    meetingsDir: string;
+  };
   port: number;
 }
 
@@ -52,6 +66,7 @@ export interface MeetingListItem {
   started: string | null;
   participants: string[];
   modifiedAt: string;
+  project?: string;
 }
 
 export interface MeetingDetail extends MeetingListItem {

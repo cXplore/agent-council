@@ -22,6 +22,22 @@ function formatTimeAgo(isoDate: string): string {
   return `${days}d ago`;
 }
 
+/** Small muted badge for project names */
+function ProjectBadge({ project }: { project: string }) {
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded"
+      style={{
+        color: 'var(--text-muted)',
+        background: 'var(--border)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {project}
+    </span>
+  );
+}
+
 export default function MeetingViewer() {
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -35,6 +51,9 @@ export default function MeetingViewer() {
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Active project from the API
+  const [activeProject, setActiveProject] = useState<string | null>(null);
+
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
   const lastContentLengthRef = useRef(0);
@@ -47,10 +66,38 @@ export default function MeetingViewer() {
   useEffect(() => { selectedRef.current = selected; }, [selected]);
   useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
 
+  // Fetch the active project on mount
+  useEffect(() => {
+    async function fetchActiveProject() {
+      try {
+        const res = await fetch('/api/projects');
+        if (res.ok) {
+          const data = await res.json();
+          setActiveProject(data.activeProject ?? null);
+        }
+      } catch {
+        // silent — will work without project context
+      }
+    }
+    fetchActiveProject();
+  }, []);
+
+  // Build query string with optional project param
+  const projectParam = useCallback((extra?: string) => {
+    const params = new URLSearchParams();
+    if (activeProject) params.set('project', activeProject);
+    if (extra) {
+      const extraParams = new URLSearchParams(extra);
+      extraParams.forEach((v, k) => params.set(k, v));
+    }
+    const str = params.toString();
+    return str ? `?${str}` : '';
+  }, [activeProject]);
+
   // Fetch meeting list — stable callback using refs for auto-select logic
   const fetchList = useCallback(async () => {
     try {
-      const res = await fetch('/api/meetings');
+      const res = await fetch(`/api/meetings${projectParam()}`);
       const data = await res.json();
       setMeetings(Array.isArray(data) ? data : []);
 
@@ -66,12 +113,12 @@ export default function MeetingViewer() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [projectParam]);
 
   // Fetch single meeting content
   const fetchDetail = useCallback(async (filename: string) => {
     try {
-      const res = await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`);
+      const res = await fetch(`/api/meetings${projectParam(`file=${encodeURIComponent(filename)}`)}`);
       if (!res.ok) return;
       const data: MeetingDetail = await res.json();
 
@@ -112,7 +159,7 @@ export default function MeetingViewer() {
     } catch {
       // silent
     }
-  }, [userScrolledUp]);
+  }, [userScrolledUp, projectParam]);
 
   // Initial list load + periodic refresh
   useEffect(() => {
@@ -157,7 +204,7 @@ export default function MeetingViewer() {
   const deleteMeeting = async (filename: string) => {
     if (!confirm('Delete this meeting?')) return;
     try {
-      const res = await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/meetings${projectParam(`file=${encodeURIComponent(filename)}`)}`, { method: 'DELETE' });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setError(data.error || 'Failed to delete meeting');
@@ -174,10 +221,13 @@ export default function MeetingViewer() {
     setSending(true);
     setError(null);
     try {
+      const body: Record<string, string> = { file: selected, message: chatInput.trim() };
+      if (activeProject) body.project = activeProject;
+
       const res = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file: selected, message: chatInput.trim() }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -192,6 +242,12 @@ export default function MeetingViewer() {
       setSending(false);
     }
   };
+
+  // Check if meetings span multiple projects
+  const hasMultipleProjects = (() => {
+    const projects = new Set(meetings.map(m => m.project).filter(Boolean));
+    return projects.size > 1;
+  })();
 
   // ─── List View ───
   if (!selected) {
@@ -224,7 +280,7 @@ export default function MeetingViewer() {
                   style={{ background: 'var(--error)', color: 'white' }}
                 >
                   <span>{error}</span>
-                  <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">✕</button>
+                  <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
                 </div>
               )}
               {meetings.map((m) => (
@@ -259,6 +315,9 @@ export default function MeetingViewer() {
                       >
                         LIVE
                       </span>
+                    )}
+                    {hasMultipleProjects && m.project && (
+                      <ProjectBadge project={m.project} />
                     )}
                   </div>
                   <div className="flex items-center gap-2 ml-5 mb-1">
@@ -326,6 +385,10 @@ export default function MeetingViewer() {
 
         {detail && (
           <>
+            {detail.project && (
+              <ProjectBadge project={detail.project} />
+            )}
+
             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               {detail.title || formatType(detail.type)}
             </span>
@@ -480,7 +543,7 @@ export default function MeetingViewer() {
           style={{ background: 'var(--error)', color: 'white' }}
         >
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">✕</button>
+          <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
         </div>
       )}
 
