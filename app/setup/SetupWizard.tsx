@@ -103,9 +103,10 @@ export default function SetupWizard() {
         }),
       }).then(r => r.json());
 
+      const agentCount = connectData.agentCount ?? 0;
       setConnectInfo({
-        hasAgents: connectData.hasAgents ?? false,
-        agentCount: connectData.agentCount ?? 0,
+        hasAgents: agentCount > 0,
+        agentCount,
         hasFacilitator: connectData.hasFacilitator ?? false,
       });
       setConnected(true);
