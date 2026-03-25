@@ -89,19 +89,54 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
 
   if (!data) return null;
 
-  const activeLabel = data.activeProject === 'workspace'
-    ? 'Local'
-    : data.projects.find(p => p.name === data.activeProject)?.name ?? data.activeProject;
+  const hasProjects = data.projects.length > 0;
+  const isOnWorkspace = data.activeProject === 'workspace';
+  const activeProject = data.projects.find(p => p.name === data.activeProject);
+  const activeLabel = isOnWorkspace
+    ? (hasProjects ? data.projects[0].name : null)
+    : activeProject?.name ?? data.activeProject;
+
+  // No project connected — show link to setup instead of dropdown
+  if (!hasProjects) {
+    return (
+      <div className={inline ? 'w-full' : ''}>
+        <a
+          href="/setup"
+          className="flex items-center gap-1.5 text-sm transition-colors"
+          style={{
+            color: 'var(--text-muted)',
+            width: inline ? '100%' : undefined,
+            padding: inline ? '8px 12px' : undefined,
+            borderRadius: inline ? '8px' : undefined,
+            background: inline ? 'var(--bg-elevated)' : undefined,
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              border: '1.5px solid var(--text-muted)',
+              flexShrink: 0,
+            }}
+          />
+          <span>Connect a project</span>
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className={inline ? 'w-full' : 'relative'}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => data.projects.length > 1 ? setOpen(!open) : undefined}
         disabled={switching}
         className="flex items-center gap-1.5 text-sm transition-colors"
         style={{
           color: 'var(--text-secondary)',
           opacity: switching ? 0.5 : 1,
+          cursor: data.projects.length > 1 ? 'pointer' : 'default',
           width: inline ? '100%' : undefined,
           padding: inline ? '8px 12px' : undefined,
           borderRadius: inline ? '8px' : undefined,
@@ -121,22 +156,24 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {activeLabel}
         </span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          style={{
-            flexShrink: 0,
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 150ms',
-          }}
-        >
-          <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        {data.projects.length > 1 && (
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            style={{
+              flexShrink: 0,
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 150ms',
+            }}
+          >
+            <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
       </button>
 
-      {open && (
+      {open && data.projects.length > 1 && (
         <div
           style={{
             position: inline ? 'relative' : 'absolute',
@@ -153,62 +190,6 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
             overflow: 'hidden',
           }}
         >
-          {/* Workspace option — always first */}
-          <button
-            onClick={() => handleSwitch('workspace')}
-            className="w-full text-left transition-colors"
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: data.activeProject === 'workspace' ? 'var(--accent-muted)' : 'transparent',
-            }}
-          >
-            <span
-              style={{
-                width: 4,
-                height: 28,
-                borderRadius: 2,
-                background: data.activeProject === 'workspace' ? 'var(--accent)' : 'transparent',
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ minWidth: 0 }}>
-              <div
-                className="text-sm"
-                style={{
-                  color: data.activeProject === 'workspace' ? 'var(--accent)' : 'var(--text-primary)',
-                  fontWeight: data.activeProject === 'workspace' ? 600 : 400,
-                }}
-              >
-                Local
-              </div>
-              <div
-                className="text-xs"
-                style={{
-                  color: 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Agents and meetings stored here
-              </div>
-            </div>
-          </button>
-
-          {data.projects.length > 0 && (
-            <div
-              style={{
-                height: 1,
-                background: 'var(--border)',
-                margin: '4px 10px',
-              }}
-            />
-          )}
-
           {/* Connected projects */}
           {data.projects.map(project => (
             <div
