@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import ReactMarkdown, { type Components } from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 import { getAgentColor } from '@/lib/utils';
+import { createMeetingComponents } from '@/lib/md-components';
 
 const POLL_INTERVAL = 2000;
 
@@ -38,74 +39,7 @@ function ProjectBadge({ project }: { project: string }) {
   );
 }
 
-const mdComponents: Components = {
-  h1: ({ children }) => (
-    <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
-      {children}
-    </h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--text-primary)' }}>
-      {children}
-    </h3>
-  ),
-  p: ({ children }) => (
-    <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-      {children}
-    </p>
-  ),
-  strong: ({ children }) => {
-    const name = String(children).replace(/:$/, '');
-    const color = getAgentColor(name);
-    return <strong style={{ color }}>{children}</strong>;
-  },
-  ul: ({ children }) => (
-    <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
-      {children}
-    </ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
-      {children}
-    </ol>
-  ),
-  li: ({ children }) => (
-    <li className="leading-relaxed">{children}</li>
-  ),
-  hr: () => (
-    <hr className="my-6" style={{ borderColor: 'var(--border)' }} />
-  ),
-  blockquote: ({ children }) => (
-    <blockquote
-      className="pl-4 my-4 italic"
-      style={{ borderLeft: '2px solid var(--accent)', color: 'var(--text-muted)' }}
-    >
-      {children}
-    </blockquote>
-  ),
-  code: ({ children }) => (
-    <code
-      className="text-xs px-1.5 py-0.5 rounded"
-      style={{ background: 'var(--border)', color: 'var(--accent)' }}
-    >
-      {children}
-    </code>
-  ),
-  input: ({ checked, ...props }) => (
-    <input
-      type="checkbox"
-      checked={checked}
-      readOnly
-      className="mr-2"
-      {...props}
-    />
-  ),
-};
+const mdComponents = createMeetingComponents(getAgentColor);
 
 export default function MeetingViewer() {
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
@@ -642,7 +576,7 @@ export default function MeetingViewer() {
       {userScrolledUp && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-20 right-6 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"
+          className="fixed bottom-24 sm:bottom-20 right-6 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"
           style={{
             background: 'var(--accent)',
             color: 'var(--bg)',

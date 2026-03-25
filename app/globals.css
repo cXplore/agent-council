@@ -17,7 +17,7 @@
   --live-green-muted: rgba(74, 222, 128, 0.15);
   --error: #ef4444;
   --warning: #f59e0b;
-  --success: #22c55e;
+  --success: var(--live-green);
 }
 
 body {

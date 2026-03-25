@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
+import { docComponents } from '@/lib/md-components';
 
 interface AgentInfo {
   filename: string;
@@ -45,16 +46,20 @@ export default function AgentsPage() {
 
   if (selected) {
     return (
-      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-        <div className="max-w-3xl mx-auto px-6 py-12">
+      <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+        <div
+          className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4"
+          style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}
+        >
           <button
             onClick={() => setSelected(null)}
-            className="text-sm hover:underline mb-6"
+            className="text-sm hover:underline"
             style={{ color: 'var(--accent)' }}
           >
             &larr; All agents
           </button>
-
+        </div>
+        <div className="max-w-3xl mx-auto px-6 py-8 w-full">
           <div className="flex items-center gap-3 mb-6">
             <span
               className="w-3 h-3 rounded-full"
@@ -80,20 +85,7 @@ export default function AgentsPage() {
               color: 'var(--text-secondary)',
             }}
           >
-            <ReactMarkdown
-              components={{
-                h1: ({ children }) => <h1 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{children}</h1>,
-                h2: ({ children }) => <h2 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--accent)' }}>{children}</h2>,
-                h3: ({ children }) => <h3 className="text-sm font-semibold mt-4 mb-2" style={{ color: 'var(--text-primary)' }}>{children}</h3>,
-                p: ({ children }) => <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{children}</p>,
-                ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>{children}</ol>,
-                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-                strong: ({ children }) => <strong style={{ color: 'var(--text-primary)' }}>{children}</strong>,
-                code: ({ children }) => <code className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--border)', color: 'var(--accent)' }}>{children}</code>,
-                hr: () => <hr className="my-4" style={{ borderColor: 'var(--border)' }} />,
-              }}
-            >
+            <ReactMarkdown components={docComponents}>
               {selected.content}
             </ReactMarkdown>
           </div>

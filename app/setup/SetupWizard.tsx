@@ -370,7 +370,7 @@ export default function SetupWizard() {
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
               >
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--live-green)' }} />
                   <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connected</h3>
                 </div>
                 {connectInfo && (
@@ -379,7 +379,7 @@ export default function SetupWizard() {
                       <p>
                         Found <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.agentCount} agents</strong> in your project.
                         {connectInfo.hasFacilitator
-                          ? <span style={{ color: 'var(--success)' }}> Facilitator detected — meetings are ready.</span>
+                          ? <span style={{ color: 'var(--live-green)' }}> Facilitator detected — meetings are ready.</span>
                           : <span style={{ color: 'var(--warning)' }}> No facilitator found — you&apos;ll need one to run meetings. <a href="/setup" onClick={(e) => { e.preventDefault(); setStep('path'); }} className="underline" style={{ color: 'var(--accent)' }}>Generate agents</a></span>
                         }
                       </p>
