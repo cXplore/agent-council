@@ -49,10 +49,15 @@ export async function POST(req: NextRequest) {
       // no agents dir
     }
 
-    // Ensure meetings directory exists
+    // Ensure meetings directory exists — must be inside projectPath
     const absMeetingsDir = path.isAbsolute(resolvedMeetingsDir)
       ? resolvedMeetingsDir
       : path.join(projectPath, resolvedMeetingsDir);
+    const normalizedMeetings = path.resolve(absMeetingsDir);
+    const normalizedProject = path.resolve(projectPath);
+    if (!normalizedMeetings.startsWith(normalizedProject)) {
+      return NextResponse.json({ error: 'meetingsDir must be inside the project directory' }, { status: 400 });
+    }
     try {
       await mkdir(absMeetingsDir, { recursive: true });
     } catch {

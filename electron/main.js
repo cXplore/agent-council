@@ -1,5 +1,5 @@
 const { app, BrowserWindow, shell, Menu, Tray, nativeImage } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const http = require('http');
 
@@ -16,7 +16,7 @@ if (!gotTheLock) {
   app.quit();
 }
 app.on('second-instance', () => {
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
   }
@@ -111,6 +111,18 @@ function startNextServer() {
     nextProcess.on('exit', (code) => {
       console.log(`Next.js server exited with code ${code}`);
       nextProcess = null;
+
+      // If server crashes after window is open, show error dialog
+      if (mainWindow && code !== 0 && code !== null) {
+        const { dialog } = require('electron');
+        dialog.showMessageBoxSync(mainWindow, {
+          type: 'error',
+          title: 'Server Stopped',
+          message: 'The Agent Council server stopped unexpectedly.',
+          buttons: ['Quit'],
+        });
+        app.quit();
+      }
     });
 
     // Wait for the server to be ready
@@ -159,7 +171,7 @@ function createWindow(startPage = '/meetings') {
 
   // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
+    if (url.startsWith(`http://localhost:${PORT}`)) {
       return { action: 'allow' };
     }
     shell.openExternal(url);
@@ -281,11 +293,15 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   if (nextProcess) {
-    // Kill the Next.js server process tree
-    if (process.platform === 'win32') {
-      spawn('taskkill', ['/pid', String(nextProcess.pid), '/f', '/t'], { stdio: 'ignore' });
-    } else {
-      nextProcess.kill('SIGTERM');
+    // Kill the Next.js server process tree synchronously to prevent orphans
+    try {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${nextProcess.pid} /f /t`, { stdio: 'ignore' });
+      } else {
+        nextProcess.kill('SIGKILL');
+      }
+    } catch {
+      // Process may have already exited
     }
     nextProcess = null;
   }

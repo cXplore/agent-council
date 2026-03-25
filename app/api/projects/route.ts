@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { getConfig, saveConfig, clearConfigCache } from '@/lib/config';
+import { getConfig, saveConfig } from '@/lib/config';
 
 /** GET /api/projects — list all projects + active */
 export async function GET() {

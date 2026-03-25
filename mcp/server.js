@@ -39,7 +39,7 @@ function councilRequest(path, method = 'GET', body = null) {
       headers: { 'Content-Type': 'application/json' },
     };
 
-    const req = http.request(options, (res) => {
+    const req = http.request({ ...options, timeout: 10000 }, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
@@ -53,6 +53,11 @@ function councilRequest(path, method = 'GET', body = null) {
 
     req.on('error', (err) => {
       reject(new Error(`Agent Council not reachable at ${COUNCIL_URL}: ${err.message}`));
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error(`Request to Agent Council timed out`));
     });
 
     if (body) req.write(JSON.stringify(body));

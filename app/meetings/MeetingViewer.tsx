@@ -549,8 +549,14 @@ export default function MeetingViewer() {
                 const clean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const cleanSeen = seenContent.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const hasNew = clean.length > cleanSeen.length && cleanSeen.length > 0;
-                const seenPart = hasNew ? cleanSeen : clean;
-                const newPart = hasNew ? clean.slice(cleanSeen.length) : null;
+                // Split at newline boundary to avoid breaking markdown mid-block
+                let splitIdx = cleanSeen.length;
+                if (hasNew) {
+                  const nlIdx = clean.lastIndexOf('\n', splitIdx);
+                  if (nlIdx > 0) splitIdx = nlIdx + 1;
+                }
+                const seenPart = hasNew ? clean.slice(0, splitIdx) : clean;
+                const newPart = hasNew ? clean.slice(splitIdx) : null;
 
                 return (
                   <>
@@ -633,7 +639,7 @@ export default function MeetingViewer() {
       )}
 
       {/* Scroll to bottom button */}
-      {userScrolledUp && isLive && (
+      {userScrolledUp && (
         <button
           onClick={scrollToBottom}
           className="fixed bottom-20 right-6 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"

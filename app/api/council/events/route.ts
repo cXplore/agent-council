@@ -21,6 +21,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'event and meeting are required' }, { status: 400 });
     }
 
+    // Validate event type and field lengths
+    const validEvents = ['meeting_starting', 'round_starting', 'round_complete', 'meeting_complete', 'agent_speaking'];
+    if (!validEvents.includes(event)) {
+      return NextResponse.json({ error: 'Invalid event type' }, { status: 400 });
+    }
+    if (meeting.length > 500 || (detail && detail.length > 2000)) {
+      return NextResponse.json({ error: 'Field too long' }, { status: 400 });
+    }
+
     events.push({ event, meeting, detail, timestamp: timestamp || new Date().toISOString() });
 
     // Keep only recent events

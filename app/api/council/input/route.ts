@@ -43,6 +43,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'meeting and message required' }, { status: 400 });
     }
 
+    // Cap message length
+    if (message.length > 10000 || meeting.length > 500) {
+      return NextResponse.json({ error: 'Field too long' }, { status: 400 });
+    }
+
     messages.push({
       meeting,
       message,

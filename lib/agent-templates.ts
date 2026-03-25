@@ -52,11 +52,11 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 
 // Parse frontmatter from agent markdown
 export function parseFrontmatter(content: string): { frontmatter: Record<string, any>; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: content };
 
   const frontmatter: Record<string, any> = {};
-  const lines = match[1].split('\n');
+  const lines = match[1].split(/\r?\n/);
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];

@@ -7,9 +7,9 @@
     "agent-council": "./bin/cli.js"
   },
   "scripts": {
-    "dev": "next dev -p 3003",
+    "dev": "next dev -p 3003 -H 127.0.0.1",
     "build": "next build",
-    "start": "next start -p 3003",
+    "start": "next start -p 3003 -H 127.0.0.1",
     "lint": "eslint",
     "electron:dev": "concurrently --kill-others \"next dev -p 3001\" \"wait-on http://localhost:3001 && electron .\"",
     "electron:build": "next build && electron-builder",

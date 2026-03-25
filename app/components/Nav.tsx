@@ -90,7 +90,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
   const isOnWorkspace = data.activeProject === 'workspace';
   const activeProject = data.projects.find(p => p.name === data.activeProject);
   const activeLabel = isOnWorkspace
-    ? (hasProjects ? data.projects[0].name : null)
+    ? null
     : activeProject?.name ?? data.activeProject;
 
   // No project connected — show link to setup instead of dropdown

@@ -50,8 +50,22 @@ export async function POST(req: NextRequest) {
       MEETINGS_DIR: 'meetings',
     };
 
-    // Validate targetDir is an absolute path to prevent path traversal
+    // Validate targetDir is an existing directory
     const resolvedTarget = path.resolve(targetDir);
+
+    // Reject filesystem root or system paths
+    if (resolvedTarget === '/' || resolvedTarget === 'C:\\' || resolvedTarget.length < 4) {
+      return NextResponse.json({ error: 'Invalid target directory' }, { status: 400 });
+    }
+
+    // Verify the directory actually exists
+    try {
+      const { stat: statFn } = await import('node:fs/promises');
+      const s = await statFn(resolvedTarget);
+      if (!s.isDirectory()) throw new Error('Not a directory');
+    } catch {
+      return NextResponse.json({ error: 'Target directory does not exist' }, { status: 404 });
+    }
 
     // Ensure agents directory exists
     const agentsDir = path.join(resolvedTarget, '.claude', 'agents');

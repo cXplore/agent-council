@@ -45,6 +45,7 @@ export default function SetupWizard() {
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean } | null>(null);
+  const [generateError, setGenerateError] = useState('');
 
   const handleConnect = async () => {
     if (!projectPath.trim()) return;
@@ -223,7 +224,7 @@ export default function SetupWizard() {
       setGeneratedFiles(data.files || []);
       setStep('generate');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Generation failed');
+      setGenerateError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGenerating(false);
     }
@@ -609,9 +610,13 @@ export default function SetupWizard() {
               );
             })}
 
+            {generateError && (
+              <p className="text-sm mt-2" style={{ color: 'var(--error)' }}>{generateError}</p>
+            )}
+
             <div className="flex gap-3 pt-4">
               <button
-                onClick={() => setStep(profile ? 'scan' : 'path')}
+                onClick={() => { setStep(profile ? 'scan' : 'path'); setGenerateError(''); }}
                 className="px-5 py-2.5 rounded-lg text-sm font-medium"
                 style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
               >
