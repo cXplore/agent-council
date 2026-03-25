@@ -53,6 +53,7 @@ export default function MeetingViewer() {
   const [sending, setSending] = useState(false);
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
@@ -132,7 +133,7 @@ export default function MeetingViewer() {
         }
       }
     } catch {
-      // silent
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -365,6 +366,13 @@ export default function MeetingViewer() {
 
           {loading ? (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+          ) : fetchError ? (
+            <div
+              className="rounded-lg px-5 py-4 text-sm"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--error)', color: 'var(--text-secondary)' }}
+            >
+              Could not load meetings. Check that the project directory exists and try refreshing.
+            </div>
           ) : hasProject === false ? null : meetings.length === 0 ? (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
               No meetings yet.

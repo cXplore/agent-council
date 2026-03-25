@@ -24,6 +24,7 @@ export default function AgentsPage() {
   const [project, setProject] = useState<string>('');
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -36,7 +37,7 @@ export default function AgentsPage() {
           setProject(data.project);
         }
       } catch {
-        // silent
+        setFetchError(true);
       } finally {
         setLoading(false);
       }
@@ -101,9 +102,16 @@ export default function AgentsPage() {
           Agents
         </h1>
         {project && (
-          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-            {project} &middot; {agents.length} agent{agents.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-3 mb-6">
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              {project} &middot; {agents.length} agent{agents.length !== 1 ? 's' : ''}
+            </p>
+            {agents.length > 0 && (
+              <a href="/setup" className="text-xs" style={{ color: 'var(--accent)' }}>
+                Add or regenerate
+              </a>
+            )}
+          </div>
         )}
         {!project && !loading && (
           <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
@@ -113,6 +121,13 @@ export default function AgentsPage() {
 
         {loading ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+        ) : fetchError ? (
+          <div
+            className="rounded-lg px-5 py-4 text-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--error)', color: 'var(--text-secondary)' }}
+          >
+            Could not load agents. Check that the project directory exists and try refreshing.
+          </div>
         ) : agents.length === 0 ? (
           <div
             className="rounded-lg p-8 text-center"

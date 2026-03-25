@@ -7,7 +7,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const NAV_ITEMS = [
   { href: '/meetings', label: 'Meetings' },
   { href: '/agents', label: 'Agents' },
-  { href: '/guide', label: 'Guide' },
 ];
 
 interface ProjectInfo {
@@ -60,12 +59,11 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
         body: JSON.stringify({ action: 'switch', name }),
       });
       setOpen(false);
-      router.refresh();
       window.location.reload();
     } catch {
       setSwitching(false);
     }
-  }, [data, router]);
+  }, [data]);
 
   const handleRemove = useCallback(async (name: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -78,14 +76,22 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
         body: JSON.stringify({ action: 'remove', name }),
       });
       setOpen(false);
-      router.refresh();
       window.location.reload();
     } catch {
       setSwitching(false);
     }
   }, [router]);
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <div className={inline ? 'w-full' : ''}>
+        <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--border)', flexShrink: 0 }} />
+          <span>&nbsp;</span>
+        </span>
+      </div>
+    );
+  }
 
   const hasProjects = data.projects.length > 0;
   const isOnWorkspace = data.activeProject === 'workspace';
@@ -342,6 +348,14 @@ export default function Nav() {
               </Link>
             );
           })}
+          <Link
+            href="/guide"
+            className="text-xs transition-colors"
+            style={{ color: pathname === '/guide' ? 'var(--accent)' : 'var(--text-muted)', opacity: 0.7 }}
+            title="How it works"
+          >
+            ?
+          </Link>
         </div>
 
         {/* Mobile hamburger */}
