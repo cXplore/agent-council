@@ -54,8 +54,10 @@ export default function MeetingViewer() {
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Active project from the API
+  // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [hasProject, setHasProject] = useState<boolean | null>(null); // null = loading
+  const [hasFacilitator, setHasFacilitator] = useState<boolean>(true); // assume yes until checked
 
   // Track seen content for fade-in splitting
   const [seenContent, setSeenContent] = useState<string>('');
@@ -74,20 +76,33 @@ export default function MeetingViewer() {
   useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
   useEffect(() => { userScrolledUpRef.current = userScrolledUp; }, [userScrolledUp]);
 
-  // Fetch the active project on mount
+  // Fetch project state on mount
   useEffect(() => {
-    async function fetchActiveProject() {
+    async function fetchProjectState() {
       try {
         const res = await fetch('/api/projects');
-        if (res.ok) {
-          const data = await res.json();
-          setActiveProject(data.activeProject ?? null);
+        if (!res.ok) return;
+        const data = await res.json();
+        const active = data.activeProject ?? null;
+        setActiveProject(active);
+        setHasProject(data.projects?.length > 0);
+
+        // Check if active project has a facilitator
+        if (active && active !== 'workspace') {
+          try {
+            const agentsRes = await fetch('/api/agents');
+            if (agentsRes.ok) {
+              const agentsData = await agentsRes.json();
+              const agents = agentsData.agents || [];
+              setHasFacilitator(agents.some((a: { filename: string }) => a.filename === 'facilitator.md'));
+            }
+          } catch { /* silent */ }
         }
       } catch {
-        // silent — will work without project context
+        // silent
       }
     }
-    fetchActiveProject();
+    fetchProjectState();
   }, []);
 
   // Build query string with optional project param
@@ -268,22 +283,79 @@ export default function MeetingViewer() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="max-w-3xl mx-auto px-6 py-12">
-          <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
-            Meetings
-          </h1>
-
-          {/* How to start */}
-          <div
-            className="rounded-lg px-5 py-4 mb-6 text-sm"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-          >
-            <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
-            in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
+          <div className="flex items-baseline gap-3 mb-6">
+            <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Meetings
+            </h1>
+            {hasProject && activeProject && activeProject !== 'workspace' && (
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                {activeProject}
+              </span>
+            )}
           </div>
+
+          {/* State-aware guidance */}
+          {hasProject === false ? (
+            /* No project connected */
+            <div
+              className="rounded-lg p-6"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+            >
+              <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+                Connect a project to get started
+              </p>
+              <ol className="space-y-2 text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                <li className="flex gap-3">
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>1</span>
+                  Connect your project — point us at the directory
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>2</span>
+                  Set up agents (or use your existing ones)
+                </li>
+                <li className="flex gap-3">
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>3</span>
+                  Ask Claude Code for a meeting — it shows up here live
+                </li>
+              </ol>
+              <a
+                href="/setup"
+                className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
+                style={{ background: 'var(--accent)', color: 'white' }}
+              >
+                Connect project
+              </a>
+              <a
+                href="/guide"
+                className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block ml-3"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                How it works
+              </a>
+            </div>
+          ) : !hasFacilitator ? (
+            /* Project connected but no facilitator */
+            <div
+              className="rounded-lg px-5 py-4 mb-6 text-sm"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--warning)', color: 'var(--text-secondary)' }}
+            >
+              <strong style={{ color: 'var(--warning)' }}>No facilitator agent found.</strong>{' '}
+              Meetings need a facilitator to run. <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>Set up agents</a> to generate one.
+            </div>
+          ) : (
+            /* Ready — show hint */
+            <div
+              className="rounded-lg px-5 py-4 mb-6 text-sm"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            >
+              <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
+              in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
+            </div>
+          )}
 
           {loading ? (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
-          ) : meetings.length === 0 ? (
+          ) : hasProject === false ? null : meetings.length === 0 ? (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
               No meetings yet.
             </div>
@@ -416,12 +488,16 @@ export default function MeetingViewer() {
               {detail.title || formatType(detail.type)}
             </span>
 
-            {isLive && (
+            {isLive ? (
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full animate-pulse"
                 style={{ background: 'var(--live-green)' }}
                 title="Meeting in progress"
               />
+            ) : detail && (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Completed
+              </span>
             )}
           </>
         )}

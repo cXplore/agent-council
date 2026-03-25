@@ -64,13 +64,14 @@ function migrateConfig(raw: Record<string, unknown>): CouncilConfig {
 }
 
 export async function getConfig(): Promise<CouncilConfig> {
-  if (cachedConfig) return JSON.parse(JSON.stringify(cachedConfig));
-
+  // Always read from disk in dev to avoid stale cache from module re-evaluation
   try {
     const raw = JSON.parse(await readFile(getConfigPath(), 'utf-8'));
     cachedConfig = migrateConfig(raw);
   } catch {
-    cachedConfig = { ...DEFAULT_CONFIG, projects: {} };
+    if (!cachedConfig) {
+      cachedConfig = { ...DEFAULT_CONFIG, projects: {} };
+    }
   }
 
   return JSON.parse(JSON.stringify(cachedConfig!));

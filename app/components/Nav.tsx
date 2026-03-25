@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 const NAV_ITEMS = [
   { href: '/meetings', label: 'Meetings' },
   { href: '/agents', label: 'Agents' },
+  { href: '/guide', label: 'Guide' },
 ];
 
 interface ProjectInfo {
@@ -90,11 +91,11 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
   const isOnWorkspace = data.activeProject === 'workspace';
   const activeProject = data.projects.find(p => p.name === data.activeProject);
   const activeLabel = isOnWorkspace
-    ? null
+    ? (hasProjects ? 'Workspace' : null)
     : activeProject?.name ?? data.activeProject;
 
-  // No project connected — show link to setup instead of dropdown
-  if (!hasProjects) {
+  // No project connected and on workspace — show link to setup
+  if (!hasProjects && isOnWorkspace) {
     return (
       <div className={inline ? 'w-full' : ''}>
         <a
