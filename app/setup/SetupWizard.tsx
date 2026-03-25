@@ -222,6 +222,21 @@ export default function SetupWizard() {
 
       const data = await res.json();
       setGeneratedFiles(data.created || []);
+
+      // Auto-connect the project so meetings/agents pages work
+      if (targetDir !== '.') {
+        try {
+          await fetch('/api/setup/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectPath: targetDir,
+              meetingsDir: 'meetings',
+            }),
+          });
+        } catch { /* non-critical — agents are already generated */ }
+      }
+
       setStep('generate');
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Generation failed');
@@ -301,18 +316,18 @@ export default function SetupWizard() {
               </p>
             </button>
 
-            <button
-              onClick={handleSkipToDefaults}
-              className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110"
+            <a
+              href="/guide"
+              className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110 block"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
               <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                Try with defaults
+                How does this work?
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Get a standard 5-agent team without connecting a project. Good for exploring how it works.
+                Read the guide to understand agents, meetings, and the setup process.
               </p>
-            </button>
+            </a>
           </div>
         )}
 
@@ -447,11 +462,11 @@ export default function SetupWizard() {
                   {scanning ? 'Scanning...' : 'Scan Project'}
                 </button>
                 <button
-                  onClick={handleSkipToDefaults}
+                  onClick={() => setStep('choose')}
                   className="px-5 py-2.5 rounded-lg text-sm font-medium"
                   style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >
-                  No project — use generic defaults
+                  Back
                 </button>
               </div>
             </div>

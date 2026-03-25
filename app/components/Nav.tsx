@@ -318,6 +318,7 @@ export default function Nav() {
                 className="text-sm transition-colors"
                 style={{
                   color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                  fontWeight: isActive ? 600 : 400,
                 }}
               >
                 {item.label}

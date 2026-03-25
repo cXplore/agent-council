@@ -57,7 +57,7 @@ export default function MeetingViewer() {
   // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [hasProject, setHasProject] = useState<boolean | null>(null); // null = loading
-  const [hasFacilitator, setHasFacilitator] = useState<boolean>(true); // assume yes until checked
+  const [hasFacilitator, setHasFacilitator] = useState<boolean | null>(null); // null = still checking
 
   // Track seen content for fade-in splitting
   const [seenContent, setSeenContent] = useState<string>('');
@@ -333,7 +333,7 @@ export default function MeetingViewer() {
                 How it works
               </a>
             </div>
-          ) : !hasFacilitator ? (
+          ) : hasFacilitator === false ? (
             /* Project connected but no facilitator */
             <div
               className="rounded-lg px-5 py-4 mb-6 text-sm"
@@ -392,7 +392,7 @@ export default function MeetingViewer() {
                         background: m.status === 'in-progress' ? 'var(--live-green)' : 'var(--text-muted)',
                       }}
                     />
-                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                       {m.title || formatType(m.type)}
                     </span>
                     {m.status === 'in-progress' && (
@@ -434,7 +434,6 @@ export default function MeetingViewer() {
                   <div className="flex items-center justify-between mt-2 ml-5">
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       {formatTimeAgo(m.modifiedAt)}
-                      {m.participants.length > 0 && ` \u00b7 ${m.participants.length} agents`}
                     </span>
                     {m.status !== 'in-progress' && (
                       <button
