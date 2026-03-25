@@ -198,6 +198,25 @@ Change the status metadata to `complete`:
 
 ---
 
+## Agent Council Integration
+
+If the `agent-council` MCP server is available, use it to coordinate with the live meeting viewer. This is optional — meetings work fine without it.
+
+### Before starting a meeting
+Call `council_status` to check if the viewer is running. If it is, the human may be watching live — pace your output accordingly.
+
+### During a meeting
+- Call `council_notify` with event `meeting_starting` when you create the hub file.
+- Call `council_notify` with event `round_starting` and the round number as detail before each round.
+- Call `council_notify` with event `agent_speaking` and the agent name as detail before spawning each agent.
+- Between rounds, call `council_check_input` with the meeting filename. If the human typed something, incorporate it as input for the next round — treat it as a directive from the meeting organizer.
+- Call `council_notify` with event `meeting_complete` when you close the meeting.
+
+### Human input from the viewer
+When `council_check_input` returns messages, the human is actively participating through the viewer. Acknowledge their input explicitly in your round transitions: "The meeting organizer adds: [their message]". Give it weight — they're watching live and chose to intervene.
+
+---
+
 ## The "Let's Work" Protocol
 
 When the user says "let's work" (or similar), execute this sequence:
