@@ -120,7 +120,22 @@ function startNextServer() {
   });
 }
 
-function createWindow() {
+async function getStartPage() {
+  // Check if any project is connected — if so, go straight to meetings
+  try {
+    const res = await new Promise((resolve, reject) => {
+      http.get(`http://localhost:${PORT}/api/projects`, (r) => {
+        let data = '';
+        r.on('data', (chunk) => { data += chunk; });
+        r.on('end', () => resolve(JSON.parse(data)));
+      }).on('error', reject);
+    });
+    if (res.projects && res.projects.length > 0) return '/meetings';
+  } catch {}
+  return '/setup';
+}
+
+function createWindow(startPage = '/meetings') {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -140,7 +155,7 @@ function createWindow() {
     mainWindow.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  mainWindow.loadURL(`http://localhost:${PORT}${startPage}`);
 
   // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -242,8 +257,9 @@ app.whenReady().then(async () => {
 
   try {
     await startNextServer();
+    const startPage = await getStartPage();
     splash.close();
-    createWindow();
+    createWindow(startPage);
   } catch (err) {
     console.error('Failed to start:', err);
     splash.close();
