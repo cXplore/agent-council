@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Council — Structured meetings for Claude Code agents</title>
+  <meta name="description" content="Run structured meetings between your Claude Code agents. Watch them deliberate in real time. Standups, design reviews, strategy sessions — with a live viewer.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #141414;
+      --bg-elevated: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #8b5cf6;
+      --accent-muted: rgba(139, 92, 246, 0.1);
+      --text-primary: #f5f5f5;
+      --text-secondary: #a0a0a0;
+      --text-muted: #666;
+      --live-green: #22c55e;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: var(--bg-elevated);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    /* Layout */
+    .container { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+
+    /* Nav */
+    nav {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    nav .logo { font-weight: 600; font-size: 14px; }
+    nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 14px; }
+    nav .links a { color: var(--text-muted); }
+    nav .links a:hover { color: var(--text-primary); text-decoration: none; }
+
+    /* Hero */
+    .hero { padding: 80px 0 48px; }
+    .hero h1 {
+      font-size: 40px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .hero .subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      max-width: 520px;
+      line-height: 1.7;
+    }
+    .hero .tagline {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .cta-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.9; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    /* Demo */
+    .demo {
+      margin: 48px 0 64px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .demo-header {
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .demo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--live-green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .demo-live { color: var(--live-green); font-size: 12px; font-weight: 600; }
+    .demo-title { font-weight: 500; }
+    .demo-agents { margin-left: auto; display: flex; gap: 6px; }
+    .demo-agent {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .demo-body {
+      padding: 20px 20px;
+      background: var(--bg-card);
+      min-height: 220px;
+    }
+    .demo-msg {
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      opacity: 0;
+      animation: fadeIn 0.6s ease forwards;
+    }
+    .demo-msg:nth-child(1) { animation-delay: 0.3s; }
+    .demo-msg:nth-child(2) { animation-delay: 1.5s; }
+    .demo-msg:nth-child(3) { animation-delay: 2.7s; }
+    .demo-msg:nth-child(4) { animation-delay: 3.9s; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .demo-msg strong { font-weight: 600; }
+    .demo-footer {
+      padding: 10px 16px;
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .demo-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .demo-send {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.3;
+      border: none;
+    }
+
+    /* Sections */
+    section { margin-bottom: 64px; }
+    section h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Install */
+    .install-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .install-option {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .install-option h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .install-option p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .install-option pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      overflow-x: auto;
+    }
+
+    /* Meeting formats */
+    .formats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .format {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .format-name { font-size: 12px; font-weight: 500; }
+    .format-desc { font-size: 11px; color: var(--text-muted); }
+
+    /* Footer */
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .hero h1 { font-size: 28px; }
+      .cards, .install-options { grid-template-columns: 1fr; }
+      .formats { grid-template-columns: repeat(2, 1fr); }
+      .demo-agents { display: none; }
+      nav .links { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="logo">Agent Council</span>
+    <div class="links">
+      <a href="https://github.com/cXplore/agent-council">GitHub</a>
+      <a href="https://github.com/cXplore/agent-council/releases">Download</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Structured meetings for<br>your Claude Code agents</h1>
+      <p class="subtitle">
+        Run standups, design reviews, and strategy sessions between specialized agents.
+        Watch them deliberate in real time.
+      </p>
+      <p class="tagline">
+        Open source. Runs locally. Works with any project.
+      </p>
+      <div class="cta-row">
+        <a href="https://github.com/cXplore/agent-council/releases" class="btn btn-primary">Download App</a>
+        <a href="https://github.com/cXplore/agent-council" class="btn btn-secondary">View on GitHub</a>
+      </div>
+    </div>
+
+    <!-- Demo -->
+    <div class="demo">
+      <div class="demo-header">
+        <span class="demo-dot"></span>
+        <span class="demo-live">LIVE</span>
+        <span class="demo-title">Strategy Session — API Architecture</span>
+        <div class="demo-agents">
+          <span class="demo-agent" style="color: hsl(200,70%,65%); background: hsla(200,70%,65%,0.12)">project-manager</span>
+          <span class="demo-agent" style="color: hsl(0,65%,65%); background: hsla(0,65%,65%,0.12)">critic</span>
+          <span class="demo-agent" style="color: hsl(270,65%,70%); background: hsla(270,65%,70%,0.12)">north-star</span>
+          <span class="demo-agent" style="color: hsl(160,55%,60%); background: hsla(160,55%,60%,0.12)">architect</span>
+        </div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-msg">
+          <strong style="color: hsl(200,70%,65%)">project-manager:</strong>
+          We have 12 endpoints currently, all REST. Migration cost to GraphQL would be significant — roughly 2 weeks. The question is whether the flexibility justifies the investment.
+        </div>
+        <div class="demo-msg">
+          <strong style="color: hsl(0,65%,65%)">critic:</strong>
+          GraphQL solves a problem we don't have yet. With 12 endpoints, REST is fine. The real risk is adding complexity for theoretical future benefits.
+        </div>
+        <div class="demo-msg">
+          <strong style="color: hsl(270,65%,70%)">north-star:</strong>
+          The question isn't "do we need it today" — it's "will our API needs grow in ways that make REST painful?" If we're building toward mobile, GraphQL becomes compelling.
+        </div>
+        <div class="demo-msg">
+          <strong style="color: hsl(160,55%,60%)">architect:</strong>
+          This is a reversibility question. Stay REST, but design endpoints with future composition in mind. If we hit 30+ endpoints, revisit.
+        </div>
+      </div>
+      <div class="demo-footer">
+        <div class="demo-input">Add your thoughts (agents see this in the next round)...</div>
+        <button class="demo-send">Send</button>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <section>
+      <h2>How it works</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Connect</h3>
+          <p>Point it at your project. If you already have agents, you're ready. If not, it scans your codebase and generates a team.</p>
+        </div>
+        <div class="card">
+          <h3>Meet</h3>
+          <p>Ask Claude Code for a meeting in plain language. Agents deliberate in structured rounds — independent thinking first, then building on each other.</p>
+        </div>
+        <div class="card">
+          <h3>Watch</h3>
+          <p>See every agent's response appear live. Add your own voice to the discussion. Review past meetings anytime.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Meeting formats -->
+    <section>
+      <h2>7 meeting formats</h2>
+      <div class="formats">
+        <div class="format"><div class="format-name">Standup</div><div class="format-desc">Daily brief</div></div>
+        <div class="format"><div class="format-name">Design Review</div><div class="format-desc">Evaluate components</div></div>
+        <div class="format"><div class="format-name">Strategy Session</div><div class="format-desc">Direction & priorities</div></div>
+        <div class="format"><div class="format-name">Retrospective</div><div class="format-desc">What went well/messy</div></div>
+        <div class="format"><div class="format-name">Architecture Review</div><div class="format-desc">System design</div></div>
+        <div class="format"><div class="format-name">Sprint Planning</div><div class="format-desc">What to tackle next</div></div>
+        <div class="format"><div class="format-name">Incident Review</div><div class="format-desc">What went wrong</div></div>
+        <div class="format" style="border-style: dashed;"><div class="format-name" style="color: var(--text-muted)">Custom</div><div class="format-desc">Define your own</div></div>
+      </div>
+    </section>
+
+    <!-- The system -->
+    <section>
+      <h2>The meeting system</h2>
+      <div class="card" style="margin-bottom: 0;">
+        <p style="margin-bottom: 12px;">Every meeting includes three mandatory roles: <strong>project-manager</strong> (what's real), <strong>critic</strong> (what's wrong), and <strong>north-star</strong> (what's possible). Plus domain agents relevant to the topic.</p>
+        <p style="margin-bottom: 12px;"><strong>Round 1</strong> — all agents respond independently, in parallel. No anchoring, no groupthink.</p>
+        <p style="margin-bottom: 12px;"><strong>Round 2+</strong> — agents read the full conversation and respond sequentially. They engage with each other, challenge assumptions, and build on ideas.</p>
+        <p>The meeting file is the hub. Everyone reads from it, everyone writes to it. You watch it build up live.</p>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section>
+      <h2>Get started</h2>
+      <div class="install-options">
+        <div class="install-option">
+          <h3>Desktop App</h3>
+          <p>Download and run. No terminal needed.</p>
+          <a href="https://github.com/cXplore/agent-council/releases" class="btn btn-primary" style="display: block; text-align: center;">Download for Windows</a>
+        </div>
+        <div class="install-option">
+          <h3>From Source</h3>
+          <p>Clone, install, run. For developers.</p>
+          <pre>git clone https://github.com/cXplore/agent-council
+cd agent-council
+npm install
+npm run dev</pre>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="container">
+      Built for the Claude Code community. <a href="https://github.com/cXplore/agent-council">GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>
