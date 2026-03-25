@@ -64,21 +64,21 @@ function migrateConfig(raw: Record<string, unknown>): CouncilConfig {
 }
 
 export async function getConfig(): Promise<CouncilConfig> {
-  if (cachedConfig) return cachedConfig;
+  if (cachedConfig) return JSON.parse(JSON.stringify(cachedConfig));
 
   try {
     const raw = JSON.parse(await readFile(getConfigPath(), 'utf-8'));
     cachedConfig = migrateConfig(raw);
   } catch {
-    cachedConfig = { ...DEFAULT_CONFIG };
+    cachedConfig = { ...DEFAULT_CONFIG, projects: {} };
   }
 
-  return cachedConfig!;
+  return JSON.parse(JSON.stringify(cachedConfig!));
 }
 
 export async function saveConfig(config: CouncilConfig): Promise<void> {
   await writeFile(getConfigPath(), JSON.stringify(config, null, 2) + '\n', 'utf-8');
-  cachedConfig = config;
+  cachedConfig = JSON.parse(JSON.stringify(config));
 }
 
 export function clearConfigCache(): void {

@@ -47,6 +47,10 @@ export function fillTemplate(template: string, values: Record<string, string>): 
   for (const [key, value] of Object.entries(values)) {
     result = result.replaceAll(`{{${key}}}`, value);
   }
+  // Replace any remaining unresolved placeholders with a sensible default
+  result = result.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => {
+    return `[${key.toLowerCase().replace(/_/g, ' ')}]`;
+  });
   return result;
 }
 

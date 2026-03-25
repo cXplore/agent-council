@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       : path.join(projectPath, resolvedMeetingsDir);
     const normalizedMeetings = path.resolve(absMeetingsDir);
     const normalizedProject = path.resolve(projectPath);
-    if (!normalizedMeetings.startsWith(normalizedProject)) {
+    if (!normalizedMeetings.startsWith(normalizedProject + path.sep) && normalizedMeetings !== normalizedProject) {
       return NextResponse.json({ error: 'meetingsDir must be inside the project directory' }, { status: 400 });
     }
     try {

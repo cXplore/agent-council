@@ -576,7 +576,7 @@ export default function MeetingViewer() {
       {userScrolledUp && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-24 sm:bottom-20 right-6 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"
+          className="fixed bottom-24 sm:bottom-20 right-6 z-10 px-4 py-2 rounded-full text-sm shadow-lg transition-opacity"
           style={{
             background: 'var(--accent)',
             color: 'var(--bg)',

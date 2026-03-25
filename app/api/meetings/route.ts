@@ -31,7 +31,8 @@ function parseMetadata(content: string) {
     const agentMatches = content.matchAll(/\*\*([a-z][\w-]+):\*\*/g);
     const found = new Set<string>();
     for (const m of agentMatches) {
-      if (m[1] !== 'Type' && m[1] !== 'Date' && m[1] !== 'Participants' && m[1] !== 'Facilitator') {
+      const lower = m[1].toLowerCase();
+      if (lower !== 'type' && lower !== 'date' && lower !== 'participants' && lower !== 'facilitator') {
         found.add(m[1]);
       }
     }
@@ -39,7 +40,7 @@ function parseMetadata(content: string) {
   }
 
   return {
-    status: statusMatch?.[1] ?? (content.includes('## Summary') ? 'complete' : 'in-progress'),
+    status: statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress'),
     type: type?.toLowerCase().replace(/\s+/g, '-') ?? 'unknown',
     title: titleMatch?.[1]?.trim() ?? null,
     started: startedMatchComment?.[1] ?? startedMatchBold?.[1]?.trim() ?? null,
@@ -113,27 +114,32 @@ export async function GET(request: NextRequest) {
 
     const mdFiles = files.filter(f => f.endsWith('.md'));
 
-    const meetings: MeetingListItem[] = await Promise.all(
-      mdFiles.map(async (f) => {
-        const filePath = path.join(meetingsDir, f);
-        const content = await readFile(filePath, 'utf-8');
-        const fileStat = await stat(filePath);
-        const metadata = parseMetadata(content);
-        const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
+    const results = await Promise.all(
+      mdFiles.map(async (f): Promise<MeetingListItem | null> => {
+        try {
+          const filePath = path.join(meetingsDir, f);
+          const content = await readFile(filePath, 'utf-8');
+          const fileStat = await stat(filePath);
+          const metadata = parseMetadata(content);
+          const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
 
-        return {
-          filename: f,
-          date: dateMatch?.[1] ?? null,
-          status: metadata.status,
-          type: metadata.type,
-          title: metadata.title || titleFromFilename(f),
-          started: metadata.started,
-          participants: metadata.participants,
-          modifiedAt: fileStat.mtime.toISOString(),
-          project,
-        };
+          return {
+            filename: f,
+            date: dateMatch?.[1] ?? null,
+            status: metadata.status,
+            type: metadata.type,
+            title: metadata.title || titleFromFilename(f),
+            started: metadata.started,
+            participants: metadata.participants,
+            modifiedAt: fileStat.mtime.toISOString(),
+            project,
+          };
+        } catch {
+          return null; // Skip unreadable files
+        }
       })
     );
+    const meetings = results.filter((m): m is MeetingListItem => m !== null);
 
     meetings.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
 

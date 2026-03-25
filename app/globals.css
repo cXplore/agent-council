@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 :root {
   --bg: #0a0a0b;
   --bg-card: #141416;
@@ -18,6 +23,13 @@
   --error: #ef4444;
   --warning: #f59e0b;
   --success: var(--live-green);
+  --text-on-accent: #ffffff;
+}
+
+/* Focus styles for accessibility */
+input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
 }
 
 body {
@@ -48,12 +60,12 @@ body {
 
 /* Loading shimmer for meeting start */
 @keyframes shimmer {
-  0% { background-position: -200px 0; }
-  100% { background-position: 200px 0; }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .loading-shimmer {
   background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
-  background-size: 400px 100%;
+  background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

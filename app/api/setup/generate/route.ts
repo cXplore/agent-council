@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       FRAMEWORK: frameworkNames,
       LANGUAGES: languageNames,
       PACKAGE_MANAGER: pkgManager,
-      MEETINGS_DIR: 'meetings',
+      MEETINGS_DIR: body.meetingsDir || 'meetings',
     };
 
     // Validate targetDir is an existing directory

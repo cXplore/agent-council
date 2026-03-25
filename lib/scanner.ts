@@ -5,8 +5,13 @@ import type { ProjectProfile } from '@/lib/types';
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
   'vendor', 'target', '.cache', '.turbo', '.vercel', '.output',
-  'coverage', '.nyc_output',
+  'coverage', '.nyc_output', '.venv', 'venv', 'env', '.env',
+  'out', 'tmp', 'temp', '.terraform', '.gradle', 'Pods',
+  '.svn', '.hg',
 ]);
+
+const MAX_FILES = 50_000;
+const MAX_DEPTH = 15;
 
 const EXT_TO_LANGUAGE: Record<string, string> = {
   '.ts': 'TypeScript',
@@ -21,9 +26,10 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   '.java': 'Java',
   '.rb': 'Ruby',
   '.cs': 'C#',
+  '.c': 'C',
   '.cpp': 'C++',
   '.cc': 'C++',
-  '.h': 'C++',
+  '.h': 'C/C++',
   '.hpp': 'C++',
   '.swift': 'Swift',
   '.kt': 'Kotlin',
@@ -43,8 +49,10 @@ interface WalkResult {
   dirs: Set<string>;  // relative directory paths
 }
 
-async function walk(root: string, rel: string = ''): Promise<WalkResult> {
+async function walk(root: string, rel: string = '', depth: number = 0): Promise<WalkResult> {
   const result: WalkResult = { files: [], dirs: new Set() };
+  if (depth > MAX_DEPTH) return result;
+
   let entries;
   try {
     entries = await readdir(path.join(root, rel), { withFileTypes: true });
@@ -53,13 +61,19 @@ async function walk(root: string, rel: string = ''): Promise<WalkResult> {
   }
 
   for (const entry of entries) {
+    if (result.files.length >= MAX_FILES) break;
+
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
 
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;
+      if (entry.isSymbolicLink()) continue;
       result.dirs.add(relPath);
-      const sub = await walk(root, relPath);
-      for (const f of sub.files) result.files.push(f);
+      const sub = await walk(root, relPath, depth + 1);
+      for (const f of sub.files) {
+        result.files.push(f);
+        if (result.files.length >= MAX_FILES) break;
+      }
       for (const d of sub.dirs) result.dirs.add(d);
     } else if (entry.isFile()) {
       result.files.push(relPath);

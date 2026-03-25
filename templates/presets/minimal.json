@@ -1,5 +1,5 @@
 {
   "name": "Minimal",
-  "description": "Essential 3-agent team for small projects",
-  "agents": ["project-manager", "critic", "developer"]
+  "description": "Essential 4-agent team for small projects",
+  "agents": ["project-manager", "critic", "north-star", "developer"]
 }
