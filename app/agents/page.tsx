@@ -109,8 +109,8 @@ export default function AgentsPage() {
               {project} &middot; {agents.length} agent{agents.length !== 1 ? 's' : ''}
             </p>
             {agents.length > 0 && (
-              <a href="/setup" className="text-xs" style={{ color: 'var(--accent)' }}>
-                Add or regenerate
+              <a href="/setup" className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Connect another project
               </a>
             )}
           </div>
