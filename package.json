@@ -55,9 +55,11 @@
       "package.json",
       "next.config.ts"
     ],
+    "forceCodeSigning": false,
     "win": {
       "target": ["nsis", "portable"],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": ["dmg"],
