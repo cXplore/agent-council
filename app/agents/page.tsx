@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
 
 interface AgentInfo {
@@ -71,16 +72,31 @@ export default function AgentsPage() {
             {selected.description}
           </p>
 
-          <pre
-            className="text-sm rounded-lg p-6 overflow-auto whitespace-pre-wrap leading-relaxed"
+          <div
+            className="text-sm rounded-lg p-6 overflow-auto leading-relaxed prose prose-sm prose-invert max-w-none"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border)',
               color: 'var(--text-secondary)',
             }}
           >
-            {selected.content}
-          </pre>
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => <h1 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{children}</h1>,
+                h2: ({ children }) => <h2 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--accent)' }}>{children}</h2>,
+                h3: ({ children }) => <h3 className="text-sm font-semibold mt-4 mb-2" style={{ color: 'var(--text-primary)' }}>{children}</h3>,
+                p: ({ children }) => <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{children}</p>,
+                ul: ({ children }) => <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>{children}</ol>,
+                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                strong: ({ children }) => <strong style={{ color: 'var(--text-primary)' }}>{children}</strong>,
+                code: ({ children }) => <code className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--border)', color: 'var(--accent)' }}>{children}</code>,
+                hr: () => <hr className="my-4" style={{ borderColor: 'var(--border)' }} />,
+              }}
+            >
+              {selected.content}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
     );
@@ -110,10 +126,25 @@ export default function AgentsPage() {
             className="rounded-lg p-8 text-center"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              No agents found for {project || 'this project'}. Connect a project with agents or{' '}
-              <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>set up a new team</a>.
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              No agents found{project ? ` for ${project}` : ''}. Set up a team to start running meetings.
             </p>
+            <div className="flex items-center justify-center gap-3">
+              <a
+                href="/setup"
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--accent)', color: 'white' }}
+              >
+                Set up agents
+              </a>
+              <a
+                href="/guide"
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+              >
+                Learn more
+              </a>
+            </div>
           </div>
         ) : (
           <div className="space-y-2">

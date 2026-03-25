@@ -71,7 +71,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
 
   const handleRemove = useCallback(async (name: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Disconnect "${name}"? This only removes it from Agent Council — your project files are not affected.`)) return;
+    if (!confirm(`Disconnect "${name}"? You can reconnect it anytime from Setup.`)) return;
     setSwitching(true);
     try {
       await fetch('/api/projects', {
@@ -90,7 +90,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
   if (!data) return null;
 
   const activeLabel = data.activeProject === 'workspace'
-    ? 'Workspace'
+    ? 'Local'
     : data.projects.find(p => p.name === data.activeProject)?.name ?? data.activeProject;
 
   return (
@@ -183,7 +183,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
                   fontWeight: data.activeProject === 'workspace' ? 600 : 400,
                 }}
               >
-                Workspace
+                Local
               </div>
               <div
                 className="text-xs"
@@ -194,7 +194,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                Agent Council workspace
+                Agents and meetings stored here
               </div>
             </div>
           </button>
@@ -333,7 +333,15 @@ export default function Nav() {
           className="sm:hidden text-sm px-2 py-1"
           style={{ color: 'var(--text-muted)' }}
         >
-          {open ? '✕' : '☰'}
+          {open ? (
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M4 4L14 14M14 4L4 14" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M3 5H15M3 9H15M3 13H15" />
+            </svg>
+          )}
         </button>
       </div>
 

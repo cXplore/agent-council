@@ -274,11 +274,16 @@ export default function SetupWizard() {
               className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
             >
-              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--accent)' }}>
-                I have a project with agents
-              </h3>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+                  Connect an existing project
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--accent)', color: 'white' }}>
+                  Recommended
+                </span>
+              </div>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Connect your project to the meeting viewer. Your existing <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>.claude/agents/</code> files will be used as-is.
+                Already using Claude Code? Point us at your project and we&apos;ll connect the meeting viewer. Works with or without existing agents.
               </p>
             </button>
 
@@ -288,10 +293,10 @@ export default function SetupWizard() {
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
               <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                I need to set up agents
+                Scan and generate agents
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Scan your codebase and generate a team of agents. Or start with generic defaults.
+                We&apos;ll analyze your codebase and create a tailored agent team. Takes about 30 seconds.
               </p>
             </button>
 
@@ -301,10 +306,10 @@ export default function SetupWizard() {
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
               <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                Just exploring
+                Try with defaults
               </h3>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Skip setup and use generic defaults. You can customize later.
+                Get a standard 5-agent team without connecting a project. Good for exploring how it works.
               </p>
             </button>
           </div>
@@ -618,7 +623,12 @@ export default function SetupWizard() {
                 className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
                 style={{ background: 'var(--accent)', color: 'white' }}
               >
-                {generating ? 'Generating...' : `Generate ${enabledCount} Agents`}
+                {generating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating...
+                  </span>
+                ) : `Generate ${enabledCount} Agents`}
               </button>
             </div>
           </div>
@@ -627,41 +637,54 @@ export default function SetupWizard() {
         {/* Step 4: Done */}
         {step === 'generate' && (
           <div className="space-y-6">
+            {/* Success banner */}
             <div
-              className="rounded-lg p-6"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              className="rounded-lg p-8 text-center"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
             >
-              <div className="flex items-center gap-2 mb-4">
-                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--success)' }} />
-                <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  {generatedFiles.length} agents generated
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" stroke="var(--live-green)" strokeWidth="2" />
+                  <path d="M7 12.5L10.5 16L17 9" stroke="var(--live-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  Your team is ready
                 </h3>
               </div>
+              <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+                {generatedFiles.length} agents created in <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>.claude/agents/</code>
+              </p>
+            </div>
 
-              <div className="space-y-1 mb-6">
+            {/* What's next — prominent */}
+            <div
+              className="rounded-lg p-6"
+              style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)' }}
+            >
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                Next: open your project in Claude Code and ask for a meeting
+              </p>
+              <div className="space-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <p>Just say something like <em style={{ color: 'var(--accent)' }}>&quot;what should we work on today?&quot;</em> or <em style={{ color: 'var(--accent)' }}>&quot;let&apos;s review the dashboard design&quot;</em></p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  The facilitator picks the right format and assembles the team automatically. The meeting shows up live here.
+                </p>
+              </div>
+            </div>
+
+            {/* Generated files (collapsed) */}
+            <details className="rounded-lg" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <summary className="px-4 py-3 text-sm cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                View generated files ({generatedFiles.length})
+              </summary>
+              <div className="px-4 pb-3 space-y-1">
                 {generatedFiles.map(f => (
                   <div key={f} className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                     {f}
                   </div>
                 ))}
               </div>
-
-              <div
-                className="rounded-lg p-4 text-sm"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
-              >
-                <p className="font-medium mb-2" style={{ color: 'var(--text-primary)' }}>What&apos;s next:</p>
-                <ol className="space-y-2" style={{ color: 'var(--text-secondary)' }}>
-                  <li>1. Keep this Agent Council server running</li>
-                  <li>2. Open your project in Claude Code (Desktop or CLI)</li>
-                  <li>3. Ask for a meeting in plain language — <em style={{ color: 'var(--text-muted)' }}>&quot;what should we work on today?&quot;</em> or <em style={{ color: 'var(--text-muted)' }}>&quot;let&apos;s review the dashboard design&quot;</em></li>
-                  <li>4. Watch the meeting live at <a href="/meetings" className="underline" style={{ color: 'var(--accent)' }}>/meetings</a></li>
-                </ol>
-                <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-                  No special commands needed. Claude Code reads the agent files you just generated and the facilitator picks the right meeting format automatically.
-                </p>
-              </div>
-            </div>
+            </details>
 
             <div className="flex gap-3">
               <a

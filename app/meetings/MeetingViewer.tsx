@@ -346,9 +346,25 @@ export default function MeetingViewer() {
               className="rounded-lg p-8 text-center"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                No meetings yet. Start a meeting in Claude Code and it will appear here.
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                No meetings yet. Open your project in Claude Code and ask for one — it will appear here live.
               </p>
+              <div className="flex items-center justify-center gap-3">
+                <a
+                  href="/setup"
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--accent)', color: 'white' }}
+                >
+                  Connect a project
+                </a>
+                <a
+                  href="/guide"
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  How it works
+                </a>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -472,13 +488,11 @@ export default function MeetingViewer() {
             </span>
 
             {isLive && (
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block w-2 h-2 rounded-full animate-pulse"
-                  style={{ background: 'var(--live-green)' }}
-                />
-                <span className="text-xs" style={{ color: 'var(--live-green)' }}>LIVE</span>
-              </span>
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full animate-pulse"
+                style={{ background: 'var(--live-green)' }}
+                title="Meeting in progress"
+              />
             )}
           </>
         )}
@@ -609,7 +623,7 @@ export default function MeetingViewer() {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder="Write into the meeting..."
+              placeholder="Add your thoughts (agents see this in the next round)..."
               disabled={sending}
               className="flex-1 px-4 py-2.5 rounded-lg text-sm outline-none"
               style={{
