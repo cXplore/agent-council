@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
@@ -21,7 +21,7 @@ interface ProjectsResponse {
 }
 
 function ProjectSwitcher({ inline }: { inline?: boolean }) {
-  const router = useRouter();
+  // router removed — we use window.location.reload() instead
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<ProjectsResponse | null>(null);
   const [switching, setSwitching] = useState(false);
@@ -80,7 +80,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
     } catch {
       setSwitching(false);
     }
-  }, [router]);
+  }, []);
 
   if (!data) {
     return (
@@ -353,6 +353,7 @@ export default function Nav() {
             className="text-xs transition-colors"
             style={{ color: pathname === '/guide' ? 'var(--accent)' : 'var(--text-muted)', opacity: 0.7 }}
             title="How it works"
+            aria-label="Guide"
           >
             ?
           </Link>

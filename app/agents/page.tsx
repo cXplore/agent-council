@@ -35,6 +35,8 @@ export default function AgentsPage() {
           const data: AgentsResponse = await res.json();
           setAgents(data.agents);
           setProject(data.project);
+        } else {
+          setFetchError(true);
         }
       } catch {
         setFetchError(true);

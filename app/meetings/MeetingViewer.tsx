@@ -539,7 +539,7 @@ export default function MeetingViewer() {
                 color: getAgentColor(p),
                 background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
               }}
-              title={`View ${p} agent`}
+              title="View agents"
             >
               {p}
             </a>

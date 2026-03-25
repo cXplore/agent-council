@@ -63,7 +63,7 @@ export default function GuidePage() {
             </ul>
             <p>Based on what it finds, it suggests agents. You can add, remove, or customize them. Then click <strong style={{ color: 'var(--text-primary)' }}>Generate</strong> — this writes <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>.claude/agents/*.md</code> files into your project.</p>
             <p style={{ color: 'var(--text-muted)' }}>
-              Don&apos;t have a project? Click &quot;No project — use generic defaults&quot; to get a standard 5-agent team you can customize later.
+              Not sure where to start? Read the &quot;How does this work?&quot; option on the setup page for an overview.
             </p>
           </div>
         </section>
