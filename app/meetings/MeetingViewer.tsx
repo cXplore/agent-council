@@ -296,7 +296,7 @@ export default function MeetingViewer() {
 
           {/* State-aware guidance */}
           {hasProject === false ? (
-            /* No project connected */
+            /* No project connected at all */
             <div
               className="rounded-lg p-6"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
@@ -332,6 +332,16 @@ export default function MeetingViewer() {
               >
                 How it works
               </a>
+            </div>
+          ) : activeProject === 'workspace' ? (
+            /* Projects exist but none selected */
+            <div
+              className="rounded-lg p-6"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            >
+              <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
+                No project selected. Choose one from the dropdown above to view its meetings.
+              </p>
             </div>
           ) : hasFacilitator === false ? (
             /* Project connected but no facilitator */

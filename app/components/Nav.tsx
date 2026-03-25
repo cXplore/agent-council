@@ -69,7 +69,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
 
   const handleRemove = useCallback(async (name: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Disconnect "${name}"? You can reconnect it anytime from Setup.`)) return;
+    if (!confirm(`Remove "${name}" from Agent Council? You'll need to reconnect it from Setup.`)) return;
     setSwitching(true);
     try {
       await fetch('/api/projects', {
@@ -238,14 +238,14 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
                 onClick={(e) => handleRemove(project.name, e)}
                 className="text-xs rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
                 style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '2px 6px' }}
-                title="Disconnect project"
+                title="Remove project"
               >
                 ✕
               </button>
             </div>
           ))}
 
-          {/* Add project link */}
+          {/* Deselect + actions */}
           <div
             style={{
               height: 1,
@@ -253,6 +253,23 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               margin: '4px 10px',
             }}
           />
+          {!isOnWorkspace && (
+            <button
+              onClick={() => handleSwitch('workspace')}
+              className="w-full text-left transition-colors"
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--text-muted)',
+                fontSize: 13,
+              }}
+            >
+              Deselect project
+            </button>
+          )}
           <a
             href="/setup"
             onClick={() => setOpen(false)}
