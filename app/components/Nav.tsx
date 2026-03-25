@@ -123,8 +123,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
           style={{
             position: inline ? 'relative' : 'absolute',
             top: inline ? 4 : '100%',
-            left: inline ? 0 : undefined,
-            right: inline ? undefined : 0,
+            left: 0,
             marginTop: inline ? 0 : 8,
             width: inline ? '100%' : 280,
             background: 'var(--bg-elevated)',

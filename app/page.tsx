@@ -1,8 +1,10 @@
+import MeetingDemo from './components/MeetingDemo';
+
 export default function Home() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* Hero */}
-      <div className="max-w-3xl mx-auto px-6 pt-16 pb-16">
+      <div className="max-w-3xl mx-auto px-6 pt-16 pb-10">
         <h1 className="text-4xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
           Agent Council
         </h1>
@@ -37,6 +39,9 @@ export default function Home() {
           </a>
         </div>
       </div>
+
+      {/* Live demo animation */}
+      <MeetingDemo />
 
       {/* How it works */}
       <div className="max-w-3xl mx-auto px-6 pb-16">

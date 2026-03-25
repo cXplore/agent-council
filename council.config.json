@@ -1,12 +1,6 @@
 {
-  "projects": {
-    "integrated-human": {
-      "path": "C:/Projects/integrated-human",
-      "meetingsDir": "docs/10-meetings",
-      "agentsDir": ".claude/agents"
-    }
-  },
-  "activeProject": "integrated-human",
+  "projects": {},
+  "activeProject": "workspace",
   "workspace": {
     "agentsDir": "./agents",
     "meetingsDir": "./meetings"

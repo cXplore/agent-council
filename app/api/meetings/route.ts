@@ -47,6 +47,16 @@ function parseMetadata(content: string) {
   };
 }
 
+/** Extract a readable title from a meeting filename as last resort */
+function titleFromFilename(filename: string): string {
+  return filename
+    .replace(/\.md$/, '')
+    .replace(/^\d{4}-\d{2}-\d{2}-?/, '') // strip date prefix
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim() || 'Untitled Meeting';
+}
+
 /** Resolve meetings dir — uses ?project= param or active project */
 async function getMeetingsDir(request: NextRequest): Promise<{ dir: string; project: string }> {
   const config = await getConfig();
@@ -80,7 +90,7 @@ export async function GET(request: NextRequest) {
         content,
         status: metadata.status,
         type: metadata.type,
-        title: metadata.title,
+        title: metadata.title || titleFromFilename(safeName),
         started: metadata.started,
         participants: metadata.participants,
         modifiedAt: fileStat.mtime.toISOString(),
@@ -116,7 +126,7 @@ export async function GET(request: NextRequest) {
           date: dateMatch?.[1] ?? null,
           status: metadata.status,
           type: metadata.type,
-          title: metadata.title,
+          title: metadata.title || titleFromFilename(f),
           started: metadata.started,
           participants: metadata.participants,
           modifiedAt: fileStat.mtime.toISOString(),

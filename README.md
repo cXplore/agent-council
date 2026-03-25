@@ -2,7 +2,7 @@
 
 Run structured meetings between your Claude Code agents. Watch them deliberate in real time.
 
-This isn't just agent templates. It's a meeting system — a facilitator that orchestrates rounds, mandatory roles that prevent groupthink, a hub model where agents read and respond to each other, and a live viewer in your browser. Works with both Claude Desktop and CLI.
+A meeting system — not just agent templates. A facilitator orchestrates rounds, mandatory roles prevent groupthink, a hub model lets agents read and respond to each other, and a live viewer shows it all in your browser. Works with both Claude Desktop and CLI.
 
 ## Quick Start
 
@@ -13,7 +13,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000/setup` to set up your agent team.
+Open `http://localhost:3001` to see the landing page, or go straight to `/setup` to set up your agent team.
+
+A sample meeting is included so you can see what meetings look like before connecting your own project.
 
 ## What You Get
 
@@ -52,23 +54,40 @@ The meeting file is the hub. Everyone reads from it, everyone writes to it. You 
 
 ## How to Run a Meeting
 
-1. Start the agent-council dev server: `npm run dev`
-2. Open your project in Claude Code
+1. Start Agent Council: `npm run dev`
+2. Open your project in Claude Code (Desktop app or CLI)
 3. Say `let's work` for a standup, or `run a strategy session on [topic]`
-4. Claude spawns the facilitator agent, which creates a meeting file and produces prompts for each participant
-5. Claude dispatches each prompt to the named agent and appends responses to the meeting file
-6. Watch it all unfold live at `localhost:3000/meetings`
-7. Type into the meeting from the viewer to add your own voice
+4. Claude spawns the facilitator agent, which creates a meeting file and orchestrates the discussion
+5. Watch it unfold live at `localhost:3001/meetings`
+6. Type into the meeting from the viewer to add your own voice
+
+## Multi-Project Support
+
+Agent Council supports connecting multiple projects. Each project has its own agents and meetings.
+
+- **Workspace mode** — agents and meetings live inside Agent Council itself (great for experimenting)
+- **Connected projects** — point at any project with `.claude/agents/`. Agent Council reads their agents and meetings.
+
+Switch between projects from the nav bar dropdown. Go to `/setup` to connect a new project or generate agents for one.
 
 ## Configuration
 
-`council.config.json`:
+`council.config.json` (auto-created on first run):
 ```json
 {
-  "projectDir": ".",
-  "meetingsDir": "./meetings",
-  "agentsDir": ".claude/agents",
-  "port": 3000
+  "projects": {
+    "my-app": {
+      "path": "/path/to/my-app",
+      "meetingsDir": "docs/meetings",
+      "agentsDir": ".claude/agents"
+    }
+  },
+  "activeProject": "workspace",
+  "workspace": {
+    "agentsDir": "./agents",
+    "meetingsDir": "./meetings"
+  },
+  "port": 3001
 }
 ```
 
@@ -85,13 +104,27 @@ The facilitator agent produces prompts *for* other agents — Claude Code (the o
 7. After each response, the facilitator appends it to the hub immediately — you see it appear in the viewer.
 8. When the conversation converges (or after 3-5 rounds), the facilitator writes a summary and marks the meeting complete.
 
+## Pages
+
+| Page | Purpose |
+|------|---------|
+| `/` | Landing page with animated meeting demo |
+| `/setup` | Connect a project or generate agents |
+| `/meetings` | Live meeting viewer with 2s polling |
+| `/agents` | Browse agents for the active project |
+| `/guide` | Getting started walkthrough |
+
 ## Tech Stack
 
-- Next.js (App Router)
+- Next.js 16 (App Router, Turbopack)
 - TypeScript
 - TailwindCSS v4
 - No database, no auth — pure file I/O
-- Works with Claude Code
+- Works with Claude Code (Desktop and CLI)
+
+## Contributing
+
+Issues and PRs welcome. This project is built for the Claude Code community.
 
 ## License
 

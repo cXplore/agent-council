@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 import { getAgentColor } from '@/lib/utils';
 
@@ -38,6 +38,75 @@ function ProjectBadge({ project }: { project: string }) {
   );
 }
 
+const mdComponents: Components = {
+  h1: ({ children }) => (
+    <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--text-primary)' }}>
+      {children}
+    </h3>
+  ),
+  p: ({ children }) => (
+    <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      {children}
+    </p>
+  ),
+  strong: ({ children }) => {
+    const name = String(children).replace(/:$/, '');
+    const color = getAgentColor(name);
+    return <strong style={{ color }}>{children}</strong>;
+  },
+  ul: ({ children }) => (
+    <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
+      {children}
+    </ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
+      {children}
+    </ol>
+  ),
+  li: ({ children }) => (
+    <li className="leading-relaxed">{children}</li>
+  ),
+  hr: () => (
+    <hr className="my-6" style={{ borderColor: 'var(--border)' }} />
+  ),
+  blockquote: ({ children }) => (
+    <blockquote
+      className="pl-4 my-4 italic"
+      style={{ borderLeft: '2px solid var(--accent)', color: 'var(--text-muted)' }}
+    >
+      {children}
+    </blockquote>
+  ),
+  code: ({ children }) => (
+    <code
+      className="text-xs px-1.5 py-0.5 rounded"
+      style={{ background: 'var(--border)', color: 'var(--accent)' }}
+    >
+      {children}
+    </code>
+  ),
+  input: ({ checked, ...props }) => (
+    <input
+      type="checkbox"
+      checked={checked}
+      readOnly
+      className="mr-2"
+      {...props}
+    />
+  ),
+};
+
 export default function MeetingViewer() {
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -53,6 +122,9 @@ export default function MeetingViewer() {
 
   // Active project from the API
   const [activeProject, setActiveProject] = useState<string | null>(null);
+
+  // Track seen content for fade-in splitting
+  const [seenContent, setSeenContent] = useState<string>('');
 
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
@@ -140,6 +212,11 @@ export default function MeetingViewer() {
 
         setDetail(data);
 
+        // After animation plays, mark all content as seen
+        setTimeout(() => {
+          setSeenContent(data.content ?? '');
+        }, 600);
+
         // Auto-scroll if user hasn't scrolled up
         if (!userScrolledUp && contentRef.current) {
           requestAnimationFrame(() => {
@@ -175,6 +252,7 @@ export default function MeetingViewer() {
     lastModifiedRef.current = '';
     lastContentLengthRef.current = 0;
     setDetail(null);
+    setSeenContent('');
     setUserScrolledUp(false);
     fetchDetail(selected);
 
@@ -445,80 +523,49 @@ export default function MeetingViewer() {
               <div className="loading-shimmer h-4 w-80 rounded" />
               <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>Loading meeting...</p>
             </div>
-          ) : (
-            <div className="prose prose-sm prose-invert max-w-none meeting-content">
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => (
-                    <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
-                      {children}
-                    </h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
-                      {children}
-                    </h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--text-primary)' }}>
-                      {children}
-                    </h3>
-                  ),
-                  p: ({ children }) => (
-                    <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                      {children}
-                    </p>
-                  ),
-                  strong: ({ children }) => {
-                    const name = String(children).replace(/:$/, '');
-                    const color = getAgentColor(name);
-                    return <strong style={{ color }}>{children}</strong>;
-                  },
-                  ul: ({ children }) => (
-                    <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
-                      {children}
-                    </ul>
-                  ),
-                  ol: ({ children }) => (
-                    <ol className="list-decimal list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
-                      {children}
-                    </ol>
-                  ),
-                  li: ({ children }) => (
-                    <li className="leading-relaxed">{children}</li>
-                  ),
-                  hr: () => (
-                    <hr className="my-6" style={{ borderColor: 'var(--border)' }} />
-                  ),
-                  blockquote: ({ children }) => (
-                    <blockquote
-                      className="pl-4 my-4 italic"
-                      style={{ borderLeft: '2px solid var(--accent)', color: 'var(--text-muted)' }}
-                    >
-                      {children}
-                    </blockquote>
-                  ),
-                  code: ({ children }) => (
-                    <code
-                      className="text-xs px-1.5 py-0.5 rounded"
-                      style={{ background: 'var(--border)', color: 'var(--accent)' }}
-                    >
-                      {children}
-                    </code>
-                  ),
-                  input: ({ checked, ...props }) => (
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      readOnly
-                      className="mr-2"
-                      {...props}
-                    />
-                  ),
-                }}
+          ) : isLive && !detail.content.match(/\*\*[\w-]+:\*\*/) ? (
+            /* Meeting file exists but no agent has responded yet */
+            <div className="space-y-6">
+              <div className="prose prose-sm prose-invert max-w-none meeting-new-content">
+                <ReactMarkdown components={mdComponents}>
+                  {detail.content.replace(/<!--[\s\S]*?-->\n?/g, '')}
+                </ReactMarkdown>
+              </div>
+              <div
+                className="rounded-lg p-6 text-center"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)', borderStyle: 'dashed' }}
               >
-                {detail.content.replace(/<!--[\s\S]*?-->\n?/g, '')}
-              </ReactMarkdown>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--live-green)' }} />
+                  <span className="text-sm font-medium" style={{ color: 'var(--live-green)' }}>Meeting starting...</span>
+                </div>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  The facilitator is assembling the team. Agent responses will appear here as they come in.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="prose prose-sm prose-invert max-w-none">
+              {(() => {
+                const clean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const cleanSeen = seenContent.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const hasNew = clean.length > cleanSeen.length && cleanSeen.length > 0;
+                const seenPart = hasNew ? cleanSeen : clean;
+                const newPart = hasNew ? clean.slice(cleanSeen.length) : null;
+
+                return (
+                  <>
+                    <div className="meeting-content">
+                      <ReactMarkdown components={mdComponents}>{seenPart}</ReactMarkdown>
+                    </div>
+                    {newPart && (
+                      <div className="meeting-new-content">
+                        <ReactMarkdown components={mdComponents}>{newPart}</ReactMarkdown>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {isLive && (
                 <div className="mt-8 flex items-center gap-2">

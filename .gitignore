@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# config (user-specific, auto-created with defaults)
+council.config.json
+
 # vercel
 .vercel
 
@@ -40,8 +43,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# meetings (generated during use, don't commit)
+# meetings (generated during use, don't commit user meetings)
 /meetings/*.md
+!/meetings/example-*.md
 
 # claude
 .claude/
