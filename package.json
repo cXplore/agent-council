@@ -20,6 +20,7 @@
     "dist:linux": "next build && electron-builder --linux --publish never"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "@tailwindcss/typography": "^0.5.19",
     "next": "16.2.1",
     "react": "19.2.4",
@@ -54,22 +55,30 @@
       {
         "from": ".next/standalone",
         "to": "standalone",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": ".next/static",
         "to": "standalone/.next/static",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "public",
         "to": "standalone/public",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "templates",
         "to": "standalone/templates",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "council.config.json",
@@ -78,17 +87,24 @@
     ],
     "forceCodeSigning": false,
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "public/icon.ico",
       "signAndEditExecutable": false
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "icon": "public/icon.icns",
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "public/icon.png",
       "category": "Development"
     },
