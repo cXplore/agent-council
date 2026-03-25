@@ -5,9 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard' },
-  { href: '/guide', label: 'Guide' },
-  { href: '/setup', label: 'Setup' },
   { href: '/meetings', label: 'Meetings' },
   { href: '/agents', label: 'Agents' },
 ];
