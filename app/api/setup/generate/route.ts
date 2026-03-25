@@ -112,8 +112,17 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Write file
+        // Check if file already exists — refuse to overwrite
         const filePath = path.join(agentsDir, `${safeName}.md`);
+        try {
+          await access(filePath);
+          // File exists — skip it
+          errors.push({ agent: agent.name, error: `${safeName}.md already exists — skipped to protect your existing agent` });
+          continue;
+        } catch {
+          // File doesn't exist — safe to create
+        }
+
         await writeFile(filePath, content, 'utf-8');
         createdFiles.push(filePath);
       } catch (err: any) {
