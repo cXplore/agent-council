@@ -130,13 +130,12 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
   return (
     <div ref={ref} className={inline ? 'w-full' : 'relative'}>
       <button
-        onClick={() => data.projects.length > 1 ? setOpen(!open) : undefined}
+        onClick={() => setOpen(!open)}
         disabled={switching}
         className="flex items-center gap-1.5 text-sm transition-colors"
         style={{
           color: 'var(--text-secondary)',
           opacity: switching ? 0.5 : 1,
-          cursor: data.projects.length > 1 ? 'pointer' : 'default',
           width: inline ? '100%' : undefined,
           padding: inline ? '8px 12px' : undefined,
           borderRadius: inline ? '8px' : undefined,
@@ -156,24 +155,22 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {activeLabel}
         </span>
-        {data.projects.length > 1 && (
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            style={{
-              flexShrink: 0,
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 150ms',
-            }}
-          >
-            <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          style={{
+            flexShrink: 0,
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 150ms',
+          }}
+        >
+          <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
 
-      {open && data.projects.length > 1 && (
+      {open && (
         <div
           style={{
             position: inline ? 'relative' : 'absolute',
@@ -249,6 +246,32 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               </button>
             </div>
           ))}
+
+          {/* Add project link */}
+          <div
+            style={{
+              height: 1,
+              background: 'var(--border)',
+              margin: '4px 10px',
+            }}
+          />
+          <a
+            href="/setup"
+            onClick={() => setOpen(false)}
+            className="w-full text-left transition-colors block"
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+            Connect another project
+          </a>
         </div>
       )}
     </div>
