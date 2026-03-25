@@ -97,7 +97,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
   const isOnWorkspace = data.activeProject === 'workspace';
   const activeProject = data.projects.find(p => p.name === data.activeProject);
   const activeLabel = isOnWorkspace
-    ? (hasProjects ? 'Workspace' : null)
+    ? (hasProjects ? 'No project' : null)
     : activeProject?.name ?? data.activeProject;
 
   // No project connected and on workspace — show link to setup
@@ -152,7 +152,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: 'var(--accent)',
+            background: isOnWorkspace ? 'var(--text-muted)' : 'var(--accent)',
             flexShrink: 0,
           }}
         />
@@ -407,6 +407,17 @@ export default function Nav() {
               </Link>
             );
           })}
+          <Link
+            href="/guide"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm transition-colors"
+            style={{
+              color: pathname === '/guide' ? 'var(--accent)' : 'var(--text-muted)',
+              background: pathname === '/guide' ? 'var(--accent-muted)' : 'transparent',
+            }}
+          >
+            Guide
+          </Link>
         </div>
       )}
     </nav>
