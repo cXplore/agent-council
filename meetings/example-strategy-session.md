@@ -1,6 +1,7 @@
 <!-- status: complete -->
+<!-- demo: true -->
 
-# Strategy Session — API Architecture
+# Strategy Session — API Architecture (Sample)
 
 **Date:** 2026-01-15
 **Type:** Strategy Session

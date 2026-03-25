@@ -331,6 +331,14 @@ export default function MeetingViewer() {
                         LIVE
                       </span>
                     )}
+                    {m.filename.startsWith('example-') && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                      >
+                        SAMPLE
+                      </span>
+                    )}
                     {hasMultipleProjects && m.project && (
                       <ProjectBadge project={m.project} />
                     )}
