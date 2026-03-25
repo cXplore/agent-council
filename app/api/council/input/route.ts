@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
       message: m.message,
       timestamp: m.timestamp,
     })),
+  }, {
+    headers: { 'Cache-Control': 'no-cache, no-store' },
   });
 }
 
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
       messages.splice(0, messages.length - 50);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }

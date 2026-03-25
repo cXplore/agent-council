@@ -10,7 +10,7 @@ interface AgentInfo {
   name: string;
   description: string;
   model: string;
-  tools: string;
+  tools: string[];
   content: string;
 }
 

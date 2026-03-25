@@ -41,10 +41,10 @@ export async function POST(req: NextRequest) {
 
     const profile = await scanProject(dirPath);
     return NextResponse.json(profile);
-  } catch (err: any) {
+  } catch (err) {
     console.error('Scan error:', err);
     return NextResponse.json(
-      { error: err.message ?? 'Internal server error' },
+      { error: 'Failed to scan project' },
       { status: 500 },
     );
   }

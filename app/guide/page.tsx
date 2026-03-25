@@ -86,7 +86,7 @@ export default function GuidePage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded px-3 py-2" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Desktop App</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Open Claude Desktop and select your project folder. It will detect the agents automatically.</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Open Claude Code and select your project folder. It will detect the agents automatically.</p>
               </div>
               <div className="rounded px-3 py-2" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                 <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-primary)' }}>CLI</p>

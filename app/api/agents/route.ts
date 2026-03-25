@@ -51,9 +51,11 @@ export async function GET(req: NextRequest) {
           name: frontmatter['name'] ?? filename.replace('.md', ''),
           description: frontmatter['description'] ?? '',
           model: frontmatter['model'] ?? '',
-          tools: frontmatter['tools']
-            ? frontmatter['tools'].split(',').map((t: string) => t.trim())
-            : [],
+          tools: Array.isArray(frontmatter['tools'])
+            ? frontmatter['tools']
+            : typeof frontmatter['tools'] === 'string'
+              ? frontmatter['tools'].split(',').map((t: string) => t.trim())
+              : [],
           content: body.trim(),
         };
       }),

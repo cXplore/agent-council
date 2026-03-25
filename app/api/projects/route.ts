@@ -5,20 +5,24 @@ import { getConfig, saveConfig } from '@/lib/config';
 
 /** GET /api/projects — list all projects + active */
 export async function GET() {
-  const config = await getConfig();
+  try {
+    const config = await getConfig();
 
-  const projects = Object.entries(config.projects).map(([name, p]) => ({
-    name,
-    path: p.path,
-    meetingsDir: p.meetingsDir,
-    agentsDir: p.agentsDir,
-  }));
+    const projects = Object.entries(config.projects).map(([name, p]) => ({
+      name,
+      path: p.path,
+      meetingsDir: p.meetingsDir,
+      agentsDir: p.agentsDir,
+    }));
 
-  return NextResponse.json({
-    projects,
-    activeProject: config.activeProject,
-    hasWorkspace: true,
-  });
+    return NextResponse.json({
+      projects,
+      activeProject: config.activeProject,
+      hasWorkspace: true,
+    });
+  } catch {
+    return NextResponse.json({ error: 'Failed to load projects' }, { status: 500 });
+  }
 }
 
 /** POST /api/projects — add a new project or switch active */

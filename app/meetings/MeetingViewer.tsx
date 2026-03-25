@@ -67,10 +67,12 @@ export default function MeetingViewer() {
   const recentlyUpdatedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const selectedRef = useRef<string | null>(null);
   const userExplicitlyBackRef = useRef(false);
+  const userScrolledUpRef = useRef(false);
 
   // Keep refs in sync
   useEffect(() => { selectedRef.current = selected; }, [selected]);
   useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
+  useEffect(() => { userScrolledUpRef.current = userScrolledUp; }, [userScrolledUp]);
 
   // Fetch the active project on mount
   useEffect(() => {
@@ -152,7 +154,7 @@ export default function MeetingViewer() {
         }, 600);
 
         // Auto-scroll if user hasn't scrolled up
-        if (!userScrolledUp && contentRef.current) {
+        if (!userScrolledUpRef.current && contentRef.current) {
           requestAnimationFrame(() => {
             contentRef.current?.scrollTo({
               top: contentRef.current.scrollHeight,
@@ -170,7 +172,7 @@ export default function MeetingViewer() {
     } catch {
       // silent
     }
-  }, [userScrolledUp, projectParam]);
+  }, [projectParam]);
 
   // Initial list load + periodic refresh
   useEffect(() => {
@@ -214,7 +216,7 @@ export default function MeetingViewer() {
   };
 
   const deleteMeeting = async (filename: string) => {
-    if (!confirm('Delete this meeting?')) return;
+    if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
     try {
       const res = await fetch(`/api/meetings${projectParam(`file=${encodeURIComponent(filename)}`)}`, { method: 'DELETE' });
       if (!res.ok) {

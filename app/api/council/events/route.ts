@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       events.splice(0, events.length - MAX_EVENTS);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
@@ -57,5 +57,7 @@ export async function GET(request: NextRequest) {
     filtered = filtered.filter(e => e.timestamp > since);
   }
 
-  return NextResponse.json({ events: filtered.slice(-20) });
+  return NextResponse.json({ events: filtered.slice(-20) }, {
+    headers: { 'Cache-Control': 'no-cache, no-store' },
+  });
 }

@@ -221,7 +221,7 @@ export default function SetupWizard() {
       }
 
       const data = await res.json();
-      setGeneratedFiles(data.files || []);
+      setGeneratedFiles(data.created || []);
       setStep('generate');
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : 'Generation failed');
