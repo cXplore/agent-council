@@ -36,6 +36,9 @@ yarn-error.log*
 # config (user-specific, auto-created with defaults)
 council.config.json
 
+# electron
+/dist-electron/
+
 # vercel
 .vercel
 
