@@ -56,7 +56,7 @@ export default function Home() {
             },
             {
               title: 'Meet',
-              desc: 'Say "let\'s work" in Claude Code. Agents deliberate in structured rounds — independent thinking first, then engaging with each other.',
+              desc: 'Ask Claude Code for a meeting in plain language. Agents deliberate in structured rounds — independent thinking first, then engaging with each other.',
             },
             {
               title: 'Watch',
@@ -146,8 +146,8 @@ cd agent-council
 npm install
 npm run dev
 
-# Open http://localhost:3000 (or your configured port)/setup to set up your team
-# Then in Claude Code, say "let's work"`}
+# Open localhost:3001/setup to set up your team
+# Then in Claude Code, just ask for a meeting — no special commands needed`}
         </pre>
       </div>
 
@@ -161,13 +161,12 @@ npm run dev
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         >
           <ol className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <li><strong style={{ color: 'var(--text-primary)' }}>1.</strong> Start the agent-council dev server: <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>npm run dev</code></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>1.</strong> Start Agent Council: <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>npm run dev</code></li>
             <li><strong style={{ color: 'var(--text-primary)' }}>2.</strong> Open your project in Claude Code</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>3.</strong> Say <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>let&apos;s work</code> for a standup, or <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>run a strategy session on [topic]</code></li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>4.</strong> Claude spawns the facilitator, which creates a meeting file and produces prompts for each agent</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>5.</strong> Claude dispatches each prompt to the named agent and appends responses to the meeting file</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>6.</strong> Watch it all unfold live at <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>localhost:3000 (or your configured port)/meetings</code></li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>7.</strong> Type into the meeting from the viewer to add your own voice</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>3.</strong> Ask for a meeting in plain language — <em style={{ color: 'var(--text-muted)' }}>&quot;what should we work on today?&quot;</em>, <em style={{ color: 'var(--text-muted)' }}>&quot;I want a design review on the dashboard&quot;</em>, <em style={{ color: 'var(--text-muted)' }}>&quot;let&apos;s do a retro on last week&quot;</em></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>4.</strong> Claude spawns the facilitator, which creates a meeting file and orchestrates the conversation</li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>5.</strong> Watch it unfold live at <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>localhost:3001/meetings</code></li>
+            <li><strong style={{ color: 'var(--text-primary)' }}>6.</strong> Type into the meeting from the viewer to add your own voice</li>
           </ol>
         </div>
       </div>

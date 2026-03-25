@@ -113,24 +113,24 @@ claude`}</pre>
             className="rounded-lg p-5 text-sm space-y-3"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
-            <p>In Claude Code, just say what you want to discuss:</p>
+            <p>In Claude Code, just ask for a meeting in plain language. No special commands needed — the facilitator agent understands what you mean:</p>
             <div className="space-y-2">
               {[
-                { cmd: "let's work", desc: 'Standup — daily brief, what matters today' },
-                { cmd: 'run a strategy session on API architecture', desc: 'Deep discussion on a topic' },
-                { cmd: 'design review on the login flow', desc: 'Evaluate a specific component' },
-                { cmd: 'retro on last sprint', desc: 'Review what went well and what didn\'t' },
+                { cmd: "what should we work on today?", desc: 'Standup — daily brief, what matters today' },
+                { cmd: "I want to discuss our API architecture", desc: 'Strategy session on a topic' },
+                { cmd: "can we review the login flow design?", desc: 'Design review on a component' },
+                { cmd: "let's do a retro on last week", desc: 'Review what went well and what didn\'t' },
               ].map(ex => (
                 <div key={ex.cmd} className="flex gap-3 items-start">
-                  <code
-                    className="px-2 py-1 rounded text-xs flex-shrink-0"
-                    style={{ background: 'var(--bg)', color: 'var(--accent)' }}
-                  >{ex.cmd}</code>
+                  <span
+                    className="px-2 py-1 rounded text-xs flex-shrink-0 italic"
+                    style={{ background: 'var(--bg)', color: 'var(--text-secondary)' }}
+                  >&quot;{ex.cmd}&quot;</span>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{ex.desc}</span>
                 </div>
               ))}
             </div>
-            <p className="mt-3">Claude spawns the <strong style={{ color: 'var(--text-primary)' }}>facilitator</strong> agent, which orchestrates the meeting. It selects participants, runs rounds, and writes everything to a meeting file.</p>
+            <p className="mt-3">Claude spawns the <strong style={{ color: 'var(--text-primary)' }}>facilitator</strong> agent, which picks the right meeting format, selects participants, runs rounds, and writes everything to a meeting file.</p>
           </div>
         </section>
 

@@ -651,14 +651,13 @@ export default function SetupWizard() {
               >
                 <p className="font-medium mb-2" style={{ color: 'var(--text-primary)' }}>What&apos;s next:</p>
                 <ol className="space-y-2" style={{ color: 'var(--text-secondary)' }}>
-                  <li>1. Keep this Agent Council server running in a terminal</li>
-                  <li>2. Open your project in Claude Code (separate terminal)</li>
-                  <li>3. Say <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>let&apos;s work</code> to start a standup</li>
-                  <li>4. Or say <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>run a strategy session on [topic]</code></li>
-                  <li>5. Watch the meeting live at <a href="/meetings" className="underline" style={{ color: 'var(--accent)' }}>/meetings</a></li>
+                  <li>1. Keep this Agent Council server running</li>
+                  <li>2. Open your project in Claude Code (Desktop or CLI)</li>
+                  <li>3. Ask for a meeting in plain language — <em style={{ color: 'var(--text-muted)' }}>&quot;what should we work on today?&quot;</em> or <em style={{ color: 'var(--text-muted)' }}>&quot;let&apos;s review the dashboard design&quot;</em></li>
+                  <li>4. Watch the meeting live at <a href="/meetings" className="underline" style={{ color: 'var(--accent)' }}>/meetings</a></li>
                 </ol>
                 <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-                  Tip: Claude Code reads the agent files you just generated. The facilitator agent orchestrates meetings. You just talk to Claude naturally — it handles the rest.
+                  No special commands needed. Claude Code reads the agent files you just generated and the facilitator picks the right meeting format automatically.
                 </p>
               </div>
             </div>

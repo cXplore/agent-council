@@ -42,22 +42,24 @@ Every decision-producing meeting includes three mandatory roles:
 The meeting file is the hub. Everyone reads from it, everyone writes to it. You watch it build up live.
 
 ### 7 Meeting Formats
-| Format | Trigger | Purpose |
-|--------|---------|---------|
-| Standup | "let's work" | Daily brief — where are we? |
-| Design Review | "review the [component]" | Evaluate a specific design decision |
-| Strategy Session | "strategy session on [topic]" | Direction and priorities |
-| Retrospective | "retro on [work]" | What went well, what's messy |
-| Architecture Review | "architecture review on [system]" | System design and trade-offs |
-| Sprint Planning | "sprint planning" | What to tackle next |
-| Incident Review | "incident review on [issue]" | What went wrong, how to prevent it |
+| Format | Purpose |
+|--------|---------|
+| Standup | Daily brief — where are we? |
+| Design Review | Evaluate a specific design decision |
+| Strategy Session | Direction and priorities |
+| Retrospective | What went well, what's messy |
+| Architecture Review | System design and trade-offs |
+| Sprint Planning | What to tackle next |
+| Incident Review | What went wrong, how to prevent it |
+
+No special commands needed — just ask Claude Code for a meeting in plain language. The facilitator picks the right format.
 
 ## How to Run a Meeting
 
 1. Start Agent Council: `npm run dev`
 2. Open your project in Claude Code (Desktop app or CLI)
-3. Say `let's work` for a standup, or `run a strategy session on [topic]`
-4. Claude spawns the facilitator agent, which creates a meeting file and orchestrates the discussion
+3. Ask for a meeting in plain language — *"what should we work on today?"*, *"I want to review the auth flow"*, *"let's do a retro"*
+4. Claude spawns the facilitator agent, which picks the format, selects participants, and orchestrates the discussion
 5. Watch it unfold live at `localhost:3001/meetings`
 6. Type into the meeting from the viewer to add your own voice
 
