@@ -342,7 +342,7 @@ export default function MeetingViewer() {
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
-            open your project in Claude Code and ask — <em>&quot;what should we work on today?&quot;</em> or <em>&quot;review the dashboard design&quot;</em>. It shows up here live.
+            in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
           </div>
 
           {loading ? (
