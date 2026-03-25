@@ -238,10 +238,11 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               </div>
               <button
                 onClick={(e) => handleRemove(project.name, e)}
-                className="disconnect-btn text-xs rounded opacity-0 group-hover:opacity-100 transition-all"
-                style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '4px 8px' }}
+                className="text-xs rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
+                style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '2px 6px' }}
+                title="Disconnect project"
               >
-                Disconnect
+                ✕
               </button>
             </div>
           ))}
