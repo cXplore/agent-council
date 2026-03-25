@@ -69,6 +69,24 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
     }
   }, [data, router]);
 
+  const handleRemove = useCallback(async (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Disconnect "${name}"? This only removes it from Agent Council — your project files are not affected.`)) return;
+    setSwitching(true);
+    try {
+      await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', name }),
+      });
+      setOpen(false);
+      router.refresh();
+      window.location.reload();
+    } catch {
+      setSwitching(false);
+    }
+  }, [router]);
+
   if (!data) return null;
 
   const activeLabel = data.activeProject === 'workspace'
@@ -193,10 +211,13 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
 
           {/* Connected projects */}
           {data.projects.map(project => (
-            <button
+            <div
               key={project.name}
+              role="button"
+              tabIndex={0}
               onClick={() => handleSwitch(project.name)}
-              className="w-full text-left transition-colors"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSwitch(project.name); } }}
+              className="w-full text-left transition-colors group cursor-pointer"
               style={{
                 padding: '8px 10px',
                 borderRadius: 8,
@@ -237,7 +258,15 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
                   {project.path}
                 </div>
               </div>
-            </button>
+              <button
+                onClick={(e) => handleRemove(project.name, e)}
+                className="text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ color: 'var(--text-muted)', flexShrink: 0 }}
+                title="Disconnect project"
+              >
+                ✕
+              </button>
+            </div>
           ))}
         </div>
       )}
