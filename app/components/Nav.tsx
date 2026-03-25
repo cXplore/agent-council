@@ -255,23 +255,39 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               margin: '4px 10px',
             }}
           />
-          <a
-            href="/setup"
-            onClick={() => setOpen(false)}
-            className="w-full text-left transition-colors block"
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}
-          >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
-            Connect another project
-          </a>
+          <div style={{ display: 'flex', gap: 0 }}>
+            <a
+              href="/setup"
+              onClick={() => setOpen(false)}
+              className="text-left transition-colors block flex-1"
+              style={{
+                padding: '8px 10px',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--text-muted)',
+                fontSize: 13,
+              }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+              Connect project
+            </a>
+            {data.projects.length === 1 && (
+              <button
+                onClick={(e) => handleRemove(data.projects[0].name, e)}
+                className="text-xs transition-colors"
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                }}
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
