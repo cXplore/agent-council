@@ -15,6 +15,7 @@ interface GenerateRequest {
   targetDir: string;
   agents: AgentInput[];
   projectProfile: ProjectProfile;
+  meetingsDir?: string;
 }
 
 export async function POST(req: NextRequest) {
