@@ -294,8 +294,8 @@ export default function MeetingViewer() {
             )}
           </div>
 
-          {/* State-aware guidance */}
-          {hasProject === false ? (
+          {/* State-aware guidance — only show after project state is known */}
+          {hasProject === null ? null : hasProject === false ? (
             /* No project connected at all */
             <div
               className="rounded-lg p-6"
