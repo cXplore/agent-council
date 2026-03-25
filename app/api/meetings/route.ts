@@ -146,9 +146,18 @@ export async function POST(request: NextRequest) {
   try {
     const { file, message } = await request.json();
 
-    if (!file || !message) {
+    if (!file || !message || typeof message !== 'string') {
       return NextResponse.json(
         { error: 'file and message are required' },
+        { status: 400 }
+      );
+    }
+
+    // Enforce message length limit
+    const MAX_MESSAGE_LENGTH = 10000;
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { error: `Message too long (max ${MAX_MESSAGE_LENGTH} characters)` },
         { status: 400 }
       );
     }
@@ -167,8 +176,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sanitize message: escape bold markers to prevent agent impersonation
+    const sanitizedMessage = message.replace(/\*\*[\w-]+:\*\*/g, (match) => match.replace(/\*/g, '\\*'));
     // Append the human's message
-    const formatted = `\n\n**human:** ${message}\n`;
+    const formatted = `\n\n**human:** ${sanitizedMessage}\n`;
     await appendFile(filePath, formatted, 'utf-8');
 
     return NextResponse.json({ success: true });

@@ -197,7 +197,7 @@ export default function SetupWizard() {
     setGenerating(true);
     try {
       const enabledAgents = agents.filter(a => a.enabled);
-      const targetDir = projectPath.trim() || process.cwd?.() || '.';
+      const targetDir = projectPath.trim() || '.';
 
       const res = await fetch('/api/setup/generate', {
         method: 'POST',

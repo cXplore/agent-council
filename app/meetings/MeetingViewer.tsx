@@ -3,17 +3,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
+import { getAgentColor } from '@/lib/utils';
 
 const POLL_INTERVAL = 2000;
-
-function getAgentColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 55%, 65%)`;
-}
 
 function formatType(type: string): string {
   return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -40,14 +32,22 @@ export default function MeetingViewer() {
 
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [lastContentLength, setLastContentLength] = useState(0);
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
+  const lastContentLengthRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const recentlyUpdatedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const selectedRef = useRef<string | null>(null);
+  const userExplicitlyBackRef = useRef(false);
 
-  // Fetch meeting list
+  // Keep refs in sync
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
+
+  // Fetch meeting list — stable callback using refs for auto-select logic
   const fetchList = useCallback(async () => {
     try {
       const res = await fetch('/api/meetings');
@@ -55,7 +55,7 @@ export default function MeetingViewer() {
       setMeetings(Array.isArray(data) ? data : []);
 
       // Auto-select if exactly one is in-progress (but not if user explicitly went back)
-      if (!selected && !userExplicitlyBack) {
+      if (!selectedRef.current && !userExplicitlyBackRef.current) {
         const inProgress = data.filter((m: MeetingListItem) => m.status === 'in-progress');
         if (inProgress.length === 1) {
           setSelected(inProgress[0].filename);
@@ -66,7 +66,7 @@ export default function MeetingViewer() {
     } finally {
       setLoading(false);
     }
-  }, [selected, userExplicitlyBack]);
+  }, []);
 
   // Fetch single meeting content
   const fetchDetail = useCallback(async (filename: string) => {
@@ -81,11 +81,15 @@ export default function MeetingViewer() {
 
         // Track if content grew (new agent response)
         const newLength = data.content?.length ?? 0;
-        if (newLength > lastContentLength) {
+        if (newLength > lastContentLengthRef.current) {
           setRecentlyUpdated(true);
-          setTimeout(() => setRecentlyUpdated(false), 3000);
+          // Clear any existing timer to prevent leaks
+          if (recentlyUpdatedTimerRef.current) {
+            clearTimeout(recentlyUpdatedTimerRef.current);
+          }
+          recentlyUpdatedTimerRef.current = setTimeout(() => setRecentlyUpdated(false), 3000);
         }
-        setLastContentLength(newLength);
+        lastContentLengthRef.current = newLength;
 
         setDetail(data);
 
@@ -122,6 +126,7 @@ export default function MeetingViewer() {
     if (!selected) return;
 
     lastModifiedRef.current = '';
+    lastContentLengthRef.current = 0;
     setDetail(null);
     setUserScrolledUp(false);
     fetchDetail(selected);
@@ -129,6 +134,7 @@ export default function MeetingViewer() {
     pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
     };
   }, [selected, fetchDetail]);
 
@@ -151,26 +157,37 @@ export default function MeetingViewer() {
   const deleteMeeting = async (filename: string) => {
     if (!confirm('Delete this meeting?')) return;
     try {
-      await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      const res = await fetch(`/api/meetings?file=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to delete meeting');
+        return;
+      }
       setMeetings(prev => prev.filter(m => m.filename !== filename));
     } catch {
-      // silent
+      setError('Failed to delete meeting');
     }
   };
 
   const sendMessage = async () => {
     if (!chatInput.trim() || !selected || sending) return;
     setSending(true);
+    setError(null);
     try {
-      await fetch('/api/meetings', {
+      const res = await fetch('/api/meetings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file: selected, message: chatInput.trim() }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to send message');
+        return;
+      }
       setChatInput('');
       fetchDetail(selected);
     } catch {
-      // silent
+      setError('Failed to send message');
     } finally {
       setSending(false);
     }
@@ -201,11 +218,23 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="space-y-3">
+              {error && (
+                <div
+                  className="rounded-lg px-4 py-2 text-sm flex items-center justify-between"
+                  style={{ background: 'var(--error)', color: 'white' }}
+                >
+                  <span>{error}</span>
+                  <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">✕</button>
+                </div>
+              )}
               {meetings.map((m) => (
-                <button
+                <div
                   key={m.filename}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => { setSelected(m.filename); setUserExplicitlyBack(false); }}
-                  className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group"
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(m.filename); setUserExplicitlyBack(false); } }}
+                  className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group cursor-pointer"
                   style={{
                     background: 'var(--bg-card)',
                     border: m.status === 'in-progress'
@@ -263,7 +292,7 @@ export default function MeetingViewer() {
                       </button>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -443,6 +472,17 @@ export default function MeetingViewer() {
           )}
         </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div
+          className="px-6 py-2 text-sm flex items-center justify-between"
+          style={{ background: 'var(--error)', color: 'white' }}
+        >
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">✕</button>
+        </div>
+      )}
 
       {/* Chat input for live meetings */}
       {isLive && (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getAgentColor } from '@/lib/utils';
 
 interface AgentInfo {
   filename: string;
@@ -9,15 +10,6 @@ interface AgentInfo {
   model: string;
   tools: string;
   content: string;
-}
-
-function getAgentColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 55%, 65%)`;
 }
 
 export default function AgentsPage() {
@@ -152,7 +144,7 @@ export default function AgentsPage() {
                     {agent.model}
                   </span>
                 </div>
-                <p className="text-xs mt-1 ml-5.5" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
                   {agent.description}
                 </p>
               </button>

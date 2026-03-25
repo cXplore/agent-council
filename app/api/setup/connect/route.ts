@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
+import { clearConfigCache } from '@/lib/config';
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
       await stat(projectDir);
     } catch {
       return NextResponse.json(
-        { error: `Project directory not found: ${projectDir}` },
+        { error: 'Project directory not found' },
         { status: 404 }
       );
     }
@@ -56,6 +57,9 @@ export async function POST(req: NextRequest) {
 
     await writeFile(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
 
+    // Invalidate cached config so subsequent requests use the new values
+    clearConfigCache();
+
     return NextResponse.json({
       success: true,
       config,
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      { error: (err as Error).message || 'Failed to connect' },
+      { error: 'Failed to connect' },
       { status: 500 }
     );
   }

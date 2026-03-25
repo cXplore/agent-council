@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mkdir, writeFile, readFile, access } from 'node:fs/promises';
 import path from 'node:path';
-import { loadTemplate, fillTemplate, parseFrontmatter } from '@/lib/agent-templates';
+import { loadTemplate, fillTemplate, parseFrontmatter, serializeFrontmatter } from '@/lib/agent-templates';
 import type { ProjectProfile } from '@/lib/types';
 
 interface AgentInput {
@@ -50,12 +50,15 @@ export async function POST(req: NextRequest) {
       MEETINGS_DIR: 'meetings',
     };
 
+    // Validate targetDir is an absolute path to prevent path traversal
+    const resolvedTarget = path.resolve(targetDir);
+
     // Ensure agents directory exists
-    const agentsDir = path.join(targetDir, '.claude', 'agents');
+    const agentsDir = path.join(resolvedTarget, '.claude', 'agents');
     await mkdir(agentsDir, { recursive: true });
 
     // Ensure meetings directory exists in target project
-    const meetingsDir = path.join(targetDir, 'meetings');
+    const meetingsDir = path.join(resolvedTarget, 'meetings');
     await mkdir(meetingsDir, { recursive: true });
 
     const createdFiles: string[] = [];
@@ -83,15 +86,19 @@ export async function POST(req: NextRequest) {
           if (agent.description) frontmatter['description'] = agent.description;
           if (agent.model) frontmatter['model'] = agent.model;
 
-          // Reconstruct the file
-          const fmLines = Object.entries(frontmatter)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join('\n');
-          content = `---\n${fmLines}\n---\n${body}`;
+          // Reconstruct the file preserving YAML arrays
+          content = `---\n${serializeFrontmatter(frontmatter)}\n---\n${body}`;
+        }
+
+        // Sanitize agent name to prevent path traversal
+        const safeName = path.basename(agent.name).replace(/[^a-zA-Z0-9_-]/g, '-');
+        if (!safeName) {
+          errors.push({ agent: agent.name, error: 'Invalid agent name' });
+          continue;
         }
 
         // Write file
-        const filePath = path.join(agentsDir, `${agent.name}.md`);
+        const filePath = path.join(agentsDir, `${safeName}.md`);
         await writeFile(filePath, content, 'utf-8');
         createdFiles.push(filePath);
       } catch (err: any) {
@@ -100,7 +107,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Add meeting system section to CLAUDE.md if it doesn't exist
-    const claudeMdPath = path.join(targetDir, 'CLAUDE.md');
+    const claudeMdPath = path.join(resolvedTarget, 'CLAUDE.md');
     const hasFacilitator = agents.some(a => a.template === 'facilitator');
     if (hasFacilitator) {
       await appendMeetingInstructions(claudeMdPath, projectName);
@@ -114,7 +121,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('Generate error:', err);
     return NextResponse.json(
-      { error: err.message ?? 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

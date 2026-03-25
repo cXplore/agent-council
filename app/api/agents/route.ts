@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
 
     let agentsDir: string;
     if (dirParam) {
-      agentsDir = path.join(dirParam, '.claude', 'agents');
+      // Resolve and constrain to .claude/agents within the given directory
+      const resolved = path.resolve(dirParam);
+      agentsDir = path.join(resolved, '.claude', 'agents');
     } else {
       const config = await getConfig();
       agentsDir = resolveDir(config.agentsDir);
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
     } catch (err: any) {
       if (err.code === 'ENOENT') {
         return NextResponse.json(
-          { error: `Agents directory not found: ${agentsDir}` },
+          { error: 'Agents directory not found' },
           { status: 404 },
         );
       }
@@ -55,7 +57,7 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error('Agents list error:', err);
     return NextResponse.json(
-      { error: err.message ?? 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

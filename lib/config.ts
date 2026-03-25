@@ -26,6 +26,11 @@ export async function getConfig(): Promise<CouncilConfig> {
   return cachedConfig!;
 }
 
+/** Clear the cached config so the next getConfig() re-reads from disk. */
+export function clearConfigCache(): void {
+  cachedConfig = null;
+}
+
 export function resolveDir(dir: string): string {
   if (path.isAbsolute(dir)) return dir;
   return path.join(process.cwd(), dir);

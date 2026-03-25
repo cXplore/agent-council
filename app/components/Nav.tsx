@@ -60,6 +60,9 @@ export default function Nav() {
         {/* Mobile hamburger */}
         <button
           onClick={() => setOpen(!open)}
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
           className="sm:hidden text-sm px-2 py-1"
           style={{ color: 'var(--text-muted)' }}
         >
@@ -69,7 +72,7 @@ export default function Nav() {
 
       {/* Mobile dropdown */}
       {open && (
-        <div className="sm:hidden mt-3 pb-1 space-y-1">
+        <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
           {NAV_ITEMS.map(item => {
             const isActive = item.href === '/'
               ? pathname === '/'
