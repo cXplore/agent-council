@@ -332,39 +332,24 @@ export default function MeetingViewer() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="max-w-3xl mx-auto px-6 py-12">
-          <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
             Meetings
           </h1>
-          <p className="text-sm mb-8" style={{ color: 'var(--text-muted)' }}>
-            Watch agent meetings unfold live or review past conversations.
-          </p>
+
+          {/* How to start */}
+          <div
+            className="rounded-lg px-5 py-4 mb-6 text-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
+            open your project in Claude Code and ask — <em>&quot;what should we work on today?&quot;</em> or <em>&quot;review the dashboard design&quot;</em>. It shows up here live.
+          </div>
 
           {loading ? (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
           ) : meetings.length === 0 ? (
-            <div
-              className="rounded-lg p-8 text-center"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
-              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                No meetings yet. Open your project in Claude Code and ask for one — it will appear here live.
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <a
-                  href="/setup"
-                  className="px-4 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--accent)', color: 'white' }}
-                >
-                  Connect a project
-                </a>
-                <a
-                  href="/guide"
-                  className="px-4 py-2 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                >
-                  How it works
-                </a>
-              </div>
+            <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              No meetings yet.
             </div>
           ) : (
             <div className="space-y-3">
