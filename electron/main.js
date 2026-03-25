@@ -10,6 +10,18 @@ let tray = null;
 const PORT = 3001;
 const isDev = process.env.NODE_ENV === 'development';
 
+// Enforce single instance — if another instance is already running, focus it
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+}
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
 function getIcon() {
   // Use a simple built-in icon for now
   // TODO: Replace with actual app icon
@@ -50,22 +62,27 @@ function waitForServer(url, timeout = 30000) {
 function startNextServer() {
   return new Promise((resolve, reject) => {
     const isPackaged = app.isPackaged;
-    const appPath = isPackaged ? process.resourcesPath : path.join(__dirname, '..');
+    const appPath = isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked')
+      : path.join(__dirname, '..');
 
     if (isPackaged) {
-      // Production: run "next start" from the packaged app
-      const cmd = process.platform === 'win32'
-        ? `"${path.join(appPath, 'node_modules', '.bin', 'next.cmd')}" start -p ${PORT}`
-        : path.join(appPath, 'node_modules', '.bin', 'next');
-      const args = process.platform === 'win32' ? [] : ['start', '-p', String(PORT)];
-      nextProcess = spawn(cmd, args, {
-        cwd: appPath,
-        env: { ...process.env, NODE_ENV: 'production', PORT: String(PORT) },
+      // Production: use Next.js standalone server.js via system node
+      const standaloneDir = path.join(process.resourcesPath, 'standalone');
+      const serverJs = path.join(standaloneDir, 'server.js');
+
+      nextProcess = spawn('node', [serverJs], {
+        cwd: standaloneDir,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production',
+          PORT: String(PORT),
+          HOSTNAME: 'localhost',
+        },
         stdio: 'pipe',
-        shell: process.platform === 'win32',
       });
     } else {
-      // Dev: run "next dev"
+      // Dev: run "next dev" via the CLI
       const cmd = process.platform === 'win32'
         ? `"${path.join(appPath, 'node_modules', '.bin', 'next.cmd')}" dev -p ${PORT}`
         : path.join(appPath, 'node_modules', '.bin', 'next');

@@ -45,15 +45,33 @@
     },
     "files": [
       "electron/**/*",
-      ".next/**/*",
-      "node_modules/**/*",
-      "public/**/*",
-      "templates/**/*",
-      "meetings/**/*",
-      "agents/**/*",
-      "council.config.json",
-      "package.json",
-      "next.config.ts"
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/static",
+        "to": "standalone/.next/static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "standalone/public",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "templates",
+        "to": "standalone/templates",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "council.config.json",
+        "to": "standalone/council.config.json"
+      }
     ],
     "forceCodeSigning": false,
     "win": {
