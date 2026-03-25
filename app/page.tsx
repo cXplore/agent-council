@@ -1,185 +1,255 @@
-import MeetingDemo from './components/MeetingDemo';
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+interface ProjectInfo {
+  name: string;
+  path: string;
+}
+
+interface ProjectsResponse {
+  projects: ProjectInfo[];
+  activeProject: string;
+}
+
+interface MeetingListItem {
+  filename: string;
+  title: string;
+  type: string;
+  status: string;
+  modifiedAt: string;
+  participants: string[];
+}
+
+function formatTimeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+function formatType(type: string): string {
+  return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
 export default function Home() {
-  return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      {/* Hero */}
-      <div className="max-w-3xl mx-auto px-6 pt-16 pb-10">
-        <h1 className="text-4xl font-semibold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-          Agent Council
-        </h1>
-        <p className="text-lg mt-3 max-w-xl leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Run structured meetings between your Claude Code agents. Watch them deliberate in real time.
-        </p>
-        <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
-          Standups, design reviews, strategy sessions — with a live viewer in your browser.
-        </p>
+  const [projects, setProjects] = useState<ProjectsResponse | null>(null);
+  const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-        <div className="flex gap-3 mt-8">
-          <a
-            href="/meetings"
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/projects').then(r => r.ok ? r.json() : null),
+      fetch('/api/meetings').then(r => r.ok ? r.json() : []),
+    ]).then(([p, m]) => {
+      setProjects(p);
+      setMeetings(Array.isArray(m) ? m.slice(0, 5) : []);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const hasProject = projects && projects.projects.length > 0;
+  const activeName = projects?.activeProject === 'workspace' ? null : projects?.activeProject;
+  const liveMeetings = meetings.filter(m => m.status === 'in-progress');
+  const recentMeetings = meetings.filter(m => m.status !== 'in-progress').slice(0, 3);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-3xl mx-auto px-6 py-16">
+          <div className="loading-shimmer h-8 w-48 rounded mb-4" />
+          <div className="loading-shimmer h-4 w-72 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  // No project connected — onboarding
+  if (!hasProject) {
+    return (
+      <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-xl mx-auto px-6 py-20 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight mb-3" style={{ color: 'var(--text-primary)' }}>
+            Agent Council
+          </h1>
+          <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
+            Connect a project to start watching agent meetings live.
+          </p>
+
+          <Link
+            href="/setup"
             className="px-6 py-3 rounded-lg text-sm font-medium inline-block"
             style={{ background: 'var(--accent)', color: 'white' }}
           >
-            Open Meeting Viewer
-          </a>
-          <a
-            href="/setup"
-            className="px-6 py-3 rounded-lg text-sm font-medium inline-block"
-            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-          >
-            Connect Project
-          </a>
-          <a
-            href="/guide"
-            className="px-6 py-3 rounded-lg text-sm font-medium inline-block"
-            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-          >
-            Getting Started
-          </a>
-        </div>
-      </div>
+            Connect your first project
+          </Link>
 
-      {/* Live demo animation */}
-      <MeetingDemo />
-
-      {/* How it works */}
-      <div className="max-w-3xl mx-auto px-6 pb-16">
-        <h2 className="text-lg font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
-          How it works
-        </h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            {
-              title: 'Connect',
-              desc: 'Point it at your project. If you already have agents, you\'re ready. If not, it scans your codebase and generates a team for you.',
-            },
-            {
-              title: 'Meet',
-              desc: 'Ask Claude Code for a meeting in plain language. Agents deliberate in structured rounds — independent thinking first, then engaging with each other.',
-            },
-            {
-              title: 'Watch',
-              desc: 'See every agent\'s response appear live in your browser. Type into the meeting to add your own voice. Review past meetings anytime.',
-            },
-          ].map(card => (
-            <div
-              key={card.title}
-              className="rounded-lg p-5"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
-              <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--accent)' }}>
-                {card.title}
-              </h3>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {card.desc}
-              </p>
+          <div className="mt-12 text-left">
+            <div className="grid gap-3">
+              {[
+                { icon: '1', title: 'Connect a project', desc: 'Point us at your codebase. We detect your agents or help you create them.' },
+                { icon: '2', title: 'Ask for a meeting', desc: 'In Claude Code, just say what you want to discuss. The facilitator handles the rest.' },
+                { icon: '3', title: 'Watch it here', desc: 'Agent responses appear live. Add your own voice to the conversation.' },
+              ].map(step => (
+                <div
+                  key={step.icon}
+                  className="rounded-lg p-4 flex gap-4 items-start"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                >
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
+                    style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                  >
+                    {step.icon}
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{step.title}</div>
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{step.desc}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* The Meeting System */}
-      <div className="max-w-3xl mx-auto px-6 pb-16">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          The meeting system
-        </h2>
-        <div
-          className="rounded-lg p-6"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-        >
-          <div className="space-y-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <p>
-              Every decision-producing meeting includes three mandatory roles: <strong style={{ color: 'var(--text-primary)' }}>project-manager</strong> (what&apos;s real), <strong style={{ color: 'var(--text-primary)' }}>critic</strong> (what&apos;s wrong), and <strong style={{ color: 'var(--text-primary)' }}>north-star</strong> (what&apos;s possible). Plus domain agents relevant to the topic.
-            </p>
-            <p>
-              <strong style={{ color: 'var(--text-primary)' }}>Round 1</strong> &mdash; all agents respond independently, in parallel. No anchoring, no groupthink.
-            </p>
-            <p>
-              <strong style={{ color: 'var(--text-primary)' }}>Round 2+</strong> &mdash; agents read the full conversation and respond sequentially. They engage with each other&apos;s positions, challenge assumptions, build on ideas. The facilitator controls speaking order and stops when the conversation converges.
-            </p>
-            <p>
-              The meeting file is the hub. Everyone reads from it, everyone writes to it. You watch it build up live in your browser.
-            </p>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Meeting formats */}
-      <div className="max-w-3xl mx-auto px-6 pb-16">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          7 meeting formats
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            { name: 'Standup', desc: 'Daily brief' },
-            { name: 'Design Review', desc: 'Evaluate components' },
-            { name: 'Strategy Session', desc: 'Direction & priorities' },
-            { name: 'Retrospective', desc: 'What went well/messy' },
-            { name: 'Architecture Review', desc: 'System design' },
-            { name: 'Sprint Planning', desc: 'What to tackle next' },
-            { name: 'Incident Review', desc: 'What went wrong' },
-          ].map(f => (
-            <div
-              key={f.name}
-              className="rounded-lg px-3 py-2.5"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
-              <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{f.name}</div>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{f.desc}</div>
+  // Project connected — dashboard
+  return (
+    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {activeName || 'Agent Council'}
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            {liveMeetings.length > 0
+              ? `${liveMeetings.length} meeting${liveMeetings.length > 1 ? 's' : ''} in progress`
+              : 'No active meetings'}
+          </p>
+        </div>
+
+        {/* Live meetings — prominent */}
+        {liveMeetings.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xs font-medium uppercase tracking-wider mb-3" style={{ color: 'var(--live-green)' }}>
+              Live now
+            </h2>
+            <div className="space-y-2">
+              {liveMeetings.map(m => (
+                <Link
+                  key={m.filename}
+                  href={`/meetings`}
+                  className="block rounded-lg p-4 transition-colors hover:brightness-110"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: 'var(--live-green)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {m.title || formatType(m.type)}
+                    </span>
+                  </div>
+                  {m.participants.length > 0 && (
+                    <div className="text-xs mt-1.5 ml-5" style={{ color: 'var(--text-muted)' }}>
+                      {m.participants.join(', ')}
+                    </div>
+                  )}
+                </Link>
+              ))}
             </div>
-          ))}
+          </div>
+        )}
+
+        {/* Quick actions */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
+          <Link
+            href="/meetings"
+            className="rounded-lg p-4 transition-colors hover:brightness-110"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Meetings</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {meetings.length > 0 ? `${meetings.length} total` : 'None yet'}
+            </div>
+          </Link>
+          <Link
+            href="/agents"
+            className="rounded-lg p-4 transition-colors hover:brightness-110"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Agents</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>View your team</div>
+          </Link>
+          <Link
+            href="/setup"
+            className="rounded-lg p-4 transition-colors hover:brightness-110"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Setup</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Connect or configure</div>
+          </Link>
         </div>
-      </div>
 
-      {/* Quick start */}
-      <div className="max-w-3xl mx-auto px-6 pb-16">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Quick start
-        </h2>
-        <pre
-          className="rounded-lg p-5 text-sm leading-relaxed overflow-auto"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-        >
-{`git clone https://github.com/cXplore/agent-council
-cd agent-council
-npm install
-npm run dev
+        {/* Recent meetings */}
+        {recentMeetings.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Recent
+              </h2>
+              <Link href="/meetings" className="text-xs" style={{ color: 'var(--accent)' }}>
+                View all
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {recentMeetings.map(m => (
+                <Link
+                  key={m.filename}
+                  href="/meetings"
+                  className="block rounded-lg p-4 transition-colors hover:brightness-110"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--text-muted)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {m.title || formatType(m.type)}
+                    </span>
+                    <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
+                      {formatTimeAgo(m.modifiedAt)}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
-# Open localhost:3001/setup to set up your team
-# Then in Claude Code, just ask for a meeting — no special commands needed`}
-        </pre>
-      </div>
-
-      {/* How to run a meeting */}
-      <div className="max-w-3xl mx-auto px-6 pb-16">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          How to run a meeting
-        </h2>
-        <div
-          className="rounded-lg p-6"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-        >
-          <ol className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <li><strong style={{ color: 'var(--text-primary)' }}>1.</strong> Start Agent Council: <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>npm run dev</code></li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>2.</strong> Open your project in Claude Code</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>3.</strong> Ask for a meeting in plain language — <em style={{ color: 'var(--text-muted)' }}>&quot;what should we work on today?&quot;</em>, <em style={{ color: 'var(--text-muted)' }}>&quot;I want a design review on the dashboard&quot;</em>, <em style={{ color: 'var(--text-muted)' }}>&quot;let&apos;s do a retro on last week&quot;</em></li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>4.</strong> Claude spawns the facilitator, which creates a meeting file and orchestrates the conversation</li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>5.</strong> Watch it unfold live at <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>localhost:3001/meetings</code></li>
-            <li><strong style={{ color: 'var(--text-primary)' }}>6.</strong> Type into the meeting from the viewer to add your own voice</li>
-          </ol>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className="max-w-3xl mx-auto px-6 pb-12">
-        <div className="flex items-center gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-          <span>Works with Claude Code</span>
-          <span>&middot;</span>
-          <span>No database, no auth — pure file I/O</span>
-          <span>&middot;</span>
-          <span>MIT License</span>
-        </div>
+        {/* Empty state — no meetings yet */}
+        {meetings.length === 0 && (
+          <div
+            className="rounded-lg p-8 text-center"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
+              Ready for your first meeting
+            </p>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+              Open your project in Claude Code and ask for a meeting. It will appear here live.
+            </p>
+            <Link
+              href="/guide"
+              className="text-xs"
+              style={{ color: 'var(--accent)' }}
+            >
+              See how it works
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );
