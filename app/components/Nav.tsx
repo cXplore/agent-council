@@ -238,11 +238,10 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               </div>
               <button
                 onClick={(e) => handleRemove(project.name, e)}
-                className="text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ color: 'var(--text-muted)', flexShrink: 0 }}
-                title="Disconnect project"
+                className="disconnect-btn text-xs rounded opacity-0 group-hover:opacity-100 transition-all"
+                style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '4px 8px' }}
               >
-                ✕
+                Disconnect
               </button>
             </div>
           ))}
@@ -255,39 +254,23 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               margin: '4px 10px',
             }}
           />
-          <div style={{ display: 'flex', gap: 0 }}>
-            <a
-              href="/setup"
-              onClick={() => setOpen(false)}
-              className="text-left transition-colors block flex-1"
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: 'var(--text-muted)',
-                fontSize: 13,
-              }}
-            >
-              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
-              Connect project
-            </a>
-            {data.projects.length === 1 && (
-              <button
-                onClick={(e) => handleRemove(data.projects[0].name, e)}
-                className="text-xs transition-colors"
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  color: 'var(--text-muted)',
-                  fontSize: 13,
-                }}
-              >
-                Disconnect
-              </button>
-            )}
-          </div>
+          <a
+            href="/setup"
+            onClick={() => setOpen(false)}
+            className="text-left transition-colors block"
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}
+          >
+            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+            Connect project
+          </a>
         </div>
       )}
     </div>
