@@ -20,26 +20,25 @@
     "dist:linux": "next build && electron-builder --linux --publish never"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.28.0",
-    "@tailwindcss/typography": "^0.5.19",
     "next": "16.2.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "concurrently": "^9.2.1",
     "electron": "^41.0.4",
     "electron-builder": "^26.8.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "wait-on": "^9.0.4"
+    "zod": "^4.3.6"
   },
   "build": {
     "appId": "com.agent-council.app",
