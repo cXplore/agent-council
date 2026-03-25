@@ -531,16 +531,18 @@ export default function MeetingViewer() {
         >
           <span style={{ color: 'var(--text-muted)' }}>Participants:</span>
           {detail.participants.map((p) => (
-            <span
+            <a
               key={p}
-              className="px-2 py-0.5 rounded"
+              href="/agents"
+              className="px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
               style={{
                 color: getAgentColor(p),
                 background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
               }}
+              title={`View ${p} agent`}
             >
               {p}
-            </span>
+            </a>
           ))}
         </div>
       )}
@@ -616,7 +618,7 @@ export default function MeetingViewer() {
                     style={{ background: recentlyUpdated ? 'var(--live-green)' : 'var(--accent)' }}
                   />
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {recentlyUpdated ? 'New response received' : 'Agents deliberating...'}
+                    {recentlyUpdated ? 'New response received' : 'Watching for updates...'}
                   </span>
                 </div>
               )}
