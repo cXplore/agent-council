@@ -7,7 +7,7 @@ let mainWindow = null;
 let nextProcess = null;
 let tray = null;
 
-const PORT = 3001;
+const PORT = 3003;
 const isDev = process.env.NODE_ENV === 'development';
 
 // Enforce single instance — if another instance is already running, focus it

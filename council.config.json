@@ -11,5 +11,5 @@
     "agentsDir": "./agents",
     "meetingsDir": "./meetings"
   },
-  "port": 3001
+  "port": 3003
 }

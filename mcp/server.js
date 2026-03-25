@@ -24,7 +24,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import http from 'http';
 
-const COUNCIL_PORT = process.env.COUNCIL_PORT || 3001;
+const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
 
 // Helper to make HTTP requests to Agent Council
