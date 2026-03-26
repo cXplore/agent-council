@@ -1,7 +1,10 @@
 {
   "name": "agent-council",
   "version": "0.1.0",
-  "private": true,
+  "description": "Run structured meetings between your Claude Code agents. Watch them deliberate in real time.",
+  "author": "cXplore",
+  "license": "MIT",
+  "repository": "cXplore/agent-council",
   "main": "electron/main.js",
   "bin": {
     "agent-council": "./bin/cli.js"
