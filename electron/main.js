@@ -67,15 +67,16 @@ function startNextServer() {
       : path.join(__dirname, '..');
 
     if (isPackaged) {
-      // Production: run next's CLI directly via node
-      const nextBin = path.join(appPath, 'node_modules', 'next', 'dist', 'bin', 'next');
-      nextProcess = spawn(process.execPath, [nextBin, 'start', '-p', String(PORT)], {
-        cwd: appPath,
+      // Production: use standalone server.js
+      const standaloneDir = path.join(appPath, '.next', 'standalone');
+      const serverJs = path.join(standaloneDir, 'server.js');
+      nextProcess = spawn(process.execPath, [serverJs], {
+        cwd: standaloneDir,
         env: {
           ...process.env,
-          ELECTRON_RUN_AS_NODE: '1',
           NODE_ENV: 'production',
           PORT: String(PORT),
+          HOSTNAME: 'localhost',
         },
         stdio: 'pipe',
       });
