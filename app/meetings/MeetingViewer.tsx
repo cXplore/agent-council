@@ -66,6 +66,10 @@ export default function MeetingViewer() {
   // Track seen content for fade-in splitting
   const [seenContent, setSeenContent] = useState<string>('');
 
+  // Connection health tracking
+  const [connectionLost, setConnectionLost] = useState(false);
+  const failedPollsRef = useRef(0);
+
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
   const lastContentLengthRef = useRef(0);
@@ -159,8 +163,16 @@ export default function MeetingViewer() {
   const fetchDetail = useCallback(async (filename: string) => {
     try {
       const res = await fetch(`/api/meetings${projectParam(`file=${encodeURIComponent(filename)}`)}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        failedPollsRef.current++;
+        if (failedPollsRef.current >= 3) setConnectionLost(true);
+        return;
+      }
       const data: MeetingDetail = await res.json();
+
+      // Poll succeeded — reset failure tracking
+      failedPollsRef.current = 0;
+      if (connectionLost) setConnectionLost(false);
 
       // Only update if content changed
       if (data.modifiedAt !== lastModifiedRef.current) {
@@ -202,9 +214,10 @@ export default function MeetingViewer() {
         pollRef.current = undefined;
       }
     } catch {
-      // silent
+      failedPollsRef.current++;
+      if (failedPollsRef.current >= 3) setConnectionLost(true);
     }
-  }, [projectParam]);
+  }, [projectParam, connectionLost]);
 
   // Initial list load + periodic refresh
   useEffect(() => {
@@ -629,13 +642,24 @@ export default function MeetingViewer() {
 
               {isLive && (
                 <div className="mt-8 flex items-center gap-2">
-                  <span
-                    className={`inline-block w-1.5 h-1.5 rounded-full ${recentlyUpdated ? 'animate-ping' : 'animate-pulse'}`}
-                    style={{ background: recentlyUpdated ? 'var(--live-green)' : 'var(--accent)' }}
-                  />
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {recentlyUpdated ? 'New response received' : 'Watching for updates...'}
-                  </span>
+                  {connectionLost ? (
+                    <>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--warning)' }} />
+                      <span className="text-xs" style={{ color: 'var(--warning)' }}>
+                        Connection lost — retrying...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className={`inline-block w-1.5 h-1.5 rounded-full ${recentlyUpdated ? 'animate-ping' : 'animate-pulse'}`}
+                        style={{ background: recentlyUpdated ? 'var(--live-green)' : 'var(--accent)' }}
+                      />
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {recentlyUpdated ? 'New response received' : 'Watching for updates...'}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             </div>
