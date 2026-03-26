@@ -302,6 +302,22 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
 export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [hasLiveMeeting, setHasLiveMeeting] = useState(false);
+
+  // Poll for live meetings to show indicator
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const res = await fetch('/api/meetings');
+        if (!res.ok) return;
+        const data = await res.json();
+        setHasLiveMeeting(Array.isArray(data) && data.some((m: { status: string }) => m.status === 'in-progress'));
+      } catch { /* silent */ }
+    };
+    check();
+    const interval = setInterval(check, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <nav
@@ -338,7 +354,7 @@ export default function Nav() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="text-sm transition-colors"
+                className="text-sm transition-colors flex items-center gap-1.5"
                 style={{
                   color: isActive ? 'var(--accent)' : 'var(--text-muted)',
                   fontWeight: isActive ? 600 : 400,
@@ -347,6 +363,13 @@ export default function Nav() {
                 }}
               >
                 {item.label}
+                {item.href === '/meetings' && hasLiveMeeting && !isActive && (
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                    style={{ background: 'var(--live-green)' }}
+                    title="Live meeting in progress"
+                  />
+                )}
               </Link>
             );
           })}

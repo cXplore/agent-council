@@ -403,6 +403,41 @@ npm run dev
         </div>
       </div>
     </section>
+
+    <!-- MCP Integration -->
+    <section>
+      <h2>MCP Integration</h2>
+      <p style="color: #a8a5a0; margin-bottom: 1.5rem;">
+        Optional two-way communication with Claude Code. The facilitator sends live progress events
+        and checks for your input between rounds.
+      </p>
+      <div class="install-options">
+        <div class="install-option">
+          <h3>Claude Desktop</h3>
+          <p>Add to <code>claude_desktop_config.json</code></p>
+          <pre>{
+  "mcpServers": {
+    "agent-council": {
+      "command": "node",
+      "args": ["/path/to/agent-council/mcp/server.mjs"]
+    }
+  }
+}</pre>
+        </div>
+        <div class="install-option">
+          <h3>Claude Code CLI</h3>
+          <p>Add to <code>~/.claude/settings.json</code></p>
+          <pre>{
+  "mcpServers": {
+    "agent-council": {
+      "command": "node",
+      "args": ["/path/to/agent-council/mcp/server.mjs"]
+    }
+  }
+}</pre>
+        </div>
+      </div>
+    </section>
   </div>
 
   <footer>
