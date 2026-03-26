@@ -55,6 +55,7 @@ export default function MeetingViewer() {
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
@@ -501,7 +502,21 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Status filter */}
+              {/* Search and filter */}
+              {meetings.length > 2 && (
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search meetings..."
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2"
+                  style={{
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              )}
               {meetings.length > 2 && (
                 <div className="flex gap-2 mb-2">
                   {(['all', 'in-progress', 'complete'] as const).map(f => (
@@ -529,7 +544,19 @@ export default function MeetingViewer() {
                   <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
                 </div>
               )}
-              {meetings.filter(m => statusFilter === 'all' || m.status === statusFilter).map((m) => (
+              {meetings.filter(m => {
+                if (statusFilter !== 'all' && m.status !== statusFilter) return false;
+                if (searchQuery) {
+                  const q = searchQuery.toLowerCase();
+                  return (
+                    (m.title?.toLowerCase().includes(q)) ||
+                    m.type.toLowerCase().includes(q) ||
+                    m.participants.some(p => p.toLowerCase().includes(q)) ||
+                    m.preview?.toLowerCase().includes(q)
+                  );
+                }
+                return true;
+              }).map((m) => (
                 <div
                   key={m.filename}
                   role="button"
@@ -684,6 +711,21 @@ export default function MeetingViewer() {
                     Copy summary
                   </button>
                 )}
+                <button
+                  onClick={async () => {
+                    if (!detail?.content) return;
+                    await navigator.clipboard.writeText(detail.content);
+                    const btn = document.activeElement as HTMLButtonElement;
+                    const orig = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => { btn.textContent = orig; }, 1500);
+                  }}
+                  className="text-xs px-2 py-0.5 rounded transition-colors"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                  title="Copy full meeting to clipboard"
+                >
+                  Copy all
+                </button>
               </>
             )}
           </>
