@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#0a0a15"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#7c6dd8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Outer ring - council table -->
+  <circle cx="256" cy="256" r="140" fill="none" stroke="url(#accent)" stroke-width="3" opacity="0.3"/>
+  <!-- Agent nodes around the circle -->
+  <circle cx="256" cy="116" r="28" fill="url(#accent)" opacity="0.9"/>
+  <circle cx="377" cy="186" r="28" fill="url(#accent)" opacity="0.75"/>
+  <circle cx="377" cy="326" r="28" fill="url(#accent)" opacity="0.6"/>
+  <circle cx="256" cy="396" r="28" fill="url(#accent)" opacity="0.75"/>
+  <circle cx="135" cy="326" r="28" fill="url(#accent)" opacity="0.6"/>
+  <circle cx="135" cy="186" r="28" fill="url(#accent)" opacity="0.9"/>
+  <!-- Connection lines between nodes -->
+  <line x1="256" y1="116" x2="377" y2="186" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <line x1="377" y1="186" x2="377" y2="326" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <line x1="377" y1="326" x2="256" y2="396" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <line x1="256" y1="396" x2="135" y2="326" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <line x1="135" y1="326" x2="135" y2="186" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <line x1="135" y1="186" x2="256" y2="116" stroke="#a78bfa" stroke-width="2" opacity="0.2"/>
+  <!-- Center hub dot -->
+  <circle cx="256" cy="256" r="16" fill="url(#accent)"/>
+  <!-- Hub spokes -->
+  <line x1="256" y1="256" x2="256" y2="144" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+  <line x1="256" y1="256" x2="349" y2="202" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+  <line x1="256" y1="256" x2="349" y2="310" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+  <line x1="256" y1="256" x2="256" y2="368" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+  <line x1="256" y1="256" x2="163" y2="310" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+  <line x1="256" y1="256" x2="163" y2="202" stroke="#a78bfa" stroke-width="2" opacity="0.15"/>
+</svg>
