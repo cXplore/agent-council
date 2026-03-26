@@ -15,7 +15,10 @@ const DEFAULT_CONFIG: CouncilConfig = {
 let cachedConfig: CouncilConfig | null = null;
 
 function getConfigPath(): string {
-  return path.join(process.cwd(), 'council.config.json');
+  // In packaged Electron app, use the user's app data directory (writable)
+  // COUNCIL_CONFIG_DIR is set by electron/main.js for packaged builds
+  const configDir = process.env.COUNCIL_CONFIG_DIR || process.cwd();
+  return path.join(configDir, 'council.config.json');
 }
 
 /** Migrate old flat config to new multi-project format */
