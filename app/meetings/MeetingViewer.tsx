@@ -763,6 +763,49 @@ export default function MeetingViewer() {
         </div>
       )}
 
+      {/* Meeting stats for completed meetings */}
+      {detail && detail.status === 'complete' && detail.content && (() => {
+        // Count words per agent
+        const agentBlocks = detail.content.split(/\*\*([\w-]+):\*\*/);
+        const wordCounts: Record<string, number> = {};
+        for (let i = 1; i < agentBlocks.length; i += 2) {
+          const name = agentBlocks[i];
+          const text = agentBlocks[i + 1] || '';
+          const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+          wordCounts[name] = (wordCounts[name] || 0) + words;
+        }
+        const totalWords = Object.values(wordCounts).reduce((a, b) => a + b, 0);
+        const rounds = (detail.content.match(/^## Round \d+/gm) || []).length;
+        if (totalWords === 0) return null;
+
+        return (
+          <div
+            className="px-6 py-2 flex items-center gap-4 text-xs flex-wrap"
+            style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            <span>{totalWords.toLocaleString()} words</span>
+            <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
+            <span>{Object.keys(wordCounts).length} agents</span>
+            <div className="flex-1" />
+            {/* Mini contribution bar */}
+            <div className="flex h-1.5 rounded-full overflow-hidden" style={{ width: 120 }}>
+              {Object.entries(wordCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => (
+                  <div
+                    key={name}
+                    style={{
+                      width: `${(count / totalWords) * 100}%`,
+                      background: getAgentColor(name),
+                    }}
+                    title={`${name}: ${count} words (${Math.round((count / totalWords) * 100)}%)`}
+                  />
+                ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Content area */}
       <div
         ref={contentRef}
