@@ -79,7 +79,7 @@ docs/                   # GitHub Pages static site
 | Codebase scanner | `lib/scanner.ts` |
 | Template engine | `lib/agent-templates.ts` |
 | Markdown components | `lib/md-components.tsx` |
-| MCP server | `mcp/server.js` |
+| MCP server | `mcp/server.mjs` |
 | Electron main | `electron/main.js` |
 | CLI | `bin/cli.js` |
 | Agent templates | `templates/agents/*.md` |

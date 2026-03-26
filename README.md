@@ -65,7 +65,7 @@ Add to your `~/.claude/settings.json`:
   "mcpServers": {
     "agent-council": {
       "command": "node",
-      "args": ["/path/to/agent-council/mcp/server.js"]
+      "args": ["/path/to/agent-council/mcp/server.mjs"]
     }
   }
 }
