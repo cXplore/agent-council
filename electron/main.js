@@ -39,7 +39,7 @@ function waitForServer(url, timeout = 30000) {
 
     function check() {
       http.get(url, (res) => {
-        if (res.statusCode === 200 || res.statusCode === 304) {
+        if (res.statusCode >= 200 && res.statusCode < 400) {
           resolve();
         } else {
           retry();
@@ -63,21 +63,19 @@ function startNextServer() {
   return new Promise((resolve, reject) => {
     const isPackaged = app.isPackaged;
     const appPath = isPackaged
-      ? path.join(process.resourcesPath, 'app.asar.unpacked')
+      ? path.join(process.resourcesPath, 'app')
       : path.join(__dirname, '..');
 
     if (isPackaged) {
-      // Production: use Next.js standalone server.js via system node
-      const standaloneDir = path.join(process.resourcesPath, 'standalone');
-      const serverJs = path.join(standaloneDir, 'server.js');
-
-      nextProcess = spawn('node', [serverJs], {
-        cwd: standaloneDir,
+      // Production: run next's CLI directly via node
+      const nextBin = path.join(appPath, 'node_modules', 'next', 'dist', 'bin', 'next');
+      nextProcess = spawn(process.execPath, [nextBin, 'start', '-p', String(PORT)], {
+        cwd: appPath,
         env: {
           ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
           NODE_ENV: 'production',
           PORT: String(PORT),
-          HOSTNAME: 'localhost',
         },
         stdio: 'pipe',
       });
@@ -155,7 +153,7 @@ function createWindow(startPage = '/meetings') {
     minHeight: 600,
     title: 'Agent Council',
     backgroundColor: '#0a0a0a',
-    show: false,
+    show: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -165,7 +163,17 @@ function createWindow(startPage = '/meetings') {
   // Show window when content is ready (avoids white flash)
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.focus();
   });
+
+  // Fallback: show window after 5s even if ready-to-show hasn't fired
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      console.log('Fallback: showing window after timeout');
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  }, 5000);
 
   mainWindow.loadURL(`http://localhost:${PORT}${startPage}`);
 
