@@ -66,6 +66,9 @@ export default function MeetingViewer() {
   // Track seen content for fade-in splitting
   const [seenContent, setSeenContent] = useState<string>('');
 
+  // MCP event tracking
+  const [latestEvent, setLatestEvent] = useState<string | null>(null);
+
   // Connection health tracking
   const [connectionLost, setConnectionLost] = useState(false);
   const failedPollsRef = useRef(0);
@@ -243,6 +246,52 @@ export default function MeetingViewer() {
       if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
     };
   }, [selected, fetchDetail]);
+
+  // Poll MCP events for live meetings
+  useEffect(() => {
+    if (!selected || !detail || detail.status !== 'in-progress') {
+      setLatestEvent(null);
+      return;
+    }
+
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(`/api/council/events?meeting=${encodeURIComponent(selected)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const events = data.events;
+        if (events && events.length > 0) {
+          const last = events[events.length - 1];
+          // Format the event into a human-readable string
+          switch (last.event) {
+            case 'meeting_starting':
+              setLatestEvent('Meeting starting...');
+              break;
+            case 'round_starting':
+              setLatestEvent(`${last.detail || 'Next round'} starting...`);
+              break;
+            case 'agent_speaking':
+              setLatestEvent(`${last.detail || 'Agent'} is thinking...`);
+              break;
+            case 'round_complete':
+              setLatestEvent(`${last.detail || 'Round'} complete`);
+              break;
+            case 'meeting_complete':
+              setLatestEvent('Meeting complete');
+              break;
+            default:
+              setLatestEvent(null);
+          }
+        }
+      } catch {
+        // silent — events are optional
+      }
+    };
+
+    fetchEvents();
+    const interval = setInterval(fetchEvents, 3000);
+    return () => clearInterval(interval);
+  }, [selected, detail?.status]);
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -559,20 +608,24 @@ export default function MeetingViewer() {
           }}
         >
           <span style={{ color: 'var(--text-muted)' }}>Participants:</span>
-          {detail.participants.map((p) => (
-            <a
-              key={p}
-              href="/agents"
-              className="px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
-              style={{
-                color: getAgentColor(p),
-                background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
-              }}
-              title="View agents"
-            >
-              {p}
-            </a>
-          ))}
+          {detail.participants.map((p) => {
+            const hasSpoken = detail.content?.includes(`**${p}:**`) ?? false;
+            return (
+              <a
+                key={p}
+                href={`/agents?agent=${encodeURIComponent(p)}`}
+                className="px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
+                style={{
+                  color: getAgentColor(p),
+                  background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
+                  opacity: hasSpoken ? 1 : 0.4,
+                }}
+                title={hasSpoken ? `${p} has spoken — click to view profile` : `${p} — waiting to speak`}
+              >
+                {p}
+              </a>
+            );
+          })}
         </div>
       )}
 
@@ -656,7 +709,7 @@ export default function MeetingViewer() {
                         style={{ background: recentlyUpdated ? 'var(--live-green)' : 'var(--accent)' }}
                       />
                       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {recentlyUpdated ? 'New response received' : 'Watching for updates...'}
+                        {recentlyUpdated ? 'New response received' : latestEvent || 'Watching for updates...'}
                       </span>
                     </>
                   )}

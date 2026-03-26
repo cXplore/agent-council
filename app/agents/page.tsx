@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
 import { docComponents } from '@/lib/md-components';
@@ -19,7 +20,8 @@ interface AgentsResponse {
   project: string;
 }
 
-export default function AgentsPage() {
+function AgentsPageInner() {
+  const searchParams = useSearchParams();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
   const [project, setProject] = useState<string>('');
   const [selected, setSelected] = useState<AgentInfo | null>(null);
@@ -35,6 +37,15 @@ export default function AgentsPage() {
           const data: AgentsResponse = await res.json();
           setAgents(data.agents);
           setProject(data.project);
+
+          // Auto-select agent from URL param (e.g., ?agent=project-manager)
+          const agentParam = searchParams.get('agent');
+          if (agentParam) {
+            const match = data.agents.find(a =>
+              a.name === agentParam || a.filename === `${agentParam}.md`
+            );
+            if (match) setSelected(match);
+          }
         } else {
           setFetchError(true);
         }
@@ -45,7 +56,7 @@ export default function AgentsPage() {
       }
     };
     fetchAgents();
-  }, []);
+  }, [searchParams]);
 
   if (selected) {
     return (
@@ -80,17 +91,63 @@ export default function AgentsPage() {
             {selected.description}
           </p>
 
-          <div
-            className="text-sm rounded-lg p-6 overflow-auto leading-relaxed prose prose-sm prose-invert max-w-none"
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <ReactMarkdown components={docComponents}>
-              {selected.content}
-            </ReactMarkdown>
+          <div className="space-y-3">
+            {(() => {
+              // Split content into sections by ## headings for collapsible display
+              const sections: { title: string; body: string }[] = [];
+              const lines = selected.content.split('\n');
+              let currentTitle = '';
+              let currentBody: string[] = [];
+
+              for (const line of lines) {
+                if (line.startsWith('## ')) {
+                  if (currentTitle || currentBody.length > 0) {
+                    sections.push({ title: currentTitle, body: currentBody.join('\n').trim() });
+                  }
+                  currentTitle = line.replace(/^##\s+/, '');
+                  currentBody = [];
+                } else {
+                  currentBody.push(line);
+                }
+              }
+              if (currentTitle || currentBody.length > 0) {
+                sections.push({ title: currentTitle, body: currentBody.join('\n').trim() });
+              }
+
+              // If no sections (no ## headings), render as one block
+              if (sections.length <= 1) {
+                return (
+                  <div
+                    className="text-sm rounded-lg p-6 overflow-auto leading-relaxed prose prose-sm prose-invert max-w-none"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <ReactMarkdown components={docComponents}>{selected.content}</ReactMarkdown>
+                  </div>
+                );
+              }
+
+              return sections.map((section, i) => (
+                <details
+                  key={i}
+                  open={i === 0}
+                  className="rounded-lg overflow-hidden"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                >
+                  <summary
+                    className="px-6 py-4 cursor-pointer text-sm font-medium select-none hover:brightness-110"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    {section.title || 'Overview'}
+                  </summary>
+                  <div
+                    className="px-6 pb-6 text-sm leading-relaxed prose prose-sm prose-invert max-w-none"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    <ReactMarkdown components={docComponents}>{section.body}</ReactMarkdown>
+                  </div>
+                </details>
+              ));
+            })()}
           </div>
         </div>
       </div>
@@ -185,5 +242,13 @@ export default function AgentsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AgentsPage() {
+  return (
+    <Suspense>
+      <AgentsPageInner />
+    </Suspense>
   );
 }

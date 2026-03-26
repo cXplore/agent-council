@@ -106,7 +106,7 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
     strong: ({ children }) => {
       const name = String(children).replace(/:$/, '');
       const color = getAgentColor(name);
-      // Agent names (ending with :) get a colored badge-style header
+      // Agent names (ending with :) get a colored badge-style header with link to profile
       const isAgentName = String(children).endsWith(':');
       if (isAgentName) {
         return (
@@ -120,7 +120,15 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
             fontSize: '0.9rem',
             fontWeight: 600,
           }}>
-            {children}
+            <a
+              href={`/agents?agent=${encodeURIComponent(name)}`}
+              style={{ color: 'inherit', textDecoration: 'none' }}
+              onMouseEnter={(e) => { (e.target as HTMLElement).style.textDecoration = 'underline'; }}
+              onMouseLeave={(e) => { (e.target as HTMLElement).style.textDecoration = 'none'; }}
+              title={`View ${name} agent profile`}
+            >
+              {children}
+            </a>
           </strong>
         );
       }
