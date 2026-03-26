@@ -59,7 +59,21 @@ No special commands — just ask Claude Code for a meeting in plain language.
 
 Agent Council includes an MCP server for two-way communication with Claude Code. The facilitator can notify the viewer of meeting progress and check for human input.
 
-Add to your `~/.claude/settings.json`:
+Add to your Claude config:
+
+**Claude Code CLI** — `~/.claude/settings.json`:
+```json
+{
+  "mcpServers": {
+    "agent-council": {
+      "command": "node",
+      "args": ["/path/to/agent-council/mcp/server.mjs"]
+    }
+  }
+}
+```
+
+**Claude Desktop** — `claude_desktop_config.json` (in `%APPDATA%/Claude/` on Windows, `~/Library/Application Support/Claude/` on Mac):
 ```json
 {
   "mcpServers": {
