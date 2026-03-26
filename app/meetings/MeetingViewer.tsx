@@ -81,11 +81,14 @@ export default function MeetingViewer() {
   const [connectionLost, setConnectionLost] = useState(false);
   const failedPollsRef = useRef(0);
 
+  const connectionLostRef = useRef(false);
+
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
   const lastContentLengthRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const recentlyUpdatedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const seenContentTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const selectedRef = useRef<string | null>(searchParams.get('file'));
   const userExplicitlyBackRef = useRef(false);
   const userScrolledUpRef = useRef(false);
@@ -107,6 +110,7 @@ export default function MeetingViewer() {
   useEffect(() => { selectedRef.current = selected; }, [selected]);
   useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
   useEffect(() => { userScrolledUpRef.current = userScrolledUp; }, [userScrolledUp]);
+  useEffect(() => { connectionLostRef.current = connectionLost; }, [connectionLost]);
 
   // Fetch project state on mount
   useEffect(() => {
@@ -153,6 +157,7 @@ export default function MeetingViewer() {
   const fetchList = useCallback(async () => {
     try {
       const res = await fetch(`/api/meetings${projectParam()}`);
+      if (!res.ok) { setFetchError(true); return; }
       const data = await res.json();
       setMeetings(Array.isArray(data) ? data : []);
 
@@ -183,7 +188,7 @@ export default function MeetingViewer() {
 
       // Poll succeeded — reset failure tracking
       failedPollsRef.current = 0;
-      if (connectionLost) setConnectionLost(false);
+      if (connectionLostRef.current) setConnectionLost(false);
 
       // Only update if content changed
       if (data.modifiedAt !== lastModifiedRef.current) {
@@ -204,7 +209,8 @@ export default function MeetingViewer() {
         setDetail(data);
 
         // After animation plays, mark all content as seen
-        setTimeout(() => {
+        if (seenContentTimerRef.current) clearTimeout(seenContentTimerRef.current);
+        seenContentTimerRef.current = setTimeout(() => {
           setSeenContent(data.content ?? '');
         }, 600);
 
@@ -228,7 +234,7 @@ export default function MeetingViewer() {
       failedPollsRef.current++;
       if (failedPollsRef.current >= 3) setConnectionLost(true);
     }
-  }, [projectParam, connectionLost]);
+  }, [projectParam]);
 
   // Initial list load + periodic refresh
   useEffect(() => {
@@ -268,6 +274,7 @@ export default function MeetingViewer() {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
+      if (seenContentTimerRef.current) clearTimeout(seenContentTimerRef.current);
     };
   }, [selected, fetchDetail]);
 
@@ -732,7 +739,7 @@ export default function MeetingViewer() {
                   style={{ background: 'var(--error)', color: 'white' }}
                 >
                   <span>{error}</span>
-                  <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
+                  <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white" aria-label="Dismiss error">&#x2715;</button>
                 </div>
               )}
               {meetings.filter(m => {
@@ -1037,6 +1044,7 @@ export default function MeetingViewer() {
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
                   title={r}
+                  aria-label={`Jump to Round ${i + 1}`}
                 >
                   R{i + 1}
                 </button>
@@ -1054,6 +1062,7 @@ export default function MeetingViewer() {
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
                   title="Jump to Summary"
+                  aria-label="Jump to Summary"
                 >
                   S
                 </button>
@@ -1153,7 +1162,7 @@ export default function MeetingViewer() {
           style={{ background: 'var(--error)', color: 'white' }}
         >
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
+          <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white" aria-label="Dismiss error">&#x2715;</button>
         </div>
       )}
 

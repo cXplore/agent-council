@@ -19,14 +19,14 @@ export async function POST(req: NextRequest) {
       const dirStat = await stat(dirPath);
       if (!dirStat.isDirectory()) {
         return NextResponse.json(
-          { error: `Path is not a directory: ${dirPath}` },
+          { error: 'Path is not a directory' },
           { status: 400 },
         );
       }
     } catch (err: any) {
       if (err.code === 'ENOENT') {
         return NextResponse.json(
-          { error: `Directory not found: ${dirPath}` },
+          { error: 'Directory not found' },
           { status: 404 },
         );
       }

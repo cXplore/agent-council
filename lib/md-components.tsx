@@ -54,7 +54,7 @@ const baseComponents: Components = {
   code: ({ children }) => (
     <code
       className="text-xs px-1.5 py-0.5 rounded"
-      style={{ background: 'var(--border)', color: 'var(--accent)' }}
+      style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}
     >
       {children}
     </code>
@@ -122,9 +122,8 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
           }}>
             <a
               href={`/agents?agent=${encodeURIComponent(name)}`}
+              className="hover:underline focus-visible:underline"
               style={{ color: 'inherit', textDecoration: 'none' }}
-              onMouseEnter={(e) => { (e.target as HTMLElement).style.textDecoration = 'underline'; }}
-              onMouseLeave={(e) => { (e.target as HTMLElement).style.textDecoration = 'none'; }}
               title={`View ${name} agent profile`}
             >
               {children}

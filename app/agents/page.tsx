@@ -30,11 +30,12 @@ function SuggestionBar({ agent }: { agent: AgentInfo }) {
 
   const suggest = async (type: string, message: string, field?: string, value?: string) => {
     try {
-      await fetch('/api/council/suggestions', {
+      const res = await fetch('/api/council/suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, agent: agent.name, field, value, message }),
       });
+      if (!res.ok) throw new Error('Server rejected suggestion');
       setToast('Suggestion sent — Claude will pick it up');
       setTimeout(() => setToast(null), 3000);
     } catch {
@@ -133,12 +134,12 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
           {agent.name}
         </span>
         {agent.role === 'lead' && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: '0.65rem' }}>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: '0.7rem' }}>
             lead
           </span>
         )}
         {agent.required && (
-          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.65rem' }}>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.7rem' }}>
             required
           </span>
         )}
@@ -152,12 +153,12 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
       {agent.tools.length > 0 && (
         <div className="flex gap-1 mt-2 ml-5 flex-wrap">
           {agent.tools.slice(0, 5).map(t => (
-            <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+            <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.7rem' }}>
               {t}
             </span>
           ))}
           {agent.tools.length > 5 && (
-            <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+            <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
               +{agent.tools.length - 5} more
             </span>
           )}
