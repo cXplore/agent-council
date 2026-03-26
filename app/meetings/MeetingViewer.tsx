@@ -775,7 +775,7 @@ export default function MeetingViewer() {
           wordCounts[name] = (wordCounts[name] || 0) + words;
         }
         const totalWords = Object.values(wordCounts).reduce((a, b) => a + b, 0);
-        const rounds = (detail.content.match(/^## Round \d+/gm) || []).length;
+        const rounds = (detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm) || []).length;
         if (totalWords === 0) return null;
 
         return (
@@ -814,7 +814,7 @@ export default function MeetingViewer() {
       >
         {/* Round jump markers */}
         {detail && detail.content && (() => {
-          const rounds = detail.content.match(/^## Round \d+/gm);
+          const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);
           const hasSummary = detail.content.includes('## Summary');
           if (!rounds && !hasSummary) return null;
           return (
@@ -823,10 +823,11 @@ export default function MeetingViewer() {
                 <button
                   key={i}
                   onClick={() => {
-                    const headings = contentRef.current?.querySelectorAll('h2');
-                    headings?.forEach(h => {
-                      if (h.textContent?.trim().startsWith(`Round ${i + 1}`)) {
-                        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Search h2, em, and strong for round markers (different facilitators use different formats)
+                    const elements = contentRef.current?.querySelectorAll('h2, em, strong');
+                    elements?.forEach(el => {
+                      if (el.textContent?.trim().startsWith(`Round ${i + 1}`)) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     });
                   }}
