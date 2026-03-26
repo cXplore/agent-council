@@ -221,7 +221,7 @@ function AgentsPageInner() {
           </button>
         </div>
         <div className="max-w-3xl mx-auto px-6 py-8 w-full">
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-2">
             <span
               className="w-3 h-3 rounded-full"
               style={{ background: getAgentColor(selected.name) }}
@@ -229,9 +229,37 @@ function AgentsPageInner() {
             <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
               {selected.name}
             </h1>
-            <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+            {selected.role === 'lead' && (
+              <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
+                lead
+              </span>
+            )}
+            {selected.required && (
+              <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)' }}>
+                required
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mb-6 ml-6">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {selected.model}
             </span>
+            {selected.team && (
+              <>
+                <span style={{ color: 'var(--text-muted)' }}>&middot;</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {selected.team}
+                </span>
+              </>
+            )}
+            {selected.tools.length > 0 && (
+              <>
+                <span style={{ color: 'var(--text-muted)' }}>&middot;</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {selected.tools.length} tools
+                </span>
+              </>
+            )}
           </div>
 
           <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
