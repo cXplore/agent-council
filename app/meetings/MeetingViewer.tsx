@@ -454,8 +454,45 @@ export default function MeetingViewer() {
               className="rounded-lg px-5 py-4 mb-6 text-sm"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--warning)', color: 'var(--text-secondary)' }}
             >
-              <strong style={{ color: 'var(--warning)' }}>No facilitator agent found.</strong>{' '}
-              Meetings need a facilitator to run. <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>Set up agents</a> to generate one.
+              <strong style={{ color: 'var(--warning)' }}>Your project needs a facilitator to run meetings.</strong>
+              <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
+                The facilitator orchestrates rounds, picks participants, and produces summaries. Your existing agents stay untouched.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      const projRes = await fetch('/api/projects');
+                      const projData = await projRes.json();
+                      const active = projData.projects?.find((p: { name: string }) => p.name === projData.activeProject);
+                      if (!active?.path) return;
+                      const res = await fetch('/api/setup/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          targetDir: active.path,
+                          agents: [{ name: 'facilitator', template: 'facilitator', model: 'opus', description: 'Orchestrates meetings' }],
+                          projectProfile: null,
+                        }),
+                      });
+                      if (res.ok) {
+                        setHasFacilitator(true);
+                      }
+                    } catch { /* silent */ }
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--accent)', color: 'white' }}
+                >
+                  Add facilitator
+                </button>
+                <a
+                  href="/setup"
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  Full setup
+                </a>
+              </div>
             </div>
           ) : (
             /* Ready — show hint */
