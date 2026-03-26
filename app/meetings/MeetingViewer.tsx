@@ -477,8 +477,27 @@ export default function MeetingViewer() {
               Could not load meetings. Check that the project directory exists and try refreshing.
             </div>
           ) : hasProject === false ? null : meetings.length === 0 ? (
-            <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              No meetings yet.
+            <div className="space-y-3">
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                No meetings yet. Try one of these in Claude Code:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { type: 'Standup', prompt: 'what should we work on today?' },
+                  { type: 'Strategy', prompt: 'let\'s discuss the roadmap' },
+                  { type: 'Design Review', prompt: 'review the login flow design' },
+                  { type: 'Architecture', prompt: 'review our API architecture' },
+                ].map(s => (
+                  <div
+                    key={s.type}
+                    className="rounded-lg px-4 py-3 text-xs"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                  >
+                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.type}</span>
+                    <p className="mt-1 italic" style={{ color: 'var(--text-muted)' }}>&quot;{s.prompt}&quot;</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

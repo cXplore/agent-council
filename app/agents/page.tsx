@@ -236,6 +236,20 @@ function AgentsPageInner() {
                 <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
                   {agent.description}
                 </p>
+                {agent.tools.length > 0 && (
+                  <div className="flex gap-1 mt-2 ml-5 flex-wrap">
+                    {agent.tools.slice(0, 5).map(t => (
+                      <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                        {t}
+                      </span>
+                    ))}
+                    {agent.tools.length > 5 && (
+                      <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                        +{agent.tools.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                )}
               </button>
             ))}
           </div>
