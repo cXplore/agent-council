@@ -91,9 +91,9 @@ Add to your Claude config:
 
 **3 presets:** minimal (4 agents), standard (6 agents), full-stack (9 agents)
 
-### Agent Frontmatter Standard
+### Agent Frontmatter
 
-Agent `.md` files use YAML frontmatter. Agent Council reads these fields:
+Agent `.md` files use YAML frontmatter. The standard fields work with or without Agent Council:
 
 ```yaml
 ---
@@ -102,14 +102,16 @@ description: UX specialist...    # One-line summary
 model: opus                      # Claude model
 tools: Read, Grep, Write         # Tools the agent can use
 required: false                  # true for mandatory triad members
-team: design                     # Team grouping (optional)
-role: lead                       # lead or member (optional)
+
+# Agent Council (remove if not using Council)
+team: design                     # Team grouping
+role: lead                       # lead or member
 ---
 ```
 
-The `team` and `role` fields are optional — Agent Council uses them to group agents visually. Common teams: `core` (PM, critic, north-star), `engineering`, `design`, `content`, `strategy`. Use whatever fits your project.
+The `team` and `role` fields are Agent Council extensions — they control how agents are grouped in the viewer. If you stop using Council, just delete those two lines. Common teams: `core`, `engineering`, `design`, `content`, `strategy`.
 
-To update existing agents for Agent Council, tell Claude Code: *"Update all agents in .claude/agents/ to include team and role fields in their frontmatter, following the Agent Council frontmatter standard."*
+To add Council fields to existing agents, tell Claude Code: *"Add Agent Council team and role fields to all agents in .claude/agents/. Use a comment separator. Teams: core, design, content, engineering, strategy."*
 
 ## Configuration
 
