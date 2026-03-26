@@ -9,7 +9,7 @@ const DEFAULT_CONFIG: CouncilConfig = {
     agentsDir: './agents',
     meetingsDir: './meetings',
   },
-  port: 3001,
+  port: 3003,
 };
 
 let cachedConfig: CouncilConfig | null = null;

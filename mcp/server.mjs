@@ -8,7 +8,7 @@
  * - Send meeting progress updates
  * - Check for human input from the viewer
  *
- * Usage: Add to your project's .claude/settings.json:
+ * Usage: Add to ~/.claude/settings.json (CLI) or claude_desktop_config.json (Desktop):
  * {
  *   "mcpServers": {
  *     "agent-council": {

@@ -21,7 +21,7 @@ npm run dev
 ### CLI
 ```bash
 node bin/cli.js
-# Starts server and opens browser
+# Starts server at http://localhost:3003 and opens browser
 ```
 
 ## How It Works
@@ -126,13 +126,17 @@ To add Council fields to existing agents, tell Claude Code: *"Add Agent Council 
     }
   },
   "activeProject": "my-app",
+  "workspace": {
+    "agentsDir": "./agents",
+    "meetingsDir": "./meetings"
+  },
   "port": 3003
 }
 ```
 
 ## Tech Stack
 
-- Next.js 16 (App Router, Turbopack)
+- Next.js 16 (App Router)
 - TypeScript, TailwindCSS v4
 - Electron (desktop builds)
 - MCP server (Claude Code integration)

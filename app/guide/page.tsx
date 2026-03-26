@@ -54,17 +54,12 @@ export default function GuidePage() {
             className="rounded-lg p-5 text-sm space-y-3"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
-            <p>Go to <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>/setup</a> and enter your project path. Agent Council scans your codebase and suggests a team.</p>
-            <p>The scanner detects:</p>
+            <p>Go to <a href="/setup" className="underline" style={{ color: 'var(--accent)' }}>/setup</a>. You&apos;ll see two options:</p>
             <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-muted)' }}>
-              <li>Languages (TypeScript, Python, Rust, Go, etc.)</li>
-              <li>Frameworks (Next.js, Django, Rails, Express, etc.)</li>
-              <li>Project structure (API, frontend, database, tests, CI/CD)</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Connect an existing project</strong> (recommended) — point at your project directory. If you already have agents in <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>.claude/agents/</code>, you&apos;re done.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Scan and generate agents</strong> — Agent Council scans your codebase (languages, frameworks, structure) and suggests a team. You can customize, then click Generate.</li>
             </ul>
-            <p>Based on what it finds, it suggests agents. You can add, remove, or customize them. Then click <strong style={{ color: 'var(--text-primary)' }}>Generate</strong> — this writes <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>.claude/agents/*.md</code> files into your project.</p>
-            <p style={{ color: 'var(--text-muted)' }}>
-              Not sure where to start? Read the &quot;How does this work?&quot; option on the setup page for an overview.
-            </p>
+            <p>Either way, agent files live in your project&apos;s <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>.claude/agents/*.md</code>. Claude Code detects them automatically.</p>
           </div>
         </section>
 
@@ -171,7 +166,7 @@ claude`}</pre>
           >
             <p><strong style={{ color: 'var(--text-primary)' }}>The hub model:</strong> the meeting file is the shared conversation. All agents read from it and write to it. No hidden state.</p>
             <p><strong style={{ color: 'var(--text-primary)' }}>Round 1 (parallel):</strong> all agents respond independently. They don&apos;t see each other&apos;s responses. This prevents anchoring and groupthink.</p>
-            <p><strong style={{ color: 'var(--text-primary)' }}>Round 2+ (sequential):</strong> agents read the full conversation and respond one at a time. They can agree, challenge, build on, or redirect what others said. The facilitator controls speaking order — putting the agent most likely to challenge consensus first.</p>
+            <p><strong style={{ color: 'var(--text-primary)' }}>Round 2+ (sequential):</strong> agents read the full conversation and respond one at a time. They can agree, challenge, build on, or redirect what others said. The facilitator controls speaking order — PM first (grounding), specialists in the middle, critic second-to-last (stress-testing), north-star last (expanding the frame).</p>
             <p><strong style={{ color: 'var(--text-primary)' }}>Mandatory triad:</strong> every decision-producing meeting includes project-manager (what&apos;s real), critic (what&apos;s wrong), and north-star (what&apos;s possible). This ensures meetings don&apos;t converge on comfortable consensus.</p>
             <p><strong style={{ color: 'var(--text-primary)' }}>When it stops:</strong> default 3 rounds. The facilitator extends to 4-5 if the conversation is genuinely producing new substance. If agents start repeating each other, it stops immediately.</p>
           </div>
@@ -191,15 +186,16 @@ claude`}</pre>
             <p><strong style={{ color: 'var(--text-primary)' }}>For existing facilitators:</strong> If your facilitator predates MCP support, add this section to the end of your <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>facilitator.md</code>:</p>
             <pre className="text-xs p-3 rounded overflow-auto" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>{`## Agent Council Integration (Optional)
 
-If council_notify and council_check_input MCP tools are available:
+If the agent-council MCP tools are available:
+- Before starting, call council_status to check if the viewer is running
 - After creating the hub file, call council_notify(meeting_starting)
 - Before each round, call council_notify(round_starting)
 - Before each agent, call council_notify(agent_speaking)
 - Between rounds, call council_check_input for human input
 - After summary, call council_notify(meeting_complete)
 
-All calls need the meeting filename as the "meeting" parameter.
-If any call fails, continue normally.`}</pre>
+All council_notify calls need the meeting filename as "meeting" param.
+If any call fails, continue normally — meetings work without MCP.`}</pre>
           </div>
         </section>
 

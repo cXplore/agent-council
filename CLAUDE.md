@@ -4,7 +4,7 @@ A companion app for Claude Code agent meetings. Connects to your projects, watch
 
 ## Stack
 
-- Next.js 16 (App Router, Turbopack)
+- Next.js 16 (App Router)
 - TypeScript
 - TailwindCSS v4
 - Electron (desktop app)
