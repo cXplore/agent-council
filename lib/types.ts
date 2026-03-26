@@ -67,6 +67,7 @@ export interface MeetingListItem {
   participants: string[];
   modifiedAt: string;
   project?: string;
+  preview?: string;
 }
 
 export interface MeetingDetail extends MeetingListItem {

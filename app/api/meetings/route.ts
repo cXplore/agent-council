@@ -123,6 +123,12 @@ export async function GET(request: NextRequest) {
           const metadata = parseMetadata(content);
           const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
 
+          // Extract preview: first agent response snippet
+          const agentMatch = content.match(/\*\*[\w-]+:\*\*\s*(.+)/);
+          const preview = agentMatch
+            ? agentMatch[1].slice(0, 120).replace(/\s+/g, ' ').trim()
+            : undefined;
+
           return {
             filename: f,
             date: dateMatch?.[1] ?? null,
@@ -133,6 +139,7 @@ export async function GET(request: NextRequest) {
             participants: metadata.participants,
             modifiedAt: fileStat.mtime.toISOString(),
             project,
+            preview: preview ? (preview.length >= 120 ? preview + '...' : preview) : undefined,
           };
         } catch {
           return null; // Skip unreadable files

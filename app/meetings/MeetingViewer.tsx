@@ -54,6 +54,7 @@ export default function MeetingViewer() {
 
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
@@ -301,6 +302,30 @@ export default function MeetingViewer() {
     setUserScrolledUp(!nearBottom);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't capture when typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === 'Escape' && selected) {
+        selectMeeting(null);
+        setUserExplicitlyBack(true);
+      }
+      // j/k to navigate meetings in list view
+      if (!selected && meetings.length > 0) {
+        if (e.key === 'j' || e.key === 'k') {
+          e.preventDefault();
+          // No meeting focused — select first/last
+          selectMeeting(e.key === 'j' ? meetings[0].filename : meetings[meetings.length - 1].filename);
+          setUserExplicitlyBack(false);
+        }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selected, meetings, selectMeeting]);
+
   const scrollToBottom = () => {
     contentRef.current?.scrollTo({
       top: contentRef.current.scrollHeight,
@@ -457,6 +482,25 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Status filter */}
+              {meetings.length > 2 && (
+                <div className="flex gap-2 mb-2">
+                  {(['all', 'in-progress', 'complete'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setStatusFilter(f)}
+                      className="text-xs px-3 py-1 rounded-full transition-colors"
+                      style={{
+                        background: statusFilter === f ? 'var(--accent-muted)' : 'transparent',
+                        color: statusFilter === f ? 'var(--accent)' : 'var(--text-muted)',
+                        border: `1px solid ${statusFilter === f ? 'var(--accent)' : 'var(--border)'}`,
+                      }}
+                    >
+                      {f === 'all' ? 'All' : f === 'in-progress' ? 'Live' : 'Completed'}
+                    </button>
+                  ))}
+                </div>
+              )}
               {error && (
                 <div
                   className="rounded-lg px-4 py-2 text-sm flex items-center justify-between"
@@ -466,7 +510,7 @@ export default function MeetingViewer() {
                   <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white">&#x2715;</button>
                 </div>
               )}
-              {meetings.map((m) => (
+              {meetings.filter(m => statusFilter === 'all' || m.status === statusFilter).map((m) => (
                 <div
                   key={m.filename}
                   role="button"
@@ -524,6 +568,12 @@ export default function MeetingViewer() {
                   {m.participants.length > 0 && (
                     <div className="text-xs mt-1 ml-5" style={{ color: 'var(--text-muted)' }}>
                       {m.participants.join(', ')}
+                    </div>
+                  )}
+
+                  {m.preview && (
+                    <div className="text-xs mt-2 ml-5 line-clamp-2" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                      {m.preview}
                     </div>
                   )}
 
@@ -590,9 +640,32 @@ export default function MeetingViewer() {
                 title="Meeting in progress"
               />
             ) : detail && (
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Completed
-              </span>
+              <>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Completed
+                </span>
+                {detail.content?.includes('## Summary') && (
+                  <button
+                    onClick={async () => {
+                      const summaryMatch = detail.content?.match(/## Summary[\s\S]*$/);
+                      if (summaryMatch) {
+                        await navigator.clipboard.writeText(summaryMatch[0]);
+                        setError(null);
+                        // Brief visual feedback
+                        const btn = document.activeElement as HTMLButtonElement;
+                        const orig = btn.textContent;
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = orig; }, 1500);
+                      }
+                    }}
+                    className="text-xs px-2 py-0.5 rounded transition-colors"
+                    style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
+                    title="Copy the summary section to clipboard"
+                  >
+                    Copy summary
+                  </button>
+                )}
+              </>
             )}
           </>
         )}
@@ -633,8 +706,53 @@ export default function MeetingViewer() {
       <div
         ref={contentRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-6 py-8"
+        className="flex-1 overflow-y-auto px-6 py-8 relative"
       >
+        {/* Round jump markers */}
+        {detail && detail.content && (() => {
+          const rounds = detail.content.match(/^## Round \d+/gm);
+          const hasSummary = detail.content.includes('## Summary');
+          if (!rounds && !hasSummary) return null;
+          return (
+            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2">
+              {rounds?.map((r, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    const headings = contentRef.current?.querySelectorAll('h2');
+                    headings?.forEach(h => {
+                      if (h.textContent?.trim().startsWith(`Round ${i + 1}`)) {
+                        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    });
+                  }}
+                  className="text-xs px-2 py-1 rounded transition-colors"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                  title={r}
+                >
+                  R{i + 1}
+                </button>
+              ))}
+              {hasSummary && (
+                <button
+                  onClick={() => {
+                    const headings = contentRef.current?.querySelectorAll('h2');
+                    headings?.forEach(h => {
+                      if (h.textContent?.trim() === 'Summary') {
+                        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    });
+                  }}
+                  className="text-xs px-2 py-1 rounded transition-colors"
+                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                  title="Jump to Summary"
+                >
+                  S
+                </button>
+              )}
+            </div>
+          );
+        })()}
         <div className="max-w-3xl mx-auto">
           {!detail ? (
             <div className="space-y-4">
