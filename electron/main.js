@@ -71,19 +71,13 @@ function startNextServer() {
       const standaloneDir = path.join(process.resourcesPath, 'standalone');
       const serverJs = path.join(standaloneDir, 'server.js');
 
-      // Use Electron's bundled Node.js rather than requiring system node
-      const electronExe = process.execPath;
-      // Store config in user's app data directory (writable, persists across updates)
-      const userDataDir = app.getPath('userData');
-      nextProcess = spawn(electronExe, ['--no-warnings', serverJs], {
+      nextProcess = spawn('node', [serverJs], {
         cwd: standaloneDir,
         env: {
           ...process.env,
           NODE_ENV: 'production',
           PORT: String(PORT),
           HOSTNAME: 'localhost',
-          ELECTRON_RUN_AS_NODE: '1',
-          COUNCIL_CONFIG_DIR: userDataDir,
         },
         stdio: 'pipe',
       });
@@ -214,18 +208,17 @@ function createSplashWindow() {
     <head>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { background: transparent; }
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          background: #141416;
+          background: #111;
           color: #fff;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           height: 100vh;
-          border-radius: 12px;
-          overflow: hidden;
+          border-radius: 16px;
+          border: 1px solid #333;
           -webkit-app-region: drag;
         }
         .title {
