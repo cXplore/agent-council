@@ -56,7 +56,7 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 
 // Parse frontmatter from agent markdown
 export function parseFrontmatter(content: string): { frontmatter: Record<string, any>; body: string } {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: content };
 
   const frontmatter: Record<string, any> = {};
@@ -103,7 +103,9 @@ export function serializeFrontmatter(frontmatter: Record<string, any>): string {
         lines.push(`  - ${item}`);
       }
     } else {
-      lines.push(`${key}: ${value}`);
+      const str = String(value);
+      const needsQuoting = /[:#\[\]{}|>&*!@`]/.test(str) || str.startsWith(' ') || str.endsWith(' ');
+      lines.push(`${key}: ${needsQuoting ? `"${str.replace(/"/g, '\\"')}"` : str}`);
     }
   }
   return lines.join('\n');

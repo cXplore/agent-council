@@ -42,8 +42,15 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
         setOpen(false);
       }
     };
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
   }, [open]);
 
   const handleSwitch = useCallback(async (name: string) => {
@@ -242,6 +249,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
               </div>
               <button
                 onClick={(e) => handleRemove(project.name, e)}
+                onKeyDown={(e) => e.stopPropagation()}
                 className="text-xs rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
                 style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '2px 6px' }}
                 title="Remove project"
@@ -303,6 +311,9 @@ export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [hasLiveMeeting, setHasLiveMeeting] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   // Poll for live meetings to show indicator
   useEffect(() => {

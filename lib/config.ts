@@ -46,8 +46,8 @@ function migrateConfig(raw: Record<string, unknown>): CouncilConfig {
       projects: {
         [name]: {
           path: projectDir,
-          meetingsDir,
-          agentsDir,
+          meetingsDir: meetingsDir || 'meetings',
+          agentsDir: agentsDir || '.claude/agents',
         },
       },
       activeProject: name,
@@ -59,8 +59,10 @@ function migrateConfig(raw: Record<string, unknown>): CouncilConfig {
     };
   }
 
-  // New format — merge with defaults
-  return { ...DEFAULT_CONFIG, ...(raw as Partial<CouncilConfig>) };
+  // New format — deep merge workspace to prevent partial drops
+  const merged = { ...DEFAULT_CONFIG, ...(raw as Partial<CouncilConfig>) };
+  merged.workspace = { ...DEFAULT_CONFIG.workspace, ...(merged.workspace ?? {}) };
+  return merged;
 }
 
 export async function getConfig(): Promise<CouncilConfig> {

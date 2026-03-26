@@ -95,14 +95,19 @@ export default function SetupWizard() {
       }
 
       // Save the config and get agent info
-      const connectData = await fetch('/api/setup/connect', {
+      const connectRes = await fetch('/api/setup/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectPath: projectPath.trim(),
           meetingsDir: foundMeetingsDir,
         }),
-      }).then(r => r.json());
+      });
+      if (!connectRes.ok) {
+        const errData = await connectRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to connect project');
+      }
+      const connectData = await connectRes.json();
 
       const agentCount = connectData.agentCount ?? 0;
       setConnectInfo({
@@ -578,7 +583,7 @@ export default function SetupWizard() {
                 Back
               </button>
               <button
-                onClick={() => setStep('customize')}
+                onClick={() => { setStep('customize'); setGenerateError(''); }}
                 className="px-5 py-2.5 rounded-lg text-sm font-medium"
                 style={{ background: 'var(--accent)', color: 'white' }}
               >
