@@ -342,6 +342,8 @@ export default function Nav() {
                 style={{
                   color: isActive ? 'var(--accent)' : 'var(--text-muted)',
                   fontWeight: isActive ? 600 : 400,
+                  borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  paddingBottom: 2,
                 }}
               >
                 {item.label}
