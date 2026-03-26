@@ -88,7 +88,7 @@ Spawn each participant with:
 - Their role-specific prompt
 - Clear instructions: "Write your initial perspective. You are the first to respond."
 
-After all Round 1 responses are collected, append them all to the hub file under a `## Round 1` header.
+Write the `## Round 1` header to the hub file before spawning agents. After each agent finishes, immediately append their response to the hub file — don't wait for all agents to complete. This way the live viewer shows responses appearing one by one instead of all at once.
 
 ### Step 5: Round 2+ — Sequential (Responsive Thinking)
 From Round 2 onward, agents read the full hub file (including all previous rounds) and respond to what matters most. They should:
