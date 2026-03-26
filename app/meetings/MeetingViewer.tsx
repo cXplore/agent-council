@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 import { getAgentColor } from '@/lib/utils';
@@ -42,8 +43,10 @@ function ProjectBadge({ project }: { project: string }) {
 const mdComponents = createMeetingComponents(getAgentColor);
 
 export default function MeetingViewer() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(searchParams.get('file'));
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
@@ -68,9 +71,22 @@ export default function MeetingViewer() {
   const lastContentLengthRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const recentlyUpdatedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const selectedRef = useRef<string | null>(null);
+  const selectedRef = useRef<string | null>(searchParams.get('file'));
   const userExplicitlyBackRef = useRef(false);
   const userScrolledUpRef = useRef(false);
+
+  // Update both state and URL when selecting a meeting
+  const selectMeeting = useCallback((filename: string | null) => {
+    setSelected(filename);
+    const params = new URLSearchParams(window.location.search);
+    if (filename) {
+      params.set('file', filename);
+    } else {
+      params.delete('file');
+    }
+    const newUrl = params.toString() ? `/meetings?${params}` : '/meetings';
+    router.replace(newUrl, { scroll: false });
+  }, [router]);
 
   // Keep refs in sync
   useEffect(() => { selectedRef.current = selected; }, [selected]);
@@ -129,7 +145,7 @@ export default function MeetingViewer() {
       if (!selectedRef.current && !userExplicitlyBackRef.current) {
         const inProgress = data.filter((m: MeetingListItem) => m.status === 'in-progress');
         if (inProgress.length === 1) {
-          setSelected(inProgress[0].filename);
+          selectMeeting(inProgress[0].filename);
         }
       }
     } catch {
@@ -393,8 +409,8 @@ export default function MeetingViewer() {
                   key={m.filename}
                   role="button"
                   tabIndex={0}
-                  onClick={() => { setSelected(m.filename); setUserExplicitlyBack(false); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(m.filename); setUserExplicitlyBack(false); } }}
+                  onClick={() => { selectMeeting(m.filename); setUserExplicitlyBack(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectMeeting(m.filename); setUserExplicitlyBack(false); } }}
                   className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group cursor-pointer"
                   style={{
                     background: 'var(--bg-card)',
@@ -486,7 +502,7 @@ export default function MeetingViewer() {
         }}
       >
         <button
-          onClick={() => { setSelected(null); setUserExplicitlyBack(true); }}
+          onClick={() => { selectMeeting(null); setUserExplicitlyBack(true); }}
           className="text-sm hover:underline"
           style={{ color: 'var(--accent)' }}
         >

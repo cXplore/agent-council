@@ -101,18 +101,31 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
       </h3>
     ),
     hr: () => (
-      <hr className="my-8" style={{ borderColor: 'var(--text-muted)', opacity: 0.3 }} />
+      <hr className="my-8" style={{ borderColor: 'var(--border)', opacity: 0.6 }} />
     ),
     strong: ({ children }) => {
       const name = String(children).replace(/:$/, '');
       const color = getAgentColor(name);
-      // Agent names (ending with :) get extra visual weight
+      // Agent names (ending with :) get a colored badge-style header
       const isAgentName = String(children).endsWith(':');
+      if (isAgentName) {
+        return (
+          <strong style={{
+            display: 'block',
+            marginTop: 24,
+            marginBottom: 4,
+            paddingLeft: 12,
+            borderLeft: `3px solid ${color}`,
+            color,
+            fontSize: '0.9rem',
+            fontWeight: 600,
+          }}>
+            {children}
+          </strong>
+        );
+      }
       return (
-        <strong style={{
-          color,
-          ...(isAgentName ? { display: 'inline-block', marginTop: 16 } : {}),
-        }}>
+        <strong style={{ color }}>
           {children}
         </strong>
       );

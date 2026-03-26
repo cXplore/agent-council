@@ -216,6 +216,7 @@ function createSplashWindow() {
     <head>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { background: transparent; overflow: hidden; }
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           background: #111;
@@ -225,8 +226,9 @@ function createSplashWindow() {
           align-items: center;
           justify-content: center;
           height: 100vh;
-          border-radius: 16px;
+          border-radius: 12px;
           border: 1px solid #333;
+          overflow: hidden;
           -webkit-app-region: drag;
         }
         .title {
