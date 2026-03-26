@@ -146,12 +146,17 @@ async function getStartPage() {
 }
 
 function createWindow(startPage = '/meetings') {
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app', 'public', 'icon.png')
+    : path.join(__dirname, '..', 'public', 'icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
     minWidth: 900,
     minHeight: 600,
     title: 'Agent Council',
+    icon: iconPath,
     backgroundColor: '#0a0a0a',
     show: true,
     webPreferences: {
@@ -204,6 +209,9 @@ function createSplashWindow() {
     transparent: true,
     resizable: false,
     alwaysOnTop: true,
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, 'app', 'public', 'icon.png')
+      : path.join(__dirname, '..', 'public', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
