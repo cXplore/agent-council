@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
             : typeof frontmatter['tools'] === 'string'
               ? frontmatter['tools'].split(',').map((t: string) => t.trim())
               : [],
+          team: frontmatter['team'] ?? '',
+          role: frontmatter['role'] ?? 'member',
+          required: frontmatter['required'] === 'true' || frontmatter['required'] === true,
           content: body.trim(),
         };
       }),

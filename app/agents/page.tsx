@@ -12,12 +12,65 @@ interface AgentInfo {
   description: string;
   model: string;
   tools: string[];
+  team: string;
+  role: string;
+  required: boolean;
   content: string;
 }
 
 interface AgentsResponse {
   agents: AgentInfo[];
   project: string;
+}
+
+function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void }) {
+  return (
+    <button
+      onClick={() => onSelect(agent)}
+      className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center gap-3">
+        <span
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{ background: getAgentColor(agent.name) }}
+        />
+        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+          {agent.name}
+        </span>
+        {agent.role === 'lead' && (
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: '0.65rem' }}>
+            lead
+          </span>
+        )}
+        {agent.required && (
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.65rem' }}>
+            required
+          </span>
+        )}
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          {agent.model}
+        </span>
+      </div>
+      <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
+        {agent.description}
+      </p>
+      {agent.tools.length > 0 && (
+        <div className="flex gap-1 mt-2 ml-5 flex-wrap">
+          {agent.tools.slice(0, 5).map(t => (
+            <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+              {t}
+            </span>
+          ))}
+          {agent.tools.length > 5 && (
+            <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+              +{agent.tools.length - 5} more
+            </span>
+          )}
+        </div>
+      )}
+    </button>
+  );
 }
 
 function AgentsPageInner() {
@@ -212,48 +265,61 @@ function AgentsPageInner() {
               </a>
             </div>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {agents.map(agent => (
-              <button
-                key={agent.filename}
-                onClick={() => setSelected(agent)}
-                className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ background: getAgentColor(agent.name) }}
-                  />
-                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {agent.name}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {agent.model}
-                  </span>
-                </div>
-                <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
-                  {agent.description}
-                </p>
-                {agent.tools.length > 0 && (
-                  <div className="flex gap-1 mt-2 ml-5 flex-wrap">
-                    {agent.tools.slice(0, 5).map(t => (
-                      <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
-                        {t}
-                      </span>
-                    ))}
-                    {agent.tools.length > 5 && (
-                      <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
-                        +{agent.tools.length - 5} more
-                      </span>
-                    )}
+        ) : (() => {
+          // Group by team if any agents have teams
+          const hasTeams = agents.some(a => a.team);
+          const groups: Record<string, AgentInfo[]> = {};
+          if (hasTeams) {
+            for (const agent of agents) {
+              const team = agent.team || 'Other';
+              if (!groups[team]) groups[team] = [];
+              groups[team].push(agent);
+            }
+            // Sort teams: 'core' first, then alphabetical
+            const teamOrder = Object.keys(groups).sort((a, b) => {
+              if (a === 'core') return -1;
+              if (b === 'core') return 1;
+              if (a === 'Other') return 1;
+              if (b === 'Other') return -1;
+              return a.localeCompare(b);
+            });
+            // Sort agents within teams: leads first
+            for (const team of teamOrder) {
+              groups[team].sort((a, b) => {
+                if (a.role === 'lead' && b.role !== 'lead') return -1;
+                if (b.role === 'lead' && a.role !== 'lead') return 1;
+                return a.name.localeCompare(b.name);
+              });
+            }
+            return (
+              <div className="space-y-6">
+                {teamOrder.map(team => (
+                  <div key={team}>
+                    <h2
+                      className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {team} ({groups[team].length})
+                    </h2>
+                    <div className="space-y-2">
+                      {groups[team].map(agent => (
+                        <AgentCard key={agent.filename} agent={agent} onSelect={setSelected} />
+                      ))}
+                    </div>
                   </div>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
+                ))}
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-2">
+              {agents.map(agent => (
+                <AgentCard key={agent.filename} agent={agent} onSelect={setSelected} />
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
