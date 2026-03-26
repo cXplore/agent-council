@@ -410,14 +410,25 @@ export default function MeetingViewer() {
     return (
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <div className="max-w-3xl mx-auto px-6 py-12">
-          <div className="flex items-baseline gap-3 mb-6">
-            <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Meetings
-            </h1>
-            {hasProject && activeProject && activeProject !== 'workspace' && (
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                {activeProject}
-              </span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Meetings
+              </h1>
+              {hasProject && activeProject && activeProject !== 'workspace' && (
+                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {activeProject}
+                </span>
+              )}
+            </div>
+            {hasProject && hasFacilitator && (
+              <button
+                onClick={() => setShowPlanForm(!showPlanForm)}
+                className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+                style={{ background: 'var(--accent)', color: 'white' }}
+              >
+                + Plan meeting
+              </button>
             )}
           </div>
 
@@ -570,91 +581,81 @@ export default function MeetingViewer() {
             </div>
           )}
 
-          {/* Plan a meeting button */}
-          {hasProject && hasFacilitator && !selected && (
-            <div className="mb-4">
-              {!showPlanForm ? (
+          {/* Plan meeting form — toggled by header button */}
+          {showPlanForm && (
+            <div
+              className="rounded-lg p-4 space-y-3 mb-4"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+            >
+              <div className="flex gap-2">
+                <select
+                  value={planType}
+                  onChange={(e) => setPlanType(e.target.value)}
+                  className="text-sm px-3 py-2 rounded outline-none"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                >
+                  <option value="standup">Standup</option>
+                  <option value="design-review">Design Review</option>
+                  <option value="strategy">Strategy Session</option>
+                  <option value="architecture">Architecture Review</option>
+                  <option value="retrospective">Retrospective</option>
+                  <option value="sprint-planning">Sprint Planning</option>
+                  <option value="incident-review">Incident Review</option>
+                </select>
+                <input
+                  type="text"
+                  value={planTopic}
+                  onChange={(e) => setPlanTopic(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && planTopic.trim()) {
+                      fetch('/api/council/planned', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
+                      }).then(() => {
+                        setPlanTopic('');
+                        setShowPlanForm(false);
+                        fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
+                      });
+                    }
+                    if (e.key === 'Escape') setShowPlanForm(false);
+                  }}
+                  placeholder="What should the meeting discuss?"
+                  className="flex-1 text-sm px-3 py-2 rounded outline-none"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => setShowPlanForm(true)}
-                  className="text-xs px-3 py-1.5 rounded transition-colors"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                  onClick={() => setShowPlanForm(false)}
+                  className="text-sm px-3 py-1.5 rounded"
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  + Plan a meeting
+                  Cancel
                 </button>
-              ) : (
-                <div
-                  className="rounded-lg p-4 space-y-3"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+                <button
+                  onClick={() => {
+                    if (!planTopic.trim()) return;
+                    fetch('/api/council/planned', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
+                    }).then(() => {
+                      setPlanTopic('');
+                      setShowPlanForm(false);
+                      fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
+                    });
+                  }}
+                  className="text-sm px-4 py-1.5 rounded"
+                  style={{ background: 'var(--accent)', color: 'white' }}
                 >
-                  <div className="flex gap-2">
-                    <select
-                      value={planType}
-                      onChange={(e) => setPlanType(e.target.value)}
-                      className="text-xs px-2 py-1.5 rounded outline-none"
-                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                    >
-                      <option value="standup">Standup</option>
-                      <option value="design-review">Design Review</option>
-                      <option value="strategy">Strategy Session</option>
-                      <option value="architecture">Architecture Review</option>
-                      <option value="retrospective">Retrospective</option>
-                      <option value="sprint-planning">Sprint Planning</option>
-                      <option value="incident-review">Incident Review</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={planTopic}
-                      onChange={(e) => setPlanTopic(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && planTopic.trim()) {
-                          fetch('/api/council/planned', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
-                          }).then(() => {
-                            setPlanTopic('');
-                            setShowPlanForm(false);
-                            // Refresh planned
-                            fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
-                          });
-                        }
-                        if (e.key === 'Escape') setShowPlanForm(false);
-                      }}
-                      placeholder="What should the meeting discuss?"
-                      className="flex-1 text-sm px-3 py-1.5 rounded outline-none"
-                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                      autoFocus
-                    />
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => setShowPlanForm(false)}
-                      className="text-xs px-3 py-1.5 rounded"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!planTopic.trim()) return;
-                        fetch('/api/council/planned', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
-                        }).then(() => {
-                          setPlanTopic('');
-                          setShowPlanForm(false);
-                          fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
-                        });
-                      }}
-                      className="text-xs px-3 py-1.5 rounded"
-                      style={{ background: 'var(--accent)', color: 'white' }}
-                    >
-                      Plan meeting
-                    </button>
-                  </div>
-                </div>
-              )}
+                  Plan meeting
+                </button>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Claude picks up planned meetings via MCP. In your Claude Code session, it will see this and offer to run it.
+              </p>
             </div>
           )}
 
@@ -693,7 +694,7 @@ export default function MeetingViewer() {
           ) : (
             <div className="space-y-3">
               {/* Search and filter */}
-              {meetings.length > 2 && (
+              {meetings.length > 1 && (
                 <input
                   type="text"
                   value={searchQuery}
@@ -707,7 +708,7 @@ export default function MeetingViewer() {
                   }}
                 />
               )}
-              {meetings.length > 2 && (
+              {meetings.length > 1 && (
                 <div className="flex gap-2 mb-2">
                   {(['all', 'in-progress', 'complete'] as const).map(f => (
                     <button
@@ -829,6 +830,18 @@ export default function MeetingViewer() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Keyboard shortcuts hint */}
+          {meetings.length > 0 && (
+            <div className="mt-6 text-xs text-center" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>j</kbd>
+              {' / '}
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>k</kbd>
+              {' select meeting · '}
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>esc</kbd>
+              {' go back'}
             </div>
           )}
         </div>
