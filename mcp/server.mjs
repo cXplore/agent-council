@@ -228,6 +228,58 @@ server.tool(
   }
 );
 
+// Tool: Get planned meetings
+server.tool(
+  'council_planned_meetings',
+  'Get meetings that have been planned or recommended through Agent Council. These come from meeting summaries ("Recommended Next Meetings" sections) or from the user manually queuing meetings in the viewer. Returns a list of planned meetings with type, topic, and trigger conditions.',
+  {},
+  async () => {
+    try {
+      const data = await councilRequest('/api/council/planned');
+      const meetings = data.meetings || [];
+      if (meetings.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No planned meetings in Agent Council.' }],
+        };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: `${meetings.length} planned meeting(s):\n\n${meetings.map((m, i) =>
+            `${i + 1}. **${m.type}**: ${m.topic}${m.trigger ? `\n   When: ${m.trigger}` : ''}${m.source ? `\n   Source: ${m.source}` : ''}${m.participants?.length ? `\n   Suggested: ${m.participants.join(', ')}` : ''}`
+          ).join('\n\n')}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Error: ${err.message}` }],
+      };
+    }
+  }
+);
+
+// Tool: Mark a planned meeting as running/done
+server.tool(
+  'council_update_planned',
+  'Update the status of a planned meeting (mark as running when you start it, done when complete, dismissed if skipped).',
+  {
+    id: z.string().describe('The planned meeting ID'),
+    status: z.enum(['running', 'done', 'dismissed']).describe('New status'),
+  },
+  async ({ id, status }) => {
+    try {
+      await councilRequest('/api/council/planned', 'PATCH', { id, status });
+      return {
+        content: [{ type: 'text', text: `Planned meeting ${id} marked as ${status}` }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Error: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();

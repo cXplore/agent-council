@@ -71,6 +71,12 @@ export default function MeetingViewer() {
   // MCP event tracking
   const [latestEvent, setLatestEvent] = useState<string | null>(null);
 
+  // Planned meetings
+  const [plannedMeetings, setPlannedMeetings] = useState<{ id: string; type: string; topic: string; trigger?: string; source?: string }[]>([]);
+  const [showPlanForm, setShowPlanForm] = useState(false);
+  const [planTopic, setPlanTopic] = useState('');
+  const [planType, setPlanType] = useState('strategy');
+
   // Connection health tracking
   const [connectionLost, setConnectionLost] = useState(false);
   const failedPollsRef = useRef(0);
@@ -230,6 +236,22 @@ export default function MeetingViewer() {
     const interval = setInterval(fetchList, 5000);
     return () => clearInterval(interval);
   }, [fetchList]);
+
+  // Fetch planned meetings
+  useEffect(() => {
+    const fetchPlanned = async () => {
+      try {
+        const res = await fetch('/api/council/planned');
+        if (res.ok) {
+          const data = await res.json();
+          setPlannedMeetings(data.meetings || []);
+        }
+      } catch { /* silent */ }
+    };
+    fetchPlanned();
+    const interval = setInterval(fetchPlanned, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Poll selected meeting
   useEffect(() => {
@@ -502,6 +524,137 @@ export default function MeetingViewer() {
             >
               <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
               in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
+            </div>
+          )}
+
+          {/* Planned meetings */}
+          {plannedMeetings.length > 0 && !selected && (
+            <div className="mb-4">
+              <h2 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+                Planned ({plannedMeetings.length})
+              </h2>
+              <div className="space-y-2">
+                {plannedMeetings.map(m => (
+                  <div
+                    key={m.id}
+                    className="rounded-lg px-4 py-3 text-sm flex items-center justify-between"
+                    style={{ background: 'var(--bg-card)', border: '1px dashed var(--accent)', borderStyle: 'dashed' }}
+                  >
+                    <div>
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {m.type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                      </span>
+                      <span className="mx-2" style={{ color: 'var(--text-muted)' }}>—</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{m.topic}</span>
+                      {m.trigger && (
+                        <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>({m.trigger})</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/council/planned', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: m.id, status: 'dismissed' }),
+                        });
+                        setPlannedMeetings(prev => prev.filter(p => p.id !== m.id));
+                      }}
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Plan a meeting button */}
+          {hasProject && hasFacilitator && !selected && (
+            <div className="mb-4">
+              {!showPlanForm ? (
+                <button
+                  onClick={() => setShowPlanForm(true)}
+                  className="text-xs px-3 py-1.5 rounded transition-colors"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                >
+                  + Plan a meeting
+                </button>
+              ) : (
+                <div
+                  className="rounded-lg p-4 space-y-3"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+                >
+                  <div className="flex gap-2">
+                    <select
+                      value={planType}
+                      onChange={(e) => setPlanType(e.target.value)}
+                      className="text-xs px-2 py-1.5 rounded outline-none"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    >
+                      <option value="standup">Standup</option>
+                      <option value="design-review">Design Review</option>
+                      <option value="strategy">Strategy Session</option>
+                      <option value="architecture">Architecture Review</option>
+                      <option value="retrospective">Retrospective</option>
+                      <option value="sprint-planning">Sprint Planning</option>
+                      <option value="incident-review">Incident Review</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={planTopic}
+                      onChange={(e) => setPlanTopic(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && planTopic.trim()) {
+                          fetch('/api/council/planned', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
+                          }).then(() => {
+                            setPlanTopic('');
+                            setShowPlanForm(false);
+                            // Refresh planned
+                            fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
+                          });
+                        }
+                        if (e.key === 'Escape') setShowPlanForm(false);
+                      }}
+                      placeholder="What should the meeting discuss?"
+                      className="flex-1 text-sm px-3 py-1.5 rounded outline-none"
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setShowPlanForm(false)}
+                      className="text-xs px-3 py-1.5 rounded"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!planTopic.trim()) return;
+                        fetch('/api/council/planned', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
+                        }).then(() => {
+                          setPlanTopic('');
+                          setShowPlanForm(false);
+                          fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
+                        });
+                      }}
+                      className="text-xs px-3 py-1.5 rounded"
+                      style={{ background: 'var(--accent)', color: 'white' }}
+                    >
+                      Plan meeting
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
