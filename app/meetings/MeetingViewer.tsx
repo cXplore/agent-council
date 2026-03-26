@@ -54,6 +54,9 @@ export default function MeetingViewer() {
 
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [copied, setCopied] = useState<'summary' | 'all' | null>(null);
+  const [addingFacilitator, setAddingFacilitator] = useState(false);
+  const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
@@ -500,12 +503,16 @@ export default function MeetingViewer() {
               </p>
               <div className="flex gap-3 mt-3">
                 <button
+                  disabled={addingFacilitator}
                   onClick={async () => {
+                    setAddingFacilitator(true);
+                    setFacilitatorError(null);
                     try {
                       const projRes = await fetch('/api/projects');
+                      if (!projRes.ok) throw new Error('Could not load projects');
                       const projData = await projRes.json();
                       const active = projData.projects?.find((p: { name: string }) => p.name === projData.activeProject);
-                      if (!active?.path) return;
+                      if (!active?.path) throw new Error('No active project path');
                       const res = await fetch('/api/setup/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -515,16 +522,25 @@ export default function MeetingViewer() {
                           projectProfile: null,
                         }),
                       });
-                      if (res.ok) {
-                        setHasFacilitator(true);
+                      if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        throw new Error(data.error || 'Failed to generate facilitator');
                       }
-                    } catch { /* silent */ }
+                      setHasFacilitator(true);
+                    } catch (err) {
+                      setFacilitatorError(err instanceof Error ? err.message : 'Failed to add facilitator');
+                    } finally {
+                      setAddingFacilitator(false);
+                    }
                   }}
-                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                   style={{ background: 'var(--accent)', color: 'white' }}
                 >
-                  Add facilitator
+                  {addingFacilitator ? 'Adding...' : 'Add facilitator'}
                 </button>
+                {facilitatorError && (
+                  <span className="text-xs" style={{ color: 'var(--error)' }}>{facilitatorError}</span>
+                )}
                 <a
                   href="/setup"
                   className="px-4 py-2 rounded-lg text-sm font-medium"
@@ -906,35 +922,29 @@ export default function MeetingViewer() {
                       const summaryMatch = detail.content?.match(/## Summary[\s\S]*$/);
                       if (summaryMatch) {
                         await navigator.clipboard.writeText(summaryMatch[0]);
-                        setError(null);
-                        // Brief visual feedback
-                        const btn = document.activeElement as HTMLButtonElement;
-                        const orig = btn.textContent;
-                        btn.textContent = 'Copied!';
-                        setTimeout(() => { btn.textContent = orig; }, 1500);
+                        setCopied('summary');
+                        setTimeout(() => setCopied(null), 1500);
                       }
                     }}
                     className="text-xs px-2 py-0.5 rounded transition-colors"
                     style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
                     title="Copy the summary section to clipboard"
                   >
-                    Copy summary
+                    {copied === 'summary' ? 'Copied!' : 'Copy summary'}
                   </button>
                 )}
                 <button
                   onClick={async () => {
                     if (!detail?.content) return;
                     await navigator.clipboard.writeText(detail.content);
-                    const btn = document.activeElement as HTMLButtonElement;
-                    const orig = btn.textContent;
-                    btn.textContent = 'Copied!';
-                    setTimeout(() => { btn.textContent = orig; }, 1500);
+                    setCopied('all');
+                    setTimeout(() => setCopied(null), 1500);
                   }}
                   className="text-xs px-2 py-0.5 rounded transition-colors"
                   style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
                   title="Copy full meeting to clipboard"
                 >
-                  Copy all
+                  {copied === 'all' ? 'Copied!' : 'Copy all'}
                 </button>
               </>
             )}

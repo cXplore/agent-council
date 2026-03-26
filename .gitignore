@@ -35,6 +35,7 @@ yarn-error.log*
 
 # config (user-specific, auto-created with defaults)
 council.config.json
+.council-planned.json
 
 # electron
 /dist-electron/

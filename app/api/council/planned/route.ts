@@ -1,22 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
 
-// Planned meetings — queued from the viewer or auto-extracted from meeting summaries
-// Claude picks these up via MCP and runs them
+// Planned meetings — persisted to .council-planned.json in the app directory
 interface PlannedMeeting {
   id: string;
-  type: string;           // standup, design-review, strategy, etc.
-  topic: string;          // what the meeting is about
-  trigger?: string;       // when to run it (e.g., "after prototype is ready", "next session")
-  source?: string;        // where this came from (e.g., "recommended by 2026-03-26-sprint-checkin.md")
-  participants?: string[]; // suggested participants (optional)
+  type: string;
+  topic: string;
+  trigger?: string;
+  source?: string;
+  participants?: string[];
   timestamp: string;
   status: 'planned' | 'running' | 'done' | 'dismissed';
 }
 
-const planned: PlannedMeeting[] = [];
+const PLANNED_FILE = path.join(process.cwd(), '.council-planned.json');
+
+async function loadPlanned(): Promise<PlannedMeeting[]> {
+  try {
+    const data = await readFile(PLANNED_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+async function savePlanned(meetings: PlannedMeeting[]): Promise<void> {
+  await writeFile(PLANNED_FILE, JSON.stringify(meetings, null, 2), 'utf-8');
+}
 
 // Called by Claude (via MCP) to get planned meetings
 export async function GET() {
+  const planned = await loadPlanned();
   const active = planned.filter(m => m.status === 'planned');
 
   return NextResponse.json({
@@ -34,7 +49,7 @@ export async function GET() {
   });
 }
 
-// Called by the viewer to queue a meeting, or by the API to auto-add from summaries
+// Called by the viewer to queue a meeting
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -47,6 +62,8 @@ export async function POST(request: NextRequest) {
     if ((topic?.length ?? 0) > 500 || (trigger?.length ?? 0) > 500) {
       return NextResponse.json({ error: 'Field too long' }, { status: 400 });
     }
+
+    const planned = await loadPlanned();
 
     const meeting: PlannedMeeting = {
       id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -66,6 +83,7 @@ export async function POST(request: NextRequest) {
       planned.splice(0, planned.length - 30);
     }
 
+    await savePlanned(planned);
     return NextResponse.json({ success: true, id: meeting.id });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
@@ -87,12 +105,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
+    const planned = await loadPlanned();
     const meeting = planned.find(m => m.id === id);
     if (!meeting) {
       return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
     }
 
     meeting.status = status;
+    await savePlanned(planned);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
