@@ -23,6 +23,100 @@ interface AgentsResponse {
   project: string;
 }
 
+function SuggestionBar({ agent }: { agent: AgentInfo }) {
+  const [toast, setToast] = useState<string | null>(null);
+  const [customInput, setCustomInput] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+
+  const suggest = async (type: string, message: string, field?: string, value?: string) => {
+    try {
+      await fetch('/api/council/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, agent: agent.name, field, value, message }),
+      });
+      setToast('Suggestion sent — Claude will pick it up');
+      setTimeout(() => setToast(null), 3000);
+    } catch {
+      setToast('Failed to send suggestion');
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Suggest:</span>
+        {!agent.team && (
+          <button
+            onClick={() => suggest('move_team', `Assign ${agent.name} to a team`, 'team')}
+            className="text-xs px-2 py-1 rounded transition-colors hover:brightness-125"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            Assign team
+          </button>
+        )}
+        {agent.role !== 'lead' && (
+          <button
+            onClick={() => suggest('set_role', `Make ${agent.name} a team lead`, 'role', 'lead')}
+            className="text-xs px-2 py-1 rounded transition-colors hover:brightness-125"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            Make lead
+          </button>
+        )}
+        <button
+          onClick={() => setShowCustom(!showCustom)}
+          className="text-xs px-2 py-1 rounded transition-colors hover:brightness-125"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+        >
+          Custom suggestion
+        </button>
+      </div>
+
+      {showCustom && (
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && customInput.trim()) {
+                suggest('custom', customInput.trim());
+                setCustomInput('');
+                setShowCustom(false);
+              }
+            }}
+            placeholder={`Suggest a change for ${agent.name}...`}
+            className="flex-1 px-3 py-1.5 rounded text-xs outline-none"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            autoFocus
+          />
+          <button
+            onClick={() => {
+              if (customInput.trim()) {
+                suggest('custom', customInput.trim());
+                setCustomInput('');
+                setShowCustom(false);
+              }
+            }}
+            className="text-xs px-3 py-1.5 rounded"
+            style={{ background: 'var(--accent)', color: 'white' }}
+          >
+            Send
+          </button>
+        </div>
+      )}
+
+      {toast && (
+        <div className="mt-2 text-xs px-3 py-1.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void }) {
   return (
     <button
@@ -140,9 +234,12 @@ function AgentsPageInner() {
             </span>
           </div>
 
-          <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
             {selected.description}
           </p>
+
+          {/* Suggestion actions */}
+          <SuggestionBar agent={selected} />
 
           <div className="space-y-3">
             {(() => {

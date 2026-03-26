@@ -198,6 +198,36 @@ server.tool(
   }
 );
 
+// Tool: Check for suggestions from the viewer
+server.tool(
+  'council_check_suggestions',
+  'Check if the Agent Council viewer has queued any suggestions. Suggestions are changes the user wants made to agents (move to team, change role, update description, etc.). The user makes suggestions through the Council UI; Claude picks them up here and applies them.',
+  {},
+  async () => {
+    try {
+      const data = await councilRequest('/api/council/suggestions');
+      const suggestions = data.suggestions || [];
+      if (suggestions.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No pending suggestions from Agent Council.' }],
+        };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: `${suggestions.length} suggestion(s) from Agent Council:\n\n${suggestions.map((s, i) =>
+            `${i + 1}. [${s.type}] ${s.message}${s.agent ? ` (agent: ${s.agent})` : ''}${s.value ? ` → ${s.value}` : ''}`
+          ).join('\n')}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Error: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
