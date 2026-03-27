@@ -754,7 +754,7 @@ export default function MeetingViewer() {
                       if (next && !tagDetails) {
                         Promise.all([
                           fetch('/api/meetings/tags?mode=unresolved').then(r => r.json()),
-                          fetch('/api/meetings/tags?mode=search&type=decision').then(r => r.json()),
+                          fetch('/api/meetings/tags?type=decision').then(r => r.json()),
                         ]).then(([unresolved, decisionData]) => {
                           setTagDetails({
                             decisions: decisionData.results || [],

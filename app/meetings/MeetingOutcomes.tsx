@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 
 interface OutcomeItem {
-  type: 'DECISION' | 'OPEN' | 'ACTION';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
   text: string;
+  id: string | null;
   lineIndex: number;
 }
 
@@ -12,20 +13,23 @@ const TYPE_CONFIG = {
   DECISION: { label: 'Decisions', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)', border: 'rgba(96, 165, 250, 0.4)' },
   OPEN: { label: 'Open Questions', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.4)' },
   ACTION: { label: 'Actions', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)', border: 'rgba(74, 222, 128, 0.4)' },
+  RESOLVED: { label: 'Resolved', color: '#6b7280', bg: 'rgba(107, 114, 128, 0.08)', border: 'rgba(107, 114, 128, 0.3)' },
 };
+
+const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
 function extractOutcomes(content: string): OutcomeItem[] {
   const items: OutcomeItem[] = [];
   const lines = content.split('\n');
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const match = line.match(/^[\s\-*]*\[?(DECISION|OPEN|ACTION)[:\]]\s*(.+)/i);
+    const match = lines[i].match(OUTCOME_REGEX);
     if (match) {
       const type = match[1].toUpperCase() as OutcomeItem['type'];
       items.push({
         type,
-        text: match[2].trim(),
+        id: match[2]?.toLowerCase() ?? null,
+        text: match[3].trim(),
         lineIndex: i,
       });
     }
@@ -45,8 +49,12 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
   const outcomes = useMemo(() => extractOutcomes(content), [content]);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, OutcomeItem[]> = { DECISION: [], OPEN: [], ACTION: [] };
+    const groups: Record<string, OutcomeItem[]> = { DECISION: [], OPEN: [], ACTION: [], RESOLVED: [] };
+    const resolvedSlugs = new Set(
+      outcomes.filter(o => o.type === 'RESOLVED' && o.id).map(o => o.id!)
+    );
     for (const item of outcomes) {
+      if (item.type === 'OPEN' && item.id && resolvedSlugs.has(item.id)) continue; // suppress resolved opens
       groups[item.type]?.push(item);
     }
     return groups;
@@ -144,7 +152,7 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
             </span>
           </p>
         ) : (
-          (['DECISION', 'OPEN', 'ACTION'] as const).map(type => {
+          (['DECISION', 'OPEN', 'ACTION', 'RESOLVED'] as const).map(type => {
             const items = grouped[type];
             if (items.length === 0) return null;
             const config = TYPE_CONFIG[type];
@@ -173,12 +181,13 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
                       className="w-full text-left rounded-lg px-3 py-2 text-sm transition-colors hover:brightness-110 cursor-pointer"
                       style={{
                         background: 'var(--bg-elevated)',
-                        color: 'var(--text-secondary)',
+                        color: type === 'RESOLVED' ? 'var(--text-muted)' : 'var(--text-secondary)',
                         borderLeft: `2px solid ${config.border}`,
+                        opacity: type === 'RESOLVED' ? 0.7 : 1,
                       }}
                       title="Click to scroll to context"
                     >
-                      <span className="line-clamp-2">{item.text}</span>
+                      <span className={`line-clamp-2${type === 'RESOLVED' ? ' line-through' : ''}`}>{item.text}</span>
                       {notFoundKey === `${item.type}-${item.lineIndex}` && (
                         <span className="block text-xs mt-1 transition-opacity" style={{ color: 'var(--text-muted)' }}>
                           not found in view
