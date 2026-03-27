@@ -1,4 +1,45 @@
+import React from 'react';
 import type { Components } from 'react-markdown';
+
+const TAG_COLORS: Record<string, { bg: string; text: string }> = {
+  DECISION: { bg: 'rgba(96, 165, 250, 0.15)', text: '#60a5fa' },
+  OPEN: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
+  ACTION: { bg: 'rgba(74, 222, 128, 0.15)', text: '#4ade80' },
+};
+
+function extractText(children: React.ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(extractText).join('');
+  if (React.isValidElement(children) && children.props?.children) {
+    return extractText(children.props.children);
+  }
+  return '';
+}
+
+function renderTaggedContent(children: React.ReactNode): React.ReactNode {
+  const text = extractText(children);
+  // Match DECISION: or OPEN: or ACTION: at start of line (with optional brackets for legacy)
+  const tagMatch = text.match(/^\s*\[?(DECISION|OPEN|ACTION)[:\]]\s*/i);
+  if (!tagMatch) return null;
+
+  const tagType = tagMatch[1].toUpperCase();
+  const normalizedType = tagType.startsWith('ACTION') ? 'ACTION' : tagType;
+  const c = TAG_COLORS[normalizedType] || TAG_COLORS.DECISION;
+  const rest = text.replace(/^\s*\[?(DECISION|OPEN|ACTION)[:\]]\s*/i, '');
+
+  return (
+    <>
+      <span
+        className="text-xs font-medium px-1.5 py-0.5 rounded shrink-0"
+        style={{ background: c.bg, color: c.text, display: 'inline-block', marginRight: 6 }}
+      >
+        {normalizedType}
+      </span>
+      {rest}
+    </>
+  );
+}
 
 /**
  * Shared markdown rendering components for the dark theme.
@@ -22,11 +63,21 @@ const baseComponents: Components = {
       {children}
     </h3>
   ),
-  p: ({ children }) => (
-    <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-      {children}
-    </p>
-  ),
+  p: ({ children }) => {
+    const tagged = renderTaggedContent(children);
+    if (tagged) {
+      return (
+        <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          {tagged}
+        </p>
+      );
+    }
+    return (
+      <p className="mb-3 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        {children}
+      </p>
+    );
+  },
   ul: ({ children }) => (
     <ul className="list-disc list-inside mb-3 space-y-1" style={{ color: 'var(--text-secondary)' }}>
       {children}
@@ -37,9 +88,11 @@ const baseComponents: Components = {
       {children}
     </ol>
   ),
-  li: ({ children }) => (
-    <li className="leading-relaxed">{children}</li>
-  ),
+  li: ({ children }) => {
+    const tagged = renderTaggedContent(children);
+    if (tagged) return <li className="leading-relaxed">{tagged}</li>;
+    return <li className="leading-relaxed">{children}</li>;
+  },
   hr: () => (
     <hr className="my-4" style={{ borderColor: 'var(--border)' }} />
   ),

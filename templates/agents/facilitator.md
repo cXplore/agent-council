@@ -87,6 +87,7 @@ Spawn each participant with:
 - Only the Context section (not the full hub file)
 - Their role-specific prompt
 - Clear instructions: "Write your initial perspective. You are the first to respond."
+- Tagging instructions: "When you make a key point, tag it inline: prefix decisions with `DECISION:`, unresolved questions with `OPEN:`, and concrete tasks with `ACTION:`. Only tag genuinely important items — not every statement."
 
 Write the `## Round 1` header to the hub file before spawning agents. After each agent finishes, immediately append their response to the hub file — don't wait for all agents to complete. This way the live viewer shows responses appearing one by one instead of all at once.
 
@@ -129,21 +130,21 @@ Append a summary section to the hub file:
 ## Summary
 
 ### Decisions Made
-- [Decision 1]: [Brief rationale]
-- [Decision 2]: [Brief rationale]
+- DECISION: [Decision 1] — [Brief rationale]
+- DECISION: [Decision 2] — [Brief rationale]
 
 ### Open Questions
-- [Question that wasn't resolved]
-- [Question that needs more information]
+- OPEN: [Question that wasn't resolved]
+- OPEN: [Question that needs more information]
 
 ### Dissent
 - [Who disagreed with what, and why — this is important to preserve]
 
 ### Action Items
-- [ ] [Specific task] — assigned to [role/person]
-- [ ] [Specific task] — assigned to [role/person]
+- ACTION: [Specific task] — assigned to [role/person]
+- ACTION: [Specific task] — assigned to [role/person]
 
-### Recommended Follow-ups
+### Recommended Next Meetings
 - [Meeting type]: [Topic] — if a thread needs its own meeting
 ```
 
