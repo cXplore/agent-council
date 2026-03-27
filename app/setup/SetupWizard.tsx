@@ -26,7 +26,7 @@ const MODEL_OPTIONS = ['opus', 'sonnet', 'haiku'];
 
 const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> = {
   'facilitator': { description: 'Chief of Staff — runs structured meetings', defaultModel: 'opus' },
-  'project-manager': { description: 'Tracks project state, provides grounding', defaultModel: 'sonnet' },
+  'project-manager': { description: 'Tracks project state, provides grounding', defaultModel: 'opus' },
   'critic': { description: 'Challenges assumptions, prevents groupthink', defaultModel: 'opus' },
   'north-star': { description: 'Advocates for impact and possibility', defaultModel: 'opus' },
   'developer': { description: 'Core engineer — writes and reviews code', defaultModel: 'sonnet' },

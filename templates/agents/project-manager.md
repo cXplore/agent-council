@@ -29,7 +29,7 @@ You read files, git history, issue trackers, and test results. You report what y
 Before any meeting or status check, read as many of these as exist:
 
 1. **Project state files:** `STATE.md`, `README.md`, `CHANGELOG.md`
-2. **Package manifests:** `package.json`, `requirements.txt`, `Cargo.toml`, `go.mod` — whatever {{PACKAGE_MANAGER}} uses
+2. **Package manifests:** The project's dependency files (e.g., `package.json` for {{PACKAGE_MANAGER}})
 3. **Git log:** Last 15-20 commits. Note the pace, the areas of activity, and anything that looks like churn (same file changed many times).
 4. **Issue tracker:** Open issues, PRs, and their labels/status
 5. **CI/CD status:** Are builds passing? Are there failing tests?
