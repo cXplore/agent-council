@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 import { getAgentColor } from '@/lib/utils';
 import { createMeetingComponents } from '@/lib/md-components';
+import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 
 const POLL_INTERVAL = 2000;
 
@@ -55,6 +56,7 @@ export default function MeetingViewer() {
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState<'summary' | 'all' | null>(null);
+  const [outcomesOpen, setOutcomesOpen] = useState(false);
   const [addingFacilitator, setAddingFacilitator] = useState(false);
   const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
@@ -1022,6 +1024,24 @@ export default function MeetingViewer() {
                   />
                 ))}
             </div>
+            {/* Outcomes toggle */}
+            {(() => {
+              const count = detail?.content ? countOutcomes(detail.content) : 0;
+              if (count === 0) return null;
+              return (
+                <button
+                  onClick={() => setOutcomesOpen(!outcomesOpen)}
+                  className="text-xs px-2.5 py-1 rounded-full transition-colors"
+                  style={{
+                    background: outcomesOpen ? 'rgba(96, 165, 250, 0.15)' : 'var(--bg)',
+                    color: outcomesOpen ? '#60a5fa' : 'var(--text-muted)',
+                    border: `1px solid ${outcomesOpen ? 'rgba(96, 165, 250, 0.3)' : 'var(--border)'}`,
+                  }}
+                >
+                  Outcomes ({count})
+                </button>
+              );
+            })()}
           </div>
         );
       })()}
@@ -1068,6 +1088,9 @@ export default function MeetingViewer() {
           </div>
         </div>
       )}
+
+      {/* Content + Outcomes panel wrapper */}
+      <div className="flex flex-1 overflow-hidden">
 
       {/* Content area */}
       <div
@@ -1207,6 +1230,17 @@ export default function MeetingViewer() {
           )}
         </div>
       </div>
+
+      {/* Outcomes panel */}
+      {detail && (
+        <MeetingOutcomes
+          content={detail.content}
+          open={outcomesOpen}
+          onClose={() => setOutcomesOpen(false)}
+        />
+      )}
+
+      </div>{/* End Content + Outcomes wrapper */}
 
       {/* Error banner */}
       {error && (

@@ -1,0 +1,168 @@
+'use client';
+
+import { useMemo } from 'react';
+
+interface OutcomeItem {
+  type: 'DECISION' | 'OPEN' | 'ACTION';
+  text: string;
+  lineIndex: number;
+}
+
+const TYPE_CONFIG = {
+  DECISION: { label: 'Decisions', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)', border: 'rgba(96, 165, 250, 0.4)' },
+  OPEN: { label: 'Open Questions', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.4)' },
+  ACTION: { label: 'Actions', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)', border: 'rgba(74, 222, 128, 0.4)' },
+};
+
+function extractOutcomes(content: string): OutcomeItem[] {
+  const items: OutcomeItem[] = [];
+  const lines = content.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(/^[-*]?\s*(DECISION|OPEN|ACTION):\s*(.+)/i);
+    if (match) {
+      const type = match[1].toUpperCase() as OutcomeItem['type'];
+      items.push({
+        type,
+        text: match[2].trim(),
+        lineIndex: i,
+      });
+    }
+  }
+
+  return items;
+}
+
+interface MeetingOutcomesProps {
+  content: string;
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function MeetingOutcomes({ content, open, onClose }: MeetingOutcomesProps) {
+  const outcomes = useMemo(() => extractOutcomes(content), [content]);
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, OutcomeItem[]> = { DECISION: [], OPEN: [], ACTION: [] };
+    for (const item of outcomes) {
+      groups[item.type]?.push(item);
+    }
+    return groups;
+  }, [outcomes]);
+
+  const total = outcomes.length;
+
+  if (!open) return null;
+
+  const handleScrollTo = (lineIndex: number) => {
+    // Try to find the element by line-based ID
+    const el = document.getElementById(`meeting-line-${lineIndex}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Brief highlight
+      el.style.outline = '2px solid rgba(96, 165, 250, 0.4)';
+      el.style.outlineOffset = '4px';
+      el.style.borderRadius = '4px';
+      setTimeout(() => {
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+      }, 2000);
+    }
+  };
+
+  return (
+    <div
+      className="flex flex-col h-full overflow-hidden"
+      style={{
+        width: 320,
+        minWidth: 320,
+        background: 'var(--bg-card)',
+        borderLeft: '1px solid var(--border)',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-4 py-3 shrink-0"
+        style={{ borderBottom: '1px solid var(--border)' }}
+      >
+        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+          Outcomes
+          <span className="ml-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            {total} item{total !== 1 ? 's' : ''}
+          </span>
+        </span>
+        <button
+          onClick={onClose}
+          className="text-xs px-1.5 py-0.5 rounded hover:brightness-125 transition-colors"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Close outcomes panel"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        {total === 0 ? (
+          <p className="text-xs text-center py-8" style={{ color: 'var(--text-muted)' }}>
+            No tagged outcomes found in this meeting.
+            <br />
+            <span className="mt-1 block">
+              Agents tag items with <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#60a5fa' }}>DECISION:</code>{' '}
+              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#fbbf24' }}>OPEN:</code>{' '}
+              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#4ade80' }}>ACTION:</code>
+            </span>
+          </p>
+        ) : (
+          (['DECISION', 'OPEN', 'ACTION'] as const).map(type => {
+            const items = grouped[type];
+            if (items.length === 0) return null;
+            const config = TYPE_CONFIG[type];
+
+            return (
+              <div key={type}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className="text-xs font-medium uppercase tracking-wide"
+                    style={{ color: config.color }}
+                  >
+                    {config.label}
+                  </span>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{ background: config.bg, color: config.color }}
+                  >
+                    {items.length}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {items.map((item, i) => (
+                    <button
+                      key={`${type}-${i}`}
+                      onClick={() => handleScrollTo(item.lineIndex)}
+                      className="w-full text-left rounded-lg px-3 py-2 text-sm transition-colors hover:brightness-110 cursor-pointer"
+                      style={{
+                        background: 'var(--bg-elevated)',
+                        color: 'var(--text-secondary)',
+                        borderLeft: `2px solid ${config.border}`,
+                      }}
+                      title="Click to scroll to context"
+                    >
+                      <span className="line-clamp-2">{item.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Export the extraction function for use in the toggle button count
+export function countOutcomes(content: string): number {
+  return extractOutcomes(content).length;
+}
