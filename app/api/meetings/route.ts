@@ -6,8 +6,8 @@ import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 
 function parseMetadata(content: string) {
   const statusMatch = content.match(/<!--\s*status:\s*(\S+)\s*-->/);
-  const typeMatchComment = content.match(/<!--\s*type:\s*(.+?)\s*-->/);
-  const startedMatchComment = content.match(/<!--\s*started:\s*(.+?)\s*-->/);
+  const typeMatchComment = content.match(/<!--\s*(?:meeting-)?type:\s*(.+?)\s*-->/);
+  const startedMatchComment = content.match(/<!--\s*(?:created|started):\s*(.+?)\s*-->/);
   const participantsMatchComment = content.match(/<!--\s*participants:\s*(.+?)\s*-->/);
 
   const typeMatchBold = content.match(/\*\*Type:\*\*\s*(.+)/i);
