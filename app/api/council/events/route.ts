@@ -37,6 +37,31 @@ export async function POST(request: NextRequest) {
       events.splice(0, events.length - MAX_EVENTS);
     }
 
+    // Auto-mark planned meetings on meeting lifecycle events
+    if (event === 'meeting_starting' || event === 'meeting_complete') {
+      try {
+        const plannedRes = await fetch(`http://localhost:${process.env.PORT || 3003}/api/council/planned`);
+        if (plannedRes.ok) {
+          const data = await plannedRes.json();
+          const planned = data.meetings || [];
+          const targetStatus = event === 'meeting_starting' ? 'running' : 'done';
+          const matchStatus = event === 'meeting_starting' ? 'planned' : 'running';
+          for (const p of planned) {
+            if (p.status === matchStatus) {
+              await fetch(`http://localhost:${process.env.PORT || 3003}/api/council/planned`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: p.id, status: targetStatus }),
+              });
+              break;
+            }
+          }
+        }
+      } catch {
+        // Non-critical — don't fail the event
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
