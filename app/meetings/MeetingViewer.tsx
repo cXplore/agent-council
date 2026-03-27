@@ -920,7 +920,7 @@ export default function MeetingViewer() {
   const isLive = detail?.status === 'in-progress';
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
       {/* Sticky header */}
       <div
         className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4"

@@ -85,3 +85,30 @@ docs/                   # GitHub Pages static site
 | Agent templates | `templates/agents/*.md` |
 | Team presets | `templates/presets/*.json` |
 | GitHub Pages | `docs/index.html` |
+
+
+## Meeting System (Agent Council)
+
+This project uses Agent Council for structured agent meetings. When the user asks for any kind of meeting, discussion, review, or standup, use the **facilitator** agent to orchestrate it.
+
+### How to Run a Meeting
+
+1. The user asks for a meeting in plain language (no special commands needed)
+2. Spawn the facilitator agent, which creates a meeting file and orchestrates the conversation
+3. The user watches it live at the Agent Council meeting viewer
+
+### Meeting Formats
+
+The facilitator picks the right format based on what the user asks for:
+
+- **Standup** — daily brief, what matters today
+- **Design Review** — evaluate a specific component or design decision
+- **Strategy Session** — direction and priorities on a topic
+- **Retrospective** — what went well, what's messy
+- **Architecture Review** — system design and trade-offs
+- **Sprint Planning** — what to tackle next
+- **Incident Review** — what went wrong, how to prevent it
+
+### Mandatory Roles
+
+Every decision-producing meeting includes: **project-manager** (what's real), **critic** (what's wrong), **north-star** (what's possible).

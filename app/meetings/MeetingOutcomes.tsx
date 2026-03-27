@@ -55,19 +55,42 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
 
   if (!open) return null;
 
-  const handleScrollTo = (lineIndex: number) => {
-    // Try to find the element by line-based ID
-    const el = document.getElementById(`meeting-line-${lineIndex}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Brief highlight
-      el.style.outline = '2px solid rgba(96, 165, 250, 0.4)';
-      el.style.outlineOffset = '4px';
-      el.style.borderRadius = '4px';
-      setTimeout(() => {
-        el.style.outline = '';
-        el.style.outlineOffset = '';
-      }, 2000);
+  const highlightEl = (el: HTMLElement) => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.style.outline = '2px solid rgba(96, 165, 250, 0.4)';
+    el.style.outlineOffset = '4px';
+    el.style.borderRadius = '4px';
+    setTimeout(() => {
+      el.style.outline = '';
+      el.style.outlineOffset = '';
+    }, 2000);
+  };
+
+  const handleScrollTo = (item: OutcomeItem) => {
+    const container = document.querySelector('.meeting-content, .meeting-new-content, .prose');
+    if (!container) return;
+
+    // Strategy 1: Find rendered tag badges (DECISION/OPEN/ACTION spans) and match parent text
+    const badges = container.querySelectorAll('span');
+    // Strip markdown formatting (backticks, bold markers) for DOM text matching
+    const searchText = item.text.replace(/[`*_~]/g, '').slice(0, 30).toLowerCase();
+    for (const badge of badges) {
+      if (badge.textContent?.trim() === item.type) {
+        const parent = badge.parentElement;
+        if (parent?.textContent?.toLowerCase().includes(searchText)) {
+          highlightEl(parent as HTMLElement);
+          return;
+        }
+      }
+    }
+
+    // Strategy 2: Fall back to text search in paragraphs and list items
+    const candidates = container.querySelectorAll('p, li');
+    for (const el of candidates) {
+      if (el.textContent?.toLowerCase().includes(searchText)) {
+        highlightEl(el as HTMLElement);
+        return;
+      }
     }
   };
 
@@ -140,7 +163,7 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
                   {items.map((item, i) => (
                     <button
                       key={`${type}-${i}`}
-                      onClick={() => handleScrollTo(item.lineIndex)}
+                      onClick={() => handleScrollTo(item)}
                       className="w-full text-left rounded-lg px-3 py-2 text-sm transition-colors hover:brightness-110 cursor-pointer"
                       style={{
                         background: 'var(--bg-elevated)',
