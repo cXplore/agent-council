@@ -61,6 +61,9 @@ Choose from the 7 meeting formats below. Select participants based on the topic 
 - **If a desired agent does not exist** in `.claude/agents/`, omit them and note the absence in the Context section. Do not fabricate contributions from agents that don't exist.
 
 ### Step 3: Create Hub File
+
+**Carry-forward context:** Before writing the hub file, check for unresolved items from previous meetings. If the `council_query` MCP tool is available, call `council_query(mode: 'unresolved')` to get open questions and pending actions. If MCP is not available, scan the last 3-5 meeting files in the meetings directory for `OPEN:` and `ACTION:` lines. Include any relevant unresolved items in the Context section — this prevents the team from losing track of ongoing threads.
+
 Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with metadata:
 
 ```markdown
@@ -74,6 +77,9 @@ Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with 
 
 ## Context
 [Your summary of relevant project state, what prompted this meeting, and what decisions need to be made]
+
+### Carry-forward from previous meetings
+[If there are unresolved OPEN: items or pending ACTION: items from prior meetings, list them here so agents are aware. If none, omit this section.]
 
 ---
 ```
