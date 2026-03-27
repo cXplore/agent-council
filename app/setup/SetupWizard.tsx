@@ -1,9 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ProjectProfile } from '@/lib/types';
 
 type Step = 'choose' | 'connect' | 'path' | 'scan' | 'customize' | 'generate';
+
+interface McpTarget {
+  exists: boolean;
+  configured: boolean;
+  path: string;
+}
 
 interface AgentSelection {
   template: string;
@@ -46,6 +52,44 @@ export default function SetupWizard() {
   const [connected, setConnected] = useState(false);
   const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean } | null>(null);
   const [generateError, setGenerateError] = useState('');
+  const [mcpTargets, setMcpTargets] = useState<Record<string, McpTarget> | null>(null);
+  const [mcpConfiguring, setMcpConfiguring] = useState(false);
+  const [mcpDone, setMcpDone] = useState<Record<string, boolean>>({});
+
+  // Check MCP status when connect succeeds or generate succeeds
+  useEffect(() => {
+    if (connected || generatedFiles.length > 0) {
+      fetch('/api/setup/mcp')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.targets) setMcpTargets(data.targets);
+        })
+        .catch(() => {});
+    }
+  }, [connected, generatedFiles]);
+
+  const handleConfigureMcp = async (targets: string[]) => {
+    setMcpConfiguring(true);
+    try {
+      const res = await fetch('/api/setup/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const done: Record<string, boolean> = {};
+        for (const [key, result] of Object.entries(data.results || {})) {
+          done[key] = (result as { success: boolean }).success;
+        }
+        setMcpDone(done);
+      }
+    } catch {
+      // Silent — MCP setup is optional
+    } finally {
+      setMcpConfiguring(false);
+    }
+  };
 
   const handleConnect = async () => {
     if (!projectPath.trim()) return;
@@ -418,6 +462,53 @@ export default function SetupWizard() {
                 >
                   Open Meeting Viewer
                 </a>
+
+                {/* MCP auto-setup */}
+                {mcpTargets && (
+                  <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                    <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                      Enable live meeting updates
+                    </h4>
+                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                      Agent Council can show real-time progress during meetings (which agent is speaking, round changes). This requires adding the MCP server to your Claude config.
+                    </p>
+                    {Object.entries(mcpTargets).map(([key, target]) => {
+                      const label = key === 'claudeCode' ? 'Claude Code (CLI)' : 'Claude Desktop';
+                      const configured = target.configured || mcpDone[key];
+                      return (
+                        <div key={key} className="flex items-center justify-between py-1.5">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: configured ? 'var(--live-green)' : 'var(--border)' }}
+                            />
+                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                            {!target.exists && !configured && (
+                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(not installed)</span>
+                            )}
+                          </div>
+                          {configured ? (
+                            <span className="text-xs" style={{ color: 'var(--live-green)' }}>Configured</span>
+                          ) : target.exists ? (
+                            <button
+                              onClick={() => handleConfigureMcp([key])}
+                              disabled={mcpConfiguring}
+                              className="text-xs px-3 py-1 rounded transition-opacity disabled:opacity-50"
+                              style={{ background: 'var(--bg-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+                            >
+                              {mcpConfiguring ? 'Adding...' : 'Add'}
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                    {Object.values(mcpDone).some(Boolean) && (
+                      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                        Restart Claude Code / Claude Desktop for the MCP tools to appear.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
