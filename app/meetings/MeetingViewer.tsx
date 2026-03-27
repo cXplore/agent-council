@@ -51,6 +51,7 @@ export default function MeetingViewer() {
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number; meetingCount: number } | null>(null);
+  const [taggedMeetings, setTaggedMeetings] = useState<Set<string>>(new Set());
   const [tagExpanded, setTagExpanded] = useState(false);
   const [tagDetails, setTagDetails] = useState<{ decisions: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[]; open: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[]; actions: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[] } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
@@ -183,13 +184,18 @@ export default function MeetingViewer() {
     }
   }, [projectParam]);
 
-  // Fetch cross-meeting tag summary
+  // Fetch cross-meeting tag summary + build set of tagged meeting filenames
   const fetchTagSummary = useCallback(async () => {
     try {
-      const res = await fetch(`/api/meetings/tags?mode=summary`);
-      if (res.ok) {
-        const data = await res.json();
-        setTagSummary(data);
+      const [summaryRes, searchRes] = await Promise.all([
+        fetch(`/api/meetings/tags?mode=summary`),
+        fetch(`/api/meetings/tags?mode=search&limit=1000`),
+      ]);
+      if (summaryRes.ok) setTagSummary(await summaryRes.json());
+      if (searchRes.ok) {
+        const data = await searchRes.json();
+        const filenames = new Set<string>((data.results || []).map((r: { meeting: string }) => r.meeting));
+        setTaggedMeetings(filenames);
       }
     } catch {}
   }, []);
@@ -909,6 +915,15 @@ export default function MeetingViewer() {
                         style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)' }}
                       >
                         LIVE
+                      </span>
+                    )}
+                    {taggedMeetings.size > 0 && m.status === 'complete' && !taggedMeetings.has(m.filename) && (
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        title="This meeting predates the tagging system — outcomes not indexed"
+                      >
+                        untagged
                       </span>
                     )}
                     {m.filename.startsWith('example-') && (
