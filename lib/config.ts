@@ -25,7 +25,7 @@ function migrateConfig(raw: Record<string, unknown>): CouncilConfig {
     const projectDir = raw.projectDir as string;
     const meetingsDir = raw.meetingsDir as string;
     const agentsDir = raw.agentsDir as string;
-    const port = (raw.port as number) ?? 3001;
+    const port = (raw.port as number) ?? 3003;
 
     // If projectDir is "." it was workspace mode
     if (projectDir === '.' || projectDir === './') {
