@@ -1026,6 +1026,49 @@ export default function MeetingViewer() {
         );
       })()}
 
+      {/* Recommended next meetings from summary */}
+      {detail && detail.status === 'complete' && detail.recommendedMeetings && detail.recommendedMeetings.length > 0 && (
+        <div
+          className="px-6 py-3 text-sm"
+          style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}
+        >
+          <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Recommended next meetings:</div>
+          <div className="flex flex-wrap gap-2">
+            {detail.recommendedMeetings.map((rec, i) => (
+              <button
+                key={i}
+                onClick={async () => {
+                  // Extract meeting type and topic from the recommendation
+                  const parts = rec.split(':');
+                  const topic = parts.length > 1 ? parts.slice(1).join(':').trim() : rec;
+                  const type = parts[0]?.toLowerCase().replace(/\s+/g, '-') || 'strategy-session';
+                  try {
+                    await fetch('/api/council/planned', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        type: 'recommended',
+                        topic,
+                        meetingType: type,
+                        source: detail.filename,
+                      }),
+                    });
+                    // Visual feedback — briefly change button text
+                    const btn = document.activeElement as HTMLElement;
+                    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Queued'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+                  } catch {}
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-110"
+                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                title="Add to planned meetings"
+              >
+                + {rec}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Content area */}
       <div
         ref={contentRef}

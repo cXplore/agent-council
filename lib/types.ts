@@ -72,4 +72,5 @@ export interface MeetingListItem {
 
 export interface MeetingDetail extends MeetingListItem {
   content: string;
+  recommendedMeetings?: string[];
 }

@@ -39,12 +39,24 @@ function parseMetadata(content: string) {
     participants.push(...found);
   }
 
+  // Parse recommended next meetings from summary
+  const recommendedMeetings: string[] = [];
+  const recMatch = content.match(/###?\s*Recommended Next Meetings?\s*\n([\s\S]*?)(?:\n##|\n---|\n\n\n|$)/i);
+  if (recMatch) {
+    const lines = recMatch[1].split('\n');
+    for (const line of lines) {
+      const item = line.replace(/^[-*]\s*/, '').trim();
+      if (item) recommendedMeetings.push(item);
+    }
+  }
+
   return {
     status: statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress'),
     type: type?.toLowerCase().replace(/\s+/g, '-') ?? 'unknown',
     title: titleMatch?.[1]?.trim() ?? null,
     started: startedMatchComment?.[1] ?? startedMatchBold?.[1]?.trim() ?? null,
     participants,
+    recommendedMeetings,
   };
 }
 
@@ -97,6 +109,7 @@ export async function GET(request: NextRequest) {
         modifiedAt: fileStat.mtime.toISOString(),
         date: safeName.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? null,
         project,
+        recommendedMeetings: metadata.recommendedMeetings,
       };
 
       return NextResponse.json(detail, {
