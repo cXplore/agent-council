@@ -71,6 +71,7 @@ export default function MeetingViewer() {
   const [queuedRecs, setQueuedRecs] = useState<Set<number>>(new Set());
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
+  const [queuedSuggestions, setQueuedSuggestions] = useState<Set<string>>(new Set());
   const [fetchError, setFetchError] = useState(false);
 
   // Active project context
@@ -208,6 +209,7 @@ export default function MeetingViewer() {
       if (dismissedRes.ok) {
         const data = await dismissedRes.json();
         setDismissedSuggestions(new Set(data.dismissed || []));
+        setQueuedSuggestions(new Set(data.queued || []));
       }
     } catch {}
   }, [projectParam]);
@@ -896,6 +898,12 @@ export default function MeetingViewer() {
                                     body: JSON.stringify({ type, topic, source: s.sourceFile }),
                                   }).catch(() => {});
                                   fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
+                                  await fetch(`/api/meetings/suggestions${projectParam()}`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ text: s.text, action: 'queue' }),
+                                  }).catch(() => {});
+                                  setQueuedSuggestions(prev => new Set([...prev, s.text]));
                                 }}
                                 className="shrink-0 text-xs px-2 py-0.5 rounded transition-colors hover:brightness-110"
                                 style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
@@ -1296,11 +1304,12 @@ export default function MeetingViewer() {
               const recType = typeof rec === 'object' ? rec.type : undefined;
               const recTopic = typeof rec === 'object' ? rec.topic : undefined;
               const isDismissed = dismissedSuggestions.has(recText);
+              const isQueued = queuedSuggestions.has(recText) || queuedRecs.has(i);
               return (
                 <div key={i} className="flex items-center gap-1">
                   <button
                     onClick={async () => {
-                      if (queuedRecs.has(i)) return;
+                      if (isQueued || isDismissed) return;
                       const type = recType ?? (() => {
                         const clean = recText.replace(/\*\*/g, '').trim();
                         const m = clean.match(/^([^—–:]+)[—–]/) ?? clean.match(/^([^:]+):/);
@@ -1317,19 +1326,26 @@ export default function MeetingViewer() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ type: 'recommended', topic, meetingType: type, source: detail.filename }),
                         });
+                        await fetch(`/api/meetings/suggestions${projectParam()}`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ text: recText, action: 'queue' }),
+                        });
+                        setQueuedSuggestions(prev => new Set([...prev, recText]));
                         setQueuedRecs(prev => new Set([...prev, i]));
                       } catch {}
                     }}
                     className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-110"
                     style={{
-                      background: queuedRecs.has(i) ? 'var(--bg-elevated)' : isDismissed ? 'var(--bg)' : 'var(--bg-card)',
-                      color: queuedRecs.has(i) || isDismissed ? 'var(--text-muted)' : 'var(--text-secondary)',
+                      background: isQueued ? 'var(--bg-elevated)' : isDismissed ? 'var(--bg)' : 'var(--bg-card)',
+                      color: isQueued || isDismissed ? 'var(--text-muted)' : 'var(--text-secondary)',
                       border: '1px solid var(--border)',
-                      textDecoration: isDismissed ? 'line-through' : undefined,
+                      textDecoration: isDismissed || isQueued ? 'line-through' : undefined,
+                      cursor: isQueued || isDismissed ? 'default' : undefined,
                     }}
-                    title="Add to planned meetings"
+                    title={isQueued ? 'Added to planned meetings' : isDismissed ? 'Dismissed' : 'Add to planned meetings'}
                   >
-                    {queuedRecs.has(i) ? '✓ Queued' : `+ ${recText.replace(/\*\*/g, '')}`}
+                    {isQueued ? '✓ Queued' : `+ ${recText.replace(/\*\*/g, '')}`}
                   </button>
                   {!queuedRecs.has(i) && (
                     <button
@@ -1370,13 +1386,22 @@ export default function MeetingViewer() {
           content={detail.content}
           recommendedMeetings={detail.recommendedMeetings}
           dismissedSuggestions={dismissedSuggestions}
-          onQueue={async (type, topic) => {
+          queuedSuggestions={queuedSuggestions}
+          onQueue={async (type, topic, text) => {
             await fetch('/api/council/planned', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'recommended', topic, meetingType: type, source: detail.filename }),
             }).catch(() => {});
             fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
+            if (text) {
+              await fetch(`/api/meetings/suggestions${projectParam()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, action: 'queue' }),
+              }).catch(() => {});
+              setQueuedSuggestions(prev => new Set([...prev, text]));
+            }
           }}
           onDismiss={async (text) => {
             await fetch(`/api/meetings/suggestions${projectParam()}`, {

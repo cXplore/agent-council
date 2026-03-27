@@ -7,7 +7,8 @@ interface Props {
   content: string;
   recommendedMeetings?: SuggestedMeeting[];
   dismissedSuggestions: Set<string>;
-  onQueue: (type: string, topic: string) => void;
+  queuedSuggestions: Set<string>;
+  onQueue: (type: string, topic: string, text: string) => void;
   onDismiss: (text: string) => void;
 }
 
@@ -42,7 +43,7 @@ function extractFromSummary(content: string) {
   return { decisions: decisions.slice(0, 3), open: filteredOpen.slice(0, 2) };
 }
 
-export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, onQueue, onDismiss }: Props) {
+export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss }: Props) {
   const [expanded, setExpanded] = useState(true);
   const { decisions, open } = useMemo(() => extractFromSummary(content), [content]);
   const activeSuggestions = useMemo(
@@ -105,25 +106,36 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
           <div>
             <div className="text-xs font-medium mb-1.5" style={{ color: '#a78bfa' }}>Suggested next</div>
             <div className="flex flex-wrap gap-2">
-              {activeSuggestions.map((s, i) => (
+              {activeSuggestions.map((s, i) => {
+                const isQueued = queuedSuggestions.has(s.text);
+                return (
                 <div key={i} className="flex items-center gap-1">
                   <button
-                    onClick={() => onQueue(s.type ?? 'strategy-session', s.topic ?? s.text)}
+                    onClick={() => { if (!isQueued) onQueue(s.type ?? 'strategy-session', s.topic ?? s.text, s.text); }}
                     className="text-xs px-2.5 py-1 rounded-lg transition-colors hover:brightness-110"
-                    style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+                    style={{
+                      background: isQueued ? 'var(--bg-elevated)' : 'rgba(167,139,250,0.12)',
+                      color: isQueued ? 'var(--text-muted)' : '#a78bfa',
+                      border: '1px solid rgba(167,139,250,0.3)',
+                      textDecoration: isQueued ? 'line-through' : undefined,
+                      cursor: isQueued ? 'default' : undefined,
+                    }}
                   >
-                    + {s.text.replace(/\*\*/g, '')}
+                    {isQueued ? '✓ ' : '+ '}{s.text.replace(/\*\*/g, '')}
                   </button>
-                  <button
-                    onClick={() => onDismiss(s.text)}
-                    className="text-xs px-1 py-1 rounded transition-colors hover:brightness-110"
-                    style={{ color: 'var(--text-muted)' }}
-                    title="Dismiss"
-                  >
-                    ✕
-                  </button>
+                  {!isQueued && (
+                    <button
+                      onClick={() => onDismiss(s.text)}
+                      className="text-xs px-1 py-1 rounded transition-colors hover:brightness-110"
+                      style={{ color: 'var(--text-muted)' }}
+                      title="Dismiss"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
