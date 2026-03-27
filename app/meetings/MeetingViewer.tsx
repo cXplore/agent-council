@@ -189,12 +189,12 @@ export default function MeetingViewer() {
     try {
       const [summaryRes, searchRes] = await Promise.all([
         fetch(`/api/meetings/tags?mode=summary`),
-        fetch(`/api/meetings/tags?mode=search&limit=1000`),
+        fetch(`/api/meetings/tags`),
       ]);
       if (summaryRes.ok) setTagSummary(await summaryRes.json());
       if (searchRes.ok) {
         const data = await searchRes.json();
-        const filenames = new Set<string>((data.results || []).map((r: { meeting: string }) => r.meeting));
+        const filenames = new Set<string>((data.results || []).map((r: { meeting: string }) => r.meeting as string));
         setTaggedMeetings(filenames);
       }
     } catch {}
