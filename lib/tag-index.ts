@@ -45,7 +45,13 @@ function extractTags(content: string, filename: string): TagEntry[] {
   const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
   const date = dateMatch?.[1] ?? null;
 
-  for (let i = 0; i < lines.length; i++) {
+  // For complete meetings, only index tags from the ## Summary section.
+  // Round tags are working notes; summary tags are the curated final record.
+  // For in-progress meetings, index all tags (no summary exists yet).
+  const summaryIndex = lines.findIndex(l => l.trim() === '## Summary');
+  const startLine = meetingStatus === 'complete' && summaryIndex >= 0 ? summaryIndex : 0;
+
+  for (let i = startLine; i < lines.length; i++) {
     const match = lines[i].match(TAG_REGEX);
     if (match) {
       const type = match[1].toUpperCase() as TagEntry['type'];
