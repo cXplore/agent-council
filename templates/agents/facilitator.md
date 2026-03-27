@@ -130,25 +130,43 @@ After each round, evaluate:
 **Default:** 3 rounds. Go to 4-5 if the conversation is alive. Stop at 2 if nothing new emerged in Round 2.
 
 ### Step 7: Write Summary
+
+**Tagging rules — read carefully:**
+
+Use inline tags so the viewer, outcomes panel, and cross-meeting query system can index them. Two formats are supported — use bracket format for all new meetings:
+
+| Tag | Format | Example |
+|-----|--------|---------|
+| Decision | `[DECISION]` | `- [DECISION] We will use inline IDs for resolution tracking` |
+| Open question | `[OPEN:slug]` | `- [OPEN:resolution-ux] What should resolved items look like in the viewer?` |
+| Action item | `[ACTION]` | `- [ACTION] Update facilitator template with ID spec — assigned to facilitator` |
+| Resolved question | `[RESOLVED:slug]` | `- [RESOLVED:resolution-ux] Decided: inline muted label on the panel item` |
+
+**ID rules for `[OPEN:slug]`:**
+- Use a short, stable, lowercase-hyphenated slug that describes the question (not the answer)
+- Keep it under 30 characters: `resolution-ux`, `electron-cache-path`, `tag-reliability`
+- When a later meeting resolves an open question, write `[RESOLVED:same-slug]` in that meeting's summary — the system will suppress the original OPEN from the unresolved list
+- If the question isn't being tracked for resolution, plain `[OPEN]` (no ID) is fine
+
 Append a summary section to the hub file:
 
 ```markdown
 ## Summary
 
 ### Decisions Made
-- DECISION: [Decision 1] — [Brief rationale]
-- DECISION: [Decision 2] — [Brief rationale]
+- [DECISION] [Decision 1] — [Brief rationale]
+- [DECISION] [Decision 2] — [Brief rationale]
 
 ### Open Questions
-- OPEN: [Question that wasn't resolved]
-- OPEN: [Question that needs more information]
+- [OPEN:slug-here] [Question that wasn't resolved]
+- [OPEN:another-slug] [Question that needs more information]
 
 ### Dissent
 - [Who disagreed with what, and why — this is important to preserve]
 
 ### Action Items
-- ACTION: [Specific task] — assigned to [role/person]
-- ACTION: [Specific task] — assigned to [role/person]
+- [ACTION] [Specific task] — assigned to [role/person]
+- [ACTION] [Specific task] — assigned to [role/person]
 
 ### Recommended Next Meetings
 - [Meeting type]: [Topic] — if a thread needs its own meeting

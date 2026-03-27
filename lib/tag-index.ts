@@ -2,8 +2,9 @@ import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export interface TagEntry {
-  type: 'DECISION' | 'OPEN' | 'ACTION';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
   text: string;
+  id: string | null;       // optional slug from [OPEN:slug] format
   meeting: string;         // filename
   meetingTitle: string;    // extracted from # heading
   meetingStatus: string;   // from <!-- status: ... --> or inferred
@@ -15,6 +16,7 @@ export interface TagIndex {
   decisions: TagEntry[];
   open: TagEntry[];
   actions: TagEntry[];
+  resolved: TagEntry[];
   meetingCount: number;
   builtAt: string;
 }
@@ -24,8 +26,8 @@ interface CacheFile {
   mtimes: Record<string, number>;  // filename -> mtime ms
 }
 
-// Matches both formats: "DECISION: text" and "[DECISION] text" (with optional list markers and indentation)
-const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION)[:\]]\s*(.+)/i;
+// Matches both formats: "DECISION: text" and "[DECISION] text" and "[OPEN:slug] text"
+const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
 function extractTags(content: string, filename: string): TagEntry[] {
   const entries: TagEntry[] = [];
@@ -49,7 +51,8 @@ function extractTags(content: string, filename: string): TagEntry[] {
       const type = match[1].toUpperCase() as TagEntry['type'];
       entries.push({
         type,
-        text: match[2].trim(),
+        id: match[2]?.toLowerCase() ?? null,  // optional slug from [OPEN:slug]
+        text: match[3].trim(),
         meeting: filename,
         meetingTitle,
         meetingStatus,
@@ -114,6 +117,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   const decisions: TagEntry[] = [];
   const open: TagEntry[] = [];
   const actions: TagEntry[] = [];
+  const resolved: TagEntry[] = [];
   const mtimes: Record<string, number> = {};
 
   for (const file of files) {
@@ -129,6 +133,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
           case 'DECISION': decisions.push(tag); break;
           case 'OPEN': open.push(tag); break;
           case 'ACTION': actions.push(tag); break;
+          case 'RESOLVED': resolved.push(tag); break;
         }
       }
     } catch {
@@ -140,6 +145,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     decisions,
     open,
     actions,
+    resolved,
     meetingCount: files.length,
     builtAt: new Date().toISOString(),
   };
@@ -162,12 +168,15 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
 export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEntry[]; actions: TagEntry[] }> {
   const index = await buildTagIndex(meetingsDir);
 
-  // For now, return all OPEN and ACTION items — resolution tracking is a future feature
-  // Sort by date descending (most recent first)
+  // Build set of resolved slugs so we can suppress matching OPEN items
+  const resolvedSlugs = new Set(
+    index.resolved.map(r => r.id).filter((id): id is string => id !== null)
+  );
+
   const sortByDate = (a: TagEntry, b: TagEntry) => (b.date ?? '').localeCompare(a.date ?? '');
 
   return {
-    open: index.open.sort(sortByDate),
+    open: index.open.filter(o => !o.id || !resolvedSlugs.has(o.id)).sort(sortByDate),
     actions: index.actions.sort(sortByDate),
   };
 }

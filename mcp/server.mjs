@@ -311,14 +311,16 @@ server.tool(
         const items = [];
         if (data.open?.length) {
           items.push(`Open questions (${data.open.length}):`);
-          for (const o of data.open.slice(0, 10)) {
-            items.push(`  - [${o.meeting}] ${o.text}`);
+          for (const o of data.open.slice(0, 15)) {
+            const status = o.meetingStatus === 'in-progress' ? ' [LIVE]' : '';
+            items.push(`  - [${o.meetingTitle ?? o.meeting}${status}] ${o.text}`);
           }
         }
         if (data.actions?.length) {
           items.push(`Action items (${data.actions.length}):`);
-          for (const a of data.actions.slice(0, 10)) {
-            items.push(`  - [${a.meeting}] ${a.text}`);
+          for (const a of data.actions.slice(0, 15)) {
+            const status = a.meetingStatus === 'in-progress' ? ' [LIVE]' : '';
+            items.push(`  - [${a.meetingTitle ?? a.meeting}${status}] ${a.text}`);
           }
         }
         return {
@@ -329,11 +331,14 @@ server.tool(
       // Search mode
       const results = data.results || [];
       if (results.length === 0) {
-        return { content: [{ type: 'text', text: `No results found for "${query}"` }] };
+        return { content: [{ type: 'text', text: `No results found${query ? ` for "${query}"` : ''}` }] };
       }
-      const lines = results.slice(0, 15).map(r => `[${r.type}] ${r.text} (from ${r.meeting})`);
+      const lines = results.slice(0, 20).map(r => {
+        const status = r.meetingStatus === 'in-progress' ? ' [LIVE]' : '';
+        return `[${r.type}] ${r.text}\n  → ${r.meetingTitle ?? r.meeting}${status} (${r.date ?? 'unknown date'})`;
+      });
       return {
-        content: [{ type: 'text', text: `Found ${results.length} results:\n${lines.join('\n')}` }],
+        content: [{ type: 'text', text: `Found ${results.length} result${results.length !== 1 ? 's' : ''}:\n\n${lines.join('\n\n')}` }],
       };
     } catch (err) {
       return { content: [{ type: 'text', text: `Error: ${err.message}` }] };
