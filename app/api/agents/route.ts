@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
-import { parseFrontmatter } from '@/lib/agent-templates';
+import { parseFrontmatter, serializeFrontmatter } from '@/lib/agent-templates';
 
 export async function GET(req: NextRequest) {
   try {
@@ -68,5 +68,39 @@ export async function GET(req: NextRequest) {
   } catch (err: any) {
     console.error('Agents list error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { filename, field, value } = body;
+
+    if (!filename || !field || value === undefined) {
+      return NextResponse.json({ error: 'filename, field, and value are required' }, { status: 400 });
+    }
+
+    // Only allow safe fields to be edited directly
+    const allowedFields = ['model', 'team', 'role', 'description'];
+    if (!allowedFields.includes(field)) {
+      return NextResponse.json({ error: `Cannot edit field: ${field}` }, { status: 400 });
+    }
+
+    const config = await getConfig();
+    const active = getActiveProjectConfig(config);
+    const filePath = path.join(active.agentsDir, path.basename(filename));
+
+    const content = await readFile(filePath, 'utf-8');
+    const { frontmatter, body: mdBody } = parseFrontmatter(content);
+
+    frontmatter[field] = value;
+
+    const newContent = `---\n${serializeFrontmatter(frontmatter)}\n---\n${mdBody}`;
+    await writeFile(filePath, newContent, 'utf-8');
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('Agent update error:', err);
+    return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
   }
 }

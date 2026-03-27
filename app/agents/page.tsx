@@ -143,9 +143,30 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
             required
           </span>
         )}
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {agent.model}
-        </span>
+        <select
+          className="text-xs rounded px-1 py-0.5 cursor-pointer"
+          style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', outline: 'none' }}
+          value={agent.model}
+          onClick={(e) => e.stopPropagation()}
+          onChange={async (e) => {
+            e.stopPropagation();
+            const newModel = e.target.value;
+            try {
+              const res = await fetch('/api/agents', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
+              });
+              if (res.ok) {
+                setAgents(prev => prev.map(a => a.filename === agent.filename ? { ...a, model: newModel } : a));
+              }
+            } catch {}
+          }}
+        >
+          <option value="opus">opus</option>
+          <option value="sonnet">sonnet</option>
+          <option value="haiku">haiku</option>
+        </select>
       </div>
       <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
         {agent.description}
