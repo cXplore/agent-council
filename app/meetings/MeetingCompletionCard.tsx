@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { SuggestedMeeting } from '@/lib/types';
 
 interface Props {
@@ -43,6 +43,7 @@ function extractFromSummary(content: string) {
 }
 
 export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, onQueue, onDismiss }: Props) {
+  const [expanded, setExpanded] = useState(true);
   const { decisions, open } = useMemo(() => extractFromSummary(content), [content]);
   const activeSuggestions = useMemo(
     () => (recommendedMeetings ?? []).filter(r => !dismissedSuggestions.has(r.text)).slice(0, 2),
@@ -58,15 +59,17 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
       style={{ border: '1px solid rgba(96, 165, 250, 0.25)', background: 'rgba(96, 165, 250, 0.04)' }}
     >
       {/* Header */}
-      <div
-        className="px-4 py-2.5 flex items-center gap-2"
-        style={{ borderBottom: '1px solid rgba(96, 165, 250, 0.15)', background: 'rgba(96, 165, 250, 0.06)' }}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors"
+        style={{ borderBottom: expanded ? '1px solid rgba(96, 165, 250, 0.15)' : undefined, background: 'rgba(96, 165, 250, 0.06)' }}
       >
         <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>Meeting complete</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— here&apos;s what was decided</span>
-      </div>
+        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
+      </button>
 
-      <div className="px-4 py-3 space-y-3">
+      {expanded && <div className="px-4 py-3 space-y-3">
         {/* Decisions */}
         {decisions.length > 0 && (
           <div>
@@ -124,7 +127,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
             </div>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
