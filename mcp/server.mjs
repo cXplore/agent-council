@@ -280,6 +280,67 @@ server.tool(
   }
 );
 
+// Tool: Query tagged items across meetings
+server.tool(
+  'council_query',
+  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items.',
+  {
+    mode: z.enum(['summary', 'unresolved', 'search']).describe('Query mode: summary (counts), unresolved (open items), search (text query)'),
+    query: z.string().optional().describe('Search text (only for search mode)'),
+    type: z.enum(['decision', 'open', 'action']).optional().describe('Filter by tag type'),
+  },
+  async ({ mode, query, type }) => {
+    try {
+      let url = '/api/meetings/tags?';
+      if (mode === 'summary') url += 'mode=summary';
+      else if (mode === 'unresolved') url += 'mode=unresolved';
+      else {
+        if (query) url += `q=${encodeURIComponent(query)}`;
+        if (type) url += `&type=${type}`;
+      }
+
+      const data = await councilRequest(url, 'GET');
+
+      if (mode === 'summary') {
+        return {
+          content: [{ type: 'text', text: `Tag summary across ${data.meetingCount} meetings:\n- ${data.decisions} decisions\n- ${data.open} open questions\n- ${data.actions} action items` }],
+        };
+      }
+
+      if (mode === 'unresolved') {
+        const items = [];
+        if (data.open?.length) {
+          items.push(`Open questions (${data.open.length}):`);
+          for (const o of data.open.slice(0, 10)) {
+            items.push(`  - [${o.meeting}] ${o.text}`);
+          }
+        }
+        if (data.actions?.length) {
+          items.push(`Action items (${data.actions.length}):`);
+          for (const a of data.actions.slice(0, 10)) {
+            items.push(`  - [${a.meeting}] ${a.text}`);
+          }
+        }
+        return {
+          content: [{ type: 'text', text: items.length ? items.join('\n') : 'No unresolved items found.' }],
+        };
+      }
+
+      // Search mode
+      const results = data.results || [];
+      if (results.length === 0) {
+        return { content: [{ type: 'text', text: `No results found for "${query}"` }] };
+      }
+      const lines = results.slice(0, 15).map(r => `[${r.type}] ${r.text} (from ${r.meeting})`);
+      return {
+        content: [{ type: 'text', text: `Found ${results.length} results:\n${lines.join('\n')}` }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Error: ${err.message}` }] };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();

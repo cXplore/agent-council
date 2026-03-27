@@ -50,6 +50,7 @@ export default function MeetingViewer() {
   const [selected, setSelected] = useState<string | null>(searchParams.get('file'));
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
 
@@ -180,6 +181,17 @@ export default function MeetingViewer() {
     }
   }, [projectParam]);
 
+  // Fetch cross-meeting tag summary
+  const fetchTagSummary = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/meetings/tags?mode=summary`);
+      if (res.ok) {
+        const data = await res.json();
+        setTagSummary(data);
+      }
+    } catch {}
+  }, []);
+
   // Fetch single meeting content
   const fetchDetail = useCallback(async (filename: string) => {
     try {
@@ -244,9 +256,12 @@ export default function MeetingViewer() {
   // Initial list load + periodic refresh
   useEffect(() => {
     fetchList();
+    fetchTagSummary();
     const interval = setInterval(fetchList, 5000);
-    return () => clearInterval(interval);
-  }, [fetchList]);
+    // Refresh tag summary less frequently (30s)
+    const tagInterval = setInterval(fetchTagSummary, 30000);
+    return () => { clearInterval(interval); clearInterval(tagInterval); };
+  }, [fetchList, fetchTagSummary]);
 
   // Fetch planned meetings
   useEffect(() => {
@@ -718,6 +733,33 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Cross-meeting tag summary */}
+              {tagSummary && (tagSummary.open > 0 || tagSummary.actions > 0 || tagSummary.decisions > 0) && (
+                <div
+                  className="flex items-center gap-3 text-xs px-3 py-2 rounded-lg mb-2 flex-wrap"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                >
+                  {tagSummary.decisions > 0 && (
+                    <span style={{ color: '#60a5fa' }}>
+                      {tagSummary.decisions} decision{tagSummary.decisions !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {tagSummary.open > 0 && (
+                    <span style={{ color: '#fbbf24' }}>
+                      {tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {tagSummary.actions > 0 && (
+                    <span style={{ color: '#4ade80' }}>
+                      {tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    across {tagSummary.meetingCount} meeting{tagSummary.meetingCount !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
               {/* Search and filter */}
               {meetings.length > 1 && (
                 <input
