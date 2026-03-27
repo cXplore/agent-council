@@ -52,7 +52,7 @@ export default function MeetingViewer() {
   const [loading, setLoading] = useState(true);
   const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number; meetingCount: number } | null>(null);
   const [tagExpanded, setTagExpanded] = useState(false);
-  const [unresolvedItems, setUnresolvedItems] = useState<{ open: { text: string; meeting: string }[]; actions: { text: string; meeting: string }[] } | null>(null);
+  const [tagDetails, setTagDetails] = useState<{ decisions: { text: string; meeting: string }[]; open: { text: string; meeting: string }[]; actions: { text: string; meeting: string }[] } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
 
@@ -745,11 +745,17 @@ export default function MeetingViewer() {
                     onClick={() => {
                       const next = !tagExpanded;
                       setTagExpanded(next);
-                      if (next && !unresolvedItems) {
-                        fetch('/api/meetings/tags?mode=unresolved')
-                          .then(r => r.json())
-                          .then(data => setUnresolvedItems(data))
-                          .catch(() => {});
+                      if (next && !tagDetails) {
+                        Promise.all([
+                          fetch('/api/meetings/tags?mode=unresolved').then(r => r.json()),
+                          fetch('/api/meetings/tags?mode=search&type=decision').then(r => r.json()),
+                        ]).then(([unresolved, decisionData]) => {
+                          setTagDetails({
+                            decisions: decisionData.results || [],
+                            open: unresolved.open || [],
+                            actions: unresolved.actions || [],
+                          });
+                        }).catch(() => {});
                       }
                     }}
                     className="flex items-center gap-3 text-xs px-3 py-2 w-full cursor-pointer hover:brightness-110 transition-colors flex-wrap"
@@ -776,51 +782,35 @@ export default function MeetingViewer() {
                       {tagExpanded ? '▾' : '▸'}
                     </span>
                   </button>
-                  {tagExpanded && unresolvedItems && (
+                  {tagExpanded && tagDetails && (
                     <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                      {unresolvedItems.open?.length > 0 && (
-                        <div className="pt-2">
-                          <div className="text-xs font-medium mb-1.5" style={{ color: '#fbbf24' }}>Open Questions</div>
-                          {unresolvedItems.open.map((item, i) => (
-                            <button
-                              key={`open-${i}`}
-                              onClick={() => {
-                                const meetingFile = item.meeting.replace(/.*[\\/]/, '');
-                                setSelected(meetingFile);
-                              }}
-                              className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
-                              style={{ color: 'var(--text-secondary)', borderLeft: '2px solid rgba(251, 191, 36, 0.4)' }}
-                              title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
-                            >
-                              {item.text}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {unresolvedItems.actions?.length > 0 && (
-                        <div className="pt-1">
-                          <div className="text-xs font-medium mb-1.5" style={{ color: '#4ade80' }}>Pending Actions</div>
-                          {unresolvedItems.actions.map((item, i) => (
-                            <button
-                              key={`action-${i}`}
-                              onClick={() => {
-                                const meetingFile = item.meeting.replace(/.*[\\/]/, '');
-                                setSelected(meetingFile);
-                              }}
-                              className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
-                              style={{ color: 'var(--text-secondary)', borderLeft: '2px solid rgba(74, 222, 128, 0.4)' }}
-                              title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
-                            >
-                              {item.text}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {(!unresolvedItems.open?.length && !unresolvedItems.actions?.length) && (
-                        <p className="text-xs pt-2" style={{ color: 'var(--text-muted)' }}>
-                          No unresolved items across meetings.
-                        </p>
-                      )}
+                      {([
+                        { key: 'decisions' as const, label: 'Decisions', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.4)' },
+                        { key: 'open' as const, label: 'Open Questions', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.4)' },
+                        { key: 'actions' as const, label: 'Pending Actions', color: '#4ade80', border: 'rgba(74, 222, 128, 0.4)' },
+                      ]).map(({ key, label, color, border }) => {
+                        const items = tagDetails[key];
+                        if (!items?.length) return null;
+                        return (
+                          <div key={key} className="pt-2">
+                            <div className="text-xs font-medium mb-1.5" style={{ color }}>{label}</div>
+                            {items.map((item, i) => (
+                              <button
+                                key={`${key}-${i}`}
+                                onClick={() => {
+                                  const meetingFile = item.meeting.replace(/.*[\\/]/, '');
+                                  setSelected(meetingFile);
+                                }}
+                                className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
+                                style={{ color: 'var(--text-secondary)', borderLeft: `2px solid ${border}` }}
+                                title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
+                              >
+                                {item.text}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
