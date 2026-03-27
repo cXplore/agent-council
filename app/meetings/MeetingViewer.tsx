@@ -51,6 +51,8 @@ export default function MeetingViewer() {
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number; meetingCount: number } | null>(null);
+  const [tagExpanded, setTagExpanded] = useState(false);
+  const [unresolvedItems, setUnresolvedItems] = useState<{ open: { text: string; meeting: string }[]; actions: { text: string; meeting: string }[] } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
 
@@ -733,30 +735,94 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="space-y-3">
-              {/* Cross-meeting tag summary */}
+              {/* Cross-meeting tag summary — expandable */}
               {tagSummary && (tagSummary.open > 0 || tagSummary.actions > 0 || tagSummary.decisions > 0) && (
                 <div
-                  className="flex items-center gap-3 text-xs px-3 py-2 rounded-lg mb-2 flex-wrap"
+                  className="rounded-lg mb-2"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                 >
-                  {tagSummary.decisions > 0 && (
-                    <span style={{ color: '#60a5fa' }}>
-                      {tagSummary.decisions} decision{tagSummary.decisions !== 1 ? 's' : ''}
+                  <button
+                    onClick={() => {
+                      const next = !tagExpanded;
+                      setTagExpanded(next);
+                      if (next && !unresolvedItems) {
+                        fetch('/api/meetings/tags?mode=unresolved')
+                          .then(r => r.json())
+                          .then(data => setUnresolvedItems(data))
+                          .catch(() => {});
+                      }
+                    }}
+                    className="flex items-center gap-3 text-xs px-3 py-2 w-full cursor-pointer hover:brightness-110 transition-colors flex-wrap"
+                  >
+                    {tagSummary.decisions > 0 && (
+                      <span style={{ color: '#60a5fa' }}>
+                        {tagSummary.decisions} decision{tagSummary.decisions !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {tagSummary.open > 0 && (
+                      <span style={{ color: '#fbbf24' }}>
+                        {tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {tagSummary.actions > 0 && (
+                      <span style={{ color: '#4ade80' }}>
+                        {tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      across {tagSummary.meetingCount} meeting{tagSummary.meetingCount !== 1 ? 's' : ''}
                     </span>
-                  )}
-                  {tagSummary.open > 0 && (
-                    <span style={{ color: '#fbbf24' }}>
-                      {tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                      {tagExpanded ? '▾' : '▸'}
                     </span>
+                  </button>
+                  {tagExpanded && unresolvedItems && (
+                    <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                      {unresolvedItems.open?.length > 0 && (
+                        <div className="pt-2">
+                          <div className="text-xs font-medium mb-1.5" style={{ color: '#fbbf24' }}>Open Questions</div>
+                          {unresolvedItems.open.map((item, i) => (
+                            <button
+                              key={`open-${i}`}
+                              onClick={() => {
+                                const meetingFile = item.meeting.replace(/.*[\\/]/, '');
+                                setSelected(meetingFile);
+                              }}
+                              className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
+                              style={{ color: 'var(--text-secondary)', borderLeft: '2px solid rgba(251, 191, 36, 0.4)' }}
+                              title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
+                            >
+                              {item.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {unresolvedItems.actions?.length > 0 && (
+                        <div className="pt-1">
+                          <div className="text-xs font-medium mb-1.5" style={{ color: '#4ade80' }}>Pending Actions</div>
+                          {unresolvedItems.actions.map((item, i) => (
+                            <button
+                              key={`action-${i}`}
+                              onClick={() => {
+                                const meetingFile = item.meeting.replace(/.*[\\/]/, '');
+                                setSelected(meetingFile);
+                              }}
+                              className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
+                              style={{ color: 'var(--text-secondary)', borderLeft: '2px solid rgba(74, 222, 128, 0.4)' }}
+                              title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
+                            >
+                              {item.text}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {(!unresolvedItems.open?.length && !unresolvedItems.actions?.length) && (
+                        <p className="text-xs pt-2" style={{ color: 'var(--text-muted)' }}>
+                          No unresolved items across meetings.
+                        </p>
+                      )}
+                    </div>
                   )}
-                  {tagSummary.actions > 0 && (
-                    <span style={{ color: '#4ade80' }}>
-                      {tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    across {tagSummary.meetingCount} meeting{tagSummary.meetingCount !== 1 ? 's' : ''}
-                  </span>
                 </div>
               )}
 
