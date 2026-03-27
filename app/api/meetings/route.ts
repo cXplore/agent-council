@@ -41,7 +41,7 @@ function parseMetadata(content: string) {
 
   // Parse recommended next meetings from summary
   const recommendedMeetings: string[] = [];
-  const recMatch = content.match(/###?\s*Recommended Next Meetings?\s*\n([\s\S]*?)(?:\n##|\n---|\n\n\n|$)/i);
+  const recMatch = content.match(/###?\s*Recommended(?:\s+Next)?\s*(?:Meetings?|Follow-?ups?)\s*\n([\s\S]*?)(?:\n##|\n---|\n\n\n|$)/i);
   if (recMatch) {
     const lines = recMatch[1].split('\n');
     for (const line of lines) {

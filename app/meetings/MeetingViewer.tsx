@@ -1179,10 +1179,21 @@ export default function MeetingViewer() {
               <button
                 key={i}
                 onClick={async () => {
-                  // Extract meeting type and topic from the recommendation
-                  const parts = rec.split(':');
-                  const topic = parts.length > 1 ? parts.slice(1).join(':').trim() : rec;
-                  const type = parts[0]?.toLowerCase().replace(/\s+/g, '-') || 'strategy-session';
+                  // Parse: "**Type** — description", "Type: Topic — desc", or plain text
+                  const clean = rec.replace(/\*\*/g, '').trim();
+                  const dashMatch = clean.match(/^([^—–:]+)[—–]\s*(.+)/);
+                  const colonMatch = clean.match(/^([^:]+):\s*(.+)/);
+                  let type: string, topic: string;
+                  if (dashMatch) {
+                    type = dashMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
+                    topic = dashMatch[2].trim();
+                  } else if (colonMatch) {
+                    type = colonMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
+                    topic = colonMatch[2].trim();
+                  } else {
+                    type = 'strategy-session';
+                    topic = clean;
+                  }
                   try {
                     await fetch('/api/council/planned', {
                       method: 'POST',
