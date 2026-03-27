@@ -68,6 +68,7 @@ export interface MeetingListItem {
   modifiedAt: string;
   project?: string;
   preview?: string;
+  recommendedMeetings?: string[];
 }
 
 export interface MeetingDetail extends MeetingListItem {

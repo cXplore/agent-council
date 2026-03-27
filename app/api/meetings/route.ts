@@ -153,6 +153,7 @@ export async function GET(request: NextRequest) {
             modifiedAt: fileStat.mtime.toISOString(),
             project,
             preview: preview ? (preview.length >= 120 ? preview + '...' : preview) : undefined,
+            recommendedMeetings: metadata.recommendedMeetings?.length ? metadata.recommendedMeetings : undefined,
           };
         } catch {
           return null; // Skip unreadable files

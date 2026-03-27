@@ -789,6 +789,14 @@ export default function MeetingViewer() {
                     <span style={{ color: 'var(--text-muted)' }}>
                       across {tagSummary.meetingCount} meeting{tagSummary.meetingCount !== 1 ? 's' : ''}
                     </span>
+                    {(() => {
+                      const suggCount = meetings.reduce((n, m) => n + (m.status === 'complete' ? (m.recommendedMeetings?.length ?? 0) : 0), 0);
+                      return suggCount > 0 ? (
+                        <span style={{ color: '#a78bfa' }}>
+                          {suggCount} suggested
+                        </span>
+                      ) : null;
+                    })()}
                     <span style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
                       {tagExpanded ? '▾' : '▸'}
                     </span>
@@ -832,6 +840,53 @@ export default function MeetingViewer() {
                           </div>
                         );
                       })}
+                      {/* Suggested next meetings from completed meeting summaries */}
+                      {(() => {
+                        const suggestions: { rec: string; source: string; sourceFile: string }[] = [];
+                        for (const m of meetings) {
+                          if (m.status === 'complete' && m.recommendedMeetings?.length) {
+                            for (const rec of m.recommendedMeetings) {
+                              suggestions.push({ rec, source: m.title || m.filename, sourceFile: m.filename });
+                            }
+                          }
+                        }
+                        if (!suggestions.length) return null;
+                        return (
+                          <div className="pt-2">
+                            <div className="text-xs font-medium mb-1.5" style={{ color: '#a78bfa' }}>Suggested Meetings</div>
+                            {suggestions.map((s, i) => (
+                              <div key={i} className="flex items-start gap-2 mb-1.5">
+                                <button
+                                  onClick={async () => {
+                                    const clean = s.rec.replace(/\*\*/g, '').trim();
+                                    const dashMatch = clean.match(/^([^—–:]+)[—–]\s*(.+)/);
+                                    const colonMatch = clean.match(/^([^:]+):\s*(.+)/);
+                                    let type: string, topic: string;
+                                    if (dashMatch) { type = dashMatch[1].trim().toLowerCase().replace(/\s+/g, '-'); topic = dashMatch[2].trim(); }
+                                    else if (colonMatch) { type = colonMatch[1].trim().toLowerCase().replace(/\s+/g, '-'); topic = colonMatch[2].trim(); }
+                                    else { type = 'strategy-session'; topic = clean; }
+                                    await fetch('/api/council/planned', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ type, topic, source: s.sourceFile }),
+                                    }).catch(() => {});
+                                    fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
+                                    setTagExpanded(false);
+                                  }}
+                                  className="shrink-0 text-xs px-2 py-0.5 rounded transition-colors hover:brightness-110"
+                                  style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+                                >
+                                  + Queue
+                                </button>
+                                <div className="min-w-0">
+                                  <span className="block text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>{s.rec.replace(/\*\*/g, '')}</span>
+                                  <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>from {s.source}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
