@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ProjectProfile } from '@/lib/types';
 
 type Step = 'path' | 'scan' | 'customize' | 'generate';
@@ -39,6 +40,7 @@ const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> 
 };
 
 export default function SetupWizard() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>('path');
   const [projectPath, setProjectPath] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -160,6 +162,8 @@ export default function SetupWizard() {
         hasFacilitator: connectData.hasFacilitator ?? false,
       });
       setConnected(true);
+      // Refresh the nav to show the newly active project
+      router.refresh();
     } catch (err) {
       setConnectError(err instanceof Error ? err.message : 'Connection failed');
     } finally {
