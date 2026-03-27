@@ -7,6 +7,7 @@ import type { MeetingListItem, MeetingDetail } from '@/lib/types';
 import { getAgentColor } from '@/lib/utils';
 import { createMeetingComponents } from '@/lib/md-components';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
+import MeetingCompletionCard from './MeetingCompletionCard';
 
 const POLL_INTERVAL = 2000;
 
@@ -1361,6 +1362,31 @@ export default function MeetingViewer() {
             })}
           </div>
         </div>
+      )}
+
+      {/* Completion card — shown at top of completed meetings */}
+      {detail && detail.status === 'complete' && (
+        <MeetingCompletionCard
+          content={detail.content}
+          recommendedMeetings={detail.recommendedMeetings}
+          dismissedSuggestions={dismissedSuggestions}
+          onQueue={async (type, topic) => {
+            await fetch('/api/council/planned', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'recommended', topic, meetingType: type, source: detail.filename }),
+            }).catch(() => {});
+            fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
+          }}
+          onDismiss={async (text) => {
+            await fetch(`/api/meetings/suggestions${projectParam()}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text }),
+            }).catch(() => {});
+            setDismissedSuggestions(prev => new Set([...prev, text]));
+          }}
+        />
       )}
 
       {/* Content + Outcomes panel wrapper */}

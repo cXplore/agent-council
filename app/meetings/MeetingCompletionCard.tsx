@@ -1,0 +1,130 @@
+'use client';
+
+import { useMemo } from 'react';
+import type { SuggestedMeeting } from '@/lib/types';
+
+interface Props {
+  content: string;
+  recommendedMeetings?: SuggestedMeeting[];
+  dismissedSuggestions: Set<string>;
+  onQueue: (type: string, topic: string) => void;
+  onDismiss: (text: string) => void;
+}
+
+const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+
+function extractFromSummary(content: string) {
+  const lines = content.split('\n');
+  const summaryIdx = lines.findIndex(l => l.trim() === '## Summary');
+  const start = summaryIdx >= 0 ? summaryIdx : 0;
+
+  const decisions: string[] = [];
+  const open: string[] = [];
+  const resolvedSlugs = new Set<string>();
+
+  for (let i = start; i < lines.length; i++) {
+    const m = lines[i].match(OUTCOME_REGEX);
+    if (!m) continue;
+    const type = m[1].toUpperCase();
+    const slug = m[2]?.toLowerCase() ?? null;
+    const text = m[3].trim();
+    if (type === 'RESOLVED' && slug) resolvedSlugs.add(slug);
+    if (type === 'DECISION') decisions.push(text);
+    if (type === 'OPEN') open.push(text);
+  }
+
+  // Suppress open items that were resolved in the same meeting
+  const filteredOpen = open.filter((_, i) => {
+    const m = open[i].match(/^([a-z0-9-]+)\s/);
+    return !m || !resolvedSlugs.has(m[1]);
+  });
+
+  return { decisions: decisions.slice(0, 3), open: filteredOpen.slice(0, 2) };
+}
+
+export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, onQueue, onDismiss }: Props) {
+  const { decisions, open } = useMemo(() => extractFromSummary(content), [content]);
+  const activeSuggestions = useMemo(
+    () => (recommendedMeetings ?? []).filter(r => !dismissedSuggestions.has(r.text)).slice(0, 2),
+    [recommendedMeetings, dismissedSuggestions]
+  );
+
+  const hasContent = decisions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
+  if (!hasContent) return null;
+
+  return (
+    <div
+      className="mx-6 mt-4 mb-2 rounded-xl text-sm overflow-hidden"
+      style={{ border: '1px solid rgba(96, 165, 250, 0.25)', background: 'rgba(96, 165, 250, 0.04)' }}
+    >
+      {/* Header */}
+      <div
+        className="px-4 py-2.5 flex items-center gap-2"
+        style={{ borderBottom: '1px solid rgba(96, 165, 250, 0.15)', background: 'rgba(96, 165, 250, 0.06)' }}
+      >
+        <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>Meeting complete</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— here&apos;s what was decided</span>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Decisions */}
+        {decisions.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#60a5fa' }}>Decisions</div>
+            <ul className="space-y-1">
+              {decisions.map((d, i) => (
+                <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: '#60a5fa', flexShrink: 0 }}>·</span>
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Open questions */}
+        {open.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#fbbf24' }}>Still open</div>
+            <ul className="space-y-1">
+              {open.map((q, i) => (
+                <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: '#fbbf24', flexShrink: 0 }}>·</span>
+                  <span>{q}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Suggested next meetings */}
+        {activeSuggestions.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#a78bfa' }}>Suggested next</div>
+            <div className="flex flex-wrap gap-2">
+              {activeSuggestions.map((s, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <button
+                    onClick={() => onQueue(s.type ?? 'strategy-session', s.topic ?? s.text)}
+                    className="text-xs px-2.5 py-1 rounded-lg transition-colors hover:brightness-110"
+                    style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+                  >
+                    + {s.text.replace(/\*\*/g, '')}
+                  </button>
+                  <button
+                    onClick={() => onDismiss(s.text)}
+                    className="text-xs px-1 py-1 rounded transition-colors hover:brightness-110"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

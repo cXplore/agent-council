@@ -147,10 +147,14 @@ export async function GET(request: NextRequest) {
           const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
 
           // Extract preview: first agent response snippet
-          const agentMatch = content.match(/\*\*[\w-]+:\*\*\s*(.+)/);
-          const preview = agentMatch
-            ? agentMatch[1].slice(0, 120).replace(/\s+/g, ' ').trim()
-            : undefined;
+          // Skip metadata fields (Type, Date, Participants, Facilitator) and h3-style agent headings
+          const SKIP_FIELDS = /^(type|date|participants|facilitator|status|context|topic)$/i;
+          let preview: string | undefined;
+          for (const m of content.matchAll(/\*\*([\w-]+):\*\*\s*(.+)/g)) {
+            if (SKIP_FIELDS.test(m[1])) continue;
+            const text = m[2].slice(0, 120).replace(/\s+/g, ' ').trim();
+            if (text.length > 10) { preview = text; break; }
+          }
 
           return {
             filename: f,
@@ -172,7 +176,13 @@ export async function GET(request: NextRequest) {
     );
     const meetings = results.filter((m): m is MeetingListItem => m !== null);
 
-    meetings.sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+    meetings.sort((a, b) => {
+      // Live meetings always first
+      const aLive = a.status === 'in-progress' ? 0 : 1;
+      const bLive = b.status === 'in-progress' ? 0 : 1;
+      if (aLive !== bLive) return aLive - bLive;
+      return new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime();
+    });
 
     return NextResponse.json(meetings, {
       headers: { 'Cache-Control': 'no-cache, no-store' },
