@@ -916,7 +916,7 @@ export default function MeetingViewer() {
                                 }}
                                 className="shrink-0 text-xs px-1.5 py-0.5 rounded transition-colors hover:brightness-110"
                                 style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                                title="Dismiss — won't show again"
+                                title="Dismiss"
                               >
                                 ✕
                               </button>
@@ -1333,11 +1333,16 @@ export default function MeetingViewer() {
                   {!queuedRecs.has(i) && (
                     <button
                       onClick={async () => {
-                        await fetch(`/api/meetings/suggestions${projectParam()}`, {
-                          method: isDismissed ? 'DELETE' : 'POST',
-                          headers: isDismissed ? undefined : { 'Content-Type': 'application/json' },
-                          body: isDismissed ? undefined : JSON.stringify({ text: recText }),
-                        } as RequestInit).catch(() => {});
+                        const p = projectParam();
+                        const sep = p ? '&' : '?';
+                        await fetch(
+                          isDismissed
+                            ? `/api/meetings/suggestions${p}${sep}text=${encodeURIComponent(recText)}`
+                            : `/api/meetings/suggestions${p}`,
+                          isDismissed
+                            ? { method: 'DELETE' }
+                            : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: recText }) }
+                        ).catch(() => {});
                         if (isDismissed) {
                           setDismissedSuggestions(prev => { const n = new Set(prev); n.delete(recText); return n; });
                         } else {
