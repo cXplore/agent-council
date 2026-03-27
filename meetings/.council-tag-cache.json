@@ -1,0 +1,269 @@
+{
+  "index": {
+    "decisions": [
+      {
+        "type": "DECISION",
+        "text": "Server-side tag extraction in `lib/tag-index.ts` — scans meeting files and returns structured index",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 112,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Mtime-based cache file (`.council-tag-cache.json`) in the meetings directory — rebuild when any .md file is newer",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 113,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Three API endpoints: `GET /api/meetings/tags` (query), `GET /api/meetings/tags/summary` (counts), `GET /api/meetings/unresolved` (carry-forward)",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 114,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "New MCP tool `council_query` for Claude Code to pull cross-meeting context",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 115,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "No file-watchers, no in-process cache — file-based cache works across all runtimes (Next.js, Electron, CLI)",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 116,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Right-side 320px panel (not left, not inline filter)",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 152,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "New `MeetingOutcomes.tsx` component, separate from MeetingViewer",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 153,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Regex extraction from raw markdown (`/(DECISION|OPEN|ACTION):\\s*(.+)/gi`)",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 154,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Toggle via \"Outcomes (N)\" pill in the stats bar",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 155,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Grouped by type — Decisions first, Open Questions second, Actions third",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 156,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Click-to-scroll via `scrollIntoView` with ID anchors on rendered blocks",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 157,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Collapsed by default, content pushes left when open (desktop), overlay on tablet",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 158,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Use inline tagging (`DECISION:`, `OPEN:`, `ACTION:`) instead of post-hoc parsing. The facilitator tags during generation, keeping the meeting file as single source of truth.",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 196,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "No action item tracking system. Surface action items but don't own their lifecycle.",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 197,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "No database, no sidecar files. All structured data derived on-demand from meeting files.",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 198,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "text": "Decisions are the highest-value output. Prioritize over action items or open questions.",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 199,
+        "date": "2026-03-27"
+      }
+    ],
+    "open": [
+      {
+        "type": "OPEN",
+        "text": "Should the cache also index meeting metadata (title, date, participants) for richer queries?",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 129,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "How does the facilitator know which OPEN items have been resolved in subsequent meetings vs just not mentioned?",
+        "meeting": "2026-03-27-architecture-review-cross-meeting.md",
+        "meetingTitle": "Architecture Review — Cross-Meeting Query System",
+        "meetingStatus": "complete",
+        "lineNumber": 130,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "How reliable is start-of-line regex matching against real LLM-generated meeting content?",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 162,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "Should the panel show a confidence indicator for extraction quality?",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 163,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "What's the failure UX when a scroll anchor can't find its target?",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 164,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "How reliable will LLM-generated tags be? Will facilitators consistently apply them?",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 210,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "What's the UX for meetings that predate the tagging system?",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 211,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "text": "Should carry-forward prompts be automatic or opt-in per meeting?",
+        "meeting": "2026-03-27-strategy-actionable-outcomes.md",
+        "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
+        "meetingStatus": "complete",
+        "lineNumber": 212,
+        "date": "2026-03-27"
+      }
+    ],
+    "actions": [
+      {
+        "type": "ACTION",
+        "text": "Build MeetingOutcomes.tsx with regex extraction and scroll anchors",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 168,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "text": "Add \"Outcomes (N)\" toggle to the stats bar",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 169,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "text": "Add ID anchors to rendered markdown blocks in md-components.tsx",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 170,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "text": "Test extraction against both existing meeting files",
+        "meeting": "2026-03-27-design-review-outcomes-panel.md",
+        "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
+        "meetingStatus": "complete",
+        "lineNumber": 171,
+        "date": "2026-03-27"
+      }
+    ],
+    "meetingCount": 3,
+    "builtAt": "2026-03-27T21:56:22.384Z"
+  },
+  "mtimes": {
+    "2026-03-27-architecture-review-cross-meeting.md": 1774645802590.044,
+    "2026-03-27-design-review-outcomes-panel.md": 1774645032295.4614,
+    "2026-03-27-strategy-actionable-outcomes.md": 1774643349342.1208
+  }
+}
