@@ -1108,14 +1108,28 @@ export default function MeetingViewer() {
 
       {/* Meeting stats for completed meetings */}
       {detail && detail.status === 'complete' && detail.content && (() => {
-        // Count words per agent
-        const agentBlocks = detail.content.split(/\*\*([\w-]+):\*\*/);
+        // Count words per agent — handle both "### Name (Round N)" and "**Name:**" formats
         const wordCounts: Record<string, number> = {};
-        for (let i = 1; i < agentBlocks.length; i += 2) {
-          const name = agentBlocks[i];
-          const text = agentBlocks[i + 1] || '';
-          const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-          wordCounts[name] = (wordCounts[name] || 0) + words;
+        const headingBlocks = detail.content.split(/^###\s+(.+?)(?:\s+\(Round\s+\d+\))?$/m);
+        if (headingBlocks.length > 1) {
+          for (let i = 1; i < headingBlocks.length; i += 2) {
+            const name = headingBlocks[i].trim();
+            const text = headingBlocks[i + 1] || '';
+            const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+            if (name && !/^round\s+\d+/i.test(name)) {
+              wordCounts[name] = (wordCounts[name] || 0) + words;
+            }
+          }
+        }
+        if (Object.keys(wordCounts).length === 0) {
+          // Fallback: bold "**Name:**" format
+          const agentBlocks = detail.content.split(/\*\*([\w-]+):\*\*/);
+          for (let i = 1; i < agentBlocks.length; i += 2) {
+            const name = agentBlocks[i];
+            const text = agentBlocks[i + 1] || '';
+            const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
+            wordCounts[name] = (wordCounts[name] || 0) + words;
+          }
         }
         const totalWords = Object.values(wordCounts).reduce((a, b) => a + b, 0);
         const rounds = (detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm) || []).length;
