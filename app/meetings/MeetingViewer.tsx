@@ -52,7 +52,7 @@ export default function MeetingViewer() {
   const [loading, setLoading] = useState(true);
   const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number; meetingCount: number } | null>(null);
   const [tagExpanded, setTagExpanded] = useState(false);
-  const [tagDetails, setTagDetails] = useState<{ decisions: { text: string; meeting: string }[]; open: { text: string; meeting: string }[]; actions: { text: string; meeting: string }[] } | null>(null);
+  const [tagDetails, setTagDetails] = useState<{ decisions: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[]; open: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[]; actions: { text: string; meeting: string; meetingTitle?: string; meetingStatus?: string }[] } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
 
@@ -801,11 +801,19 @@ export default function MeetingViewer() {
                                   const meetingFile = item.meeting.replace(/.*[\\/]/, '');
                                   setSelected(meetingFile);
                                 }}
-                                className="block w-full text-left text-xs mb-1 pl-3 py-1 rounded hover:brightness-110 transition-colors"
+                                className="block w-full text-left text-xs mb-1.5 pl-3 py-1.5 rounded hover:brightness-110 transition-colors"
                                 style={{ color: 'var(--text-secondary)', borderLeft: `2px solid ${border}` }}
-                                title={`From: ${item.meeting.replace(/.*[\\/]/, '')}`}
                               >
-                                {item.text}
+                                <span className="block">{item.text}</span>
+                                <span className="flex items-center gap-1.5 mt-0.5">
+                                  {item.meetingStatus === 'in-progress' && (
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--live-green)' }} />
+                                  )}
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                                    {item.meetingTitle ?? item.meeting.replace(/.*[\\/]/, '')}
+                                    {item.meetingStatus === 'in-progress' ? ' · live' : ''}
+                                  </span>
+                                </span>
                               </button>
                             ))}
                           </div>

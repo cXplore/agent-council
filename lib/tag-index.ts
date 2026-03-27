@@ -4,10 +4,11 @@ import path from 'node:path';
 export interface TagEntry {
   type: 'DECISION' | 'OPEN' | 'ACTION';
   text: string;
-  meeting: string;       // filename
-  meetingTitle: string;   // extracted from # heading
+  meeting: string;         // filename
+  meetingTitle: string;    // extracted from # heading
+  meetingStatus: string;   // from <!-- status: ... --> or inferred
   lineNumber: number;
-  date: string | null;    // from filename YYYY-MM-DD
+  date: string | null;     // from filename YYYY-MM-DD
 }
 
 export interface TagIndex {
@@ -33,6 +34,10 @@ function extractTags(content: string, filename: string): TagEntry[] {
   const titleMatch = content.match(/^#\s+(.+)$/m);
   const meetingTitle = titleMatch?.[1]?.trim() ?? filename.replace(/\.md$/, '');
 
+  // Extract status from frontmatter comment, fall back to content-based detection
+  const statusMatch = content.match(/<!--\s*status:\s*(\S+)\s*-->/);
+  const meetingStatus = statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress');
+
   // Extract date from filename
   const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
   const date = dateMatch?.[1] ?? null;
@@ -46,6 +51,7 @@ function extractTags(content: string, filename: string): TagEntry[] {
         text: match[2].trim(),
         meeting: filename,
         meetingTitle,
+        meetingStatus,
         lineNumber: i,
         date,
       });
