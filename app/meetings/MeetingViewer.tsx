@@ -50,7 +50,7 @@ export default function MeetingViewer() {
   const [selected, setSelected] = useState<string | null>(searchParams.get('file'));
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number } | null>(null);
+  const [tagSummary, setTagSummary] = useState<{ decisions: number; open: number; actions: number; meetingCount: number } | null>(null);
   const [userScrolledUp, setUserScrolledUp] = useState(false);
   const [userExplicitlyBack, setUserExplicitlyBack] = useState(false);
 
