@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Full mode — optionally filtered
-    let results = [...index.decisions, ...index.open, ...index.actions];
+    let results = [...index.decisions, ...index.open, ...index.actions, ...index.resolved];
 
     if (typeFilter) {
       const t = typeFilter.toUpperCase();

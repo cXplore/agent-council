@@ -83,7 +83,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     const entries = await readdir(meetingsDir);
     files = entries.filter(f => f.endsWith('.md'));
   } catch {
-    return { decisions: [], open: [], actions: [], meetingCount: 0, builtAt: new Date().toISOString() };
+    return { decisions: [], open: [], actions: [], resolved: [], meetingCount: 0, builtAt: new Date().toISOString() };
   }
 
   // Check if cache is still valid by comparing mtimes

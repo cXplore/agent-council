@@ -67,6 +67,7 @@ export default function MeetingViewer() {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedRecs, setQueuedRecs] = useState<Set<number>>(new Set());
   const [fetchError, setFetchError] = useState(false);
 
   // Active project context
@@ -133,7 +134,7 @@ export default function MeetingViewer() {
         setHasProject(data.projects?.length > 0);
 
         // Check if active project has a facilitator
-        if (active && active !== 'workspace') {
+        if (active) {
           try {
             const agentsRes = await fetch('/api/agents');
             if (agentsRes.ok) {
@@ -168,6 +169,7 @@ export default function MeetingViewer() {
       const res = await fetch(`/api/meetings${projectParam()}`);
       if (!res.ok) { setFetchError(true); return; }
       const data = await res.json();
+      setFetchError(false);
       setMeetings(Array.isArray(data) ? data : []);
 
       // Auto-select if exactly one is in-progress (but not if user explicitly went back)
@@ -182,14 +184,16 @@ export default function MeetingViewer() {
     } finally {
       setLoading(false);
     }
-  }, [projectParam]);
+  }, [projectParam, selectMeeting]);
 
   // Fetch cross-meeting tag summary + build set of tagged meeting filenames
   const fetchTagSummary = useCallback(async () => {
     try {
+      const p = projectParam();
+      const sep = p ? '&' : '?';
       const [summaryRes, searchRes] = await Promise.all([
-        fetch(`/api/meetings/tags?mode=summary`),
-        fetch(`/api/meetings/tags`),
+        fetch(`/api/meetings/tags${p}${sep}mode=summary`),
+        fetch(`/api/meetings/tags${p}`),
       ]);
       if (summaryRes.ok) setTagSummary(await summaryRes.json());
       if (searchRes.ok) {
@@ -198,7 +202,7 @@ export default function MeetingViewer() {
         setTaggedMeetings(filenames);
       }
     } catch {}
-  }, []);
+  }, [projectParam]);
 
   // Fetch single meeting content
   const fetchDetail = useCallback(async (filename: string) => {
@@ -296,6 +300,7 @@ export default function MeetingViewer() {
     setDetail(null);
     setSeenContent('');
     setUserScrolledUp(false);
+    setQueuedRecs(new Set());
     fetchDetail(selected);
 
     pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
@@ -805,7 +810,9 @@ export default function MeetingViewer() {
                                 key={`${key}-${i}`}
                                 onClick={() => {
                                   const meetingFile = item.meeting.replace(/.*[\\/]/, '');
-                                  setSelected(meetingFile);
+                                  selectMeeting(meetingFile);
+                                  setTagExpanded(false);
+                                  setUserExplicitlyBack(false);
                                 }}
                                 className="block w-full text-left text-xs mb-1.5 pl-3 py-1.5 rounded hover:brightness-110 transition-colors"
                                 style={{ color: 'var(--text-secondary)', borderLeft: `2px solid ${border}` }}
@@ -1110,13 +1117,15 @@ export default function MeetingViewer() {
       {detail && detail.status === 'complete' && detail.content && (() => {
         // Count words per agent — handle both "### Name (Round N)" and "**Name:**" formats
         const wordCounts: Record<string, number> = {};
+        // Non-agent section headings to exclude from word counts
+        const NON_AGENT_SECTIONS = /^(round\s+\d+|summary|decisions?(\s+made)?|open\s+questions?|action\s+items?|dissent|recommended|carry-forward|what\s+shipped|context|participants)/i;
         const headingBlocks = detail.content.split(/^###\s+(.+?)(?:\s+\(Round\s+\d+\))?$/m);
         if (headingBlocks.length > 1) {
           for (let i = 1; i < headingBlocks.length; i += 2) {
             const name = headingBlocks[i].trim();
             const text = headingBlocks[i + 1] || '';
             const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
-            if (name && !/^round\s+\d+/i.test(name)) {
+            if (name && !NON_AGENT_SECTIONS.test(name)) {
               wordCounts[name] = (wordCounts[name] || 0) + words;
             }
           }
@@ -1193,6 +1202,7 @@ export default function MeetingViewer() {
               <button
                 key={i}
                 onClick={async () => {
+                  if (queuedRecs.has(i)) return;
                   // Parse: "**Type** — description", "Type: Topic — desc", or plain text
                   const clean = rec.replace(/\*\*/g, '').trim();
                   const dashMatch = clean.match(/^([^—–:]+)[—–]\s*(.+)/);
@@ -1219,16 +1229,18 @@ export default function MeetingViewer() {
                         source: detail.filename,
                       }),
                     });
-                    // Visual feedback — briefly change button text
-                    const btn = document.activeElement as HTMLElement;
-                    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Queued'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+                    setQueuedRecs(prev => new Set([...prev, i]));
                   } catch {}
                 }}
                 className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-110"
-                style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                style={{
+                  background: queuedRecs.has(i) ? 'var(--bg-elevated)' : 'var(--bg-card)',
+                  color: queuedRecs.has(i) ? 'var(--text-muted)' : 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                }}
                 title="Add to planned meetings"
               >
-                + {rec}
+                {queuedRecs.has(i) ? '✓ Queued' : `+ ${rec}`}
               </button>
             ))}
           </div>
@@ -1255,13 +1267,12 @@ export default function MeetingViewer() {
                 <button
                   key={i}
                   onClick={() => {
-                    // Search h2, em, and strong for round markers (different facilitators use different formats)
+                    // Find the first element matching this round heading
                     const elements = contentRef.current?.querySelectorAll('h2, em, strong');
-                    elements?.forEach(el => {
-                      if (el.textContent?.trim().startsWith(`Round ${i + 1}`)) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    });
+                    const target = Array.from(elements || []).find(el =>
+                      el.textContent?.trim().startsWith(`Round ${i + 1}`)
+                    );
+                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
@@ -1275,11 +1286,8 @@ export default function MeetingViewer() {
                 <button
                   onClick={() => {
                     const headings = contentRef.current?.querySelectorAll('h2');
-                    headings?.forEach(h => {
-                      if (h.textContent?.trim() === 'Summary') {
-                        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    });
+                    Array.from(headings || []).find(h => h.textContent?.trim() === 'Summary')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}

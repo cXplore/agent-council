@@ -291,13 +291,14 @@ server.tool(
   },
   async ({ mode, query, type }) => {
     try {
-      let url = '/api/meetings/tags?';
-      if (mode === 'summary') url += 'mode=summary';
-      else if (mode === 'unresolved') url += 'mode=unresolved';
+      const params = new URLSearchParams();
+      if (mode === 'summary') params.set('mode', 'summary');
+      else if (mode === 'unresolved') params.set('mode', 'unresolved');
       else {
-        if (query) url += `q=${encodeURIComponent(query)}`;
-        if (type) url += `&type=${type}`;
+        if (query) params.set('q', query);
+        if (type) params.set('type', type);
       }
+      const url = `/api/meetings/tags?${params.toString()}`;
 
       const data = await councilRequest(url, 'GET');
 
