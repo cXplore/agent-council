@@ -40,13 +40,23 @@ function parseMetadata(content: string) {
   }
 
   // Parse recommended next meetings from summary
-  const recommendedMeetings: string[] = [];
+  const recommendedMeetings: { text: string; type?: string; topic?: string }[] = [];
   const recMatch = content.match(/###?\s*Recommended(?:\s+Next)?\s*(?:Meetings?|Follow-?ups?)\s*\n([\s\S]*?)(?:\n##|\n---|\n\n\n|$)/i);
   if (recMatch) {
     const lines = recMatch[1].split('\n');
     for (const line of lines) {
-      const item = line.replace(/^[-*]\s*/, '').trim();
-      if (item) recommendedMeetings.push(item);
+      const raw = line.replace(/^[-*]\s*/, '').trim();
+      if (!raw || raw.startsWith('Only include') || raw.startsWith('Do not')) continue;
+      // Try to parse "Type: Topic" or "Type — Topic" format
+      const dashMatch = raw.match(/^([^—–:]+)[—–]\s*(.+)/);
+      const colonMatch = raw.match(/^([^:]+):\s*(.+)/);
+      if (dashMatch) {
+        recommendedMeetings.push({ text: raw, type: dashMatch[1].trim().toLowerCase().replace(/\s+/g, '-'), topic: dashMatch[2].trim() });
+      } else if (colonMatch) {
+        recommendedMeetings.push({ text: raw, type: colonMatch[1].trim().toLowerCase().replace(/\s+/g, '-'), topic: colonMatch[2].trim() });
+      } else {
+        recommendedMeetings.push({ text: raw });
+      }
     }
   }
 

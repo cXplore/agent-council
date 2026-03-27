@@ -169,7 +169,8 @@ Append a summary section to the hub file:
 - [ACTION] [Specific task] — assigned to [role/person]
 
 ### Recommended Next Meetings
-- [Meeting type]: [Topic] — if a thread needs its own meeting
+- Only include this section if a genuinely unresolved thread emerged that *requires* its own meeting to make progress. Omit entirely if nothing specific surfaced. Do not generate follow-ups by default.
+- [Meeting type]: [Topic] — specific unresolved thread, not a general "explore further"
 ```
 
 ### Step 8: Close

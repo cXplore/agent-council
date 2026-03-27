@@ -57,6 +57,12 @@ export interface CouncilConfig {
   port: number;
 }
 
+export interface SuggestedMeeting {
+  text: string;
+  type?: string;
+  topic?: string;
+}
+
 export interface MeetingListItem {
   filename: string;
   date: string | null;
@@ -68,10 +74,9 @@ export interface MeetingListItem {
   modifiedAt: string;
   project?: string;
   preview?: string;
-  recommendedMeetings?: string[];
+  recommendedMeetings?: SuggestedMeeting[];
 }
 
 export interface MeetingDetail extends MeetingListItem {
   content: string;
-  recommendedMeetings?: string[];
 }

@@ -69,6 +69,7 @@ export default function MeetingViewer() {
   const [error, setError] = useState<string | null>(null);
   const [queuedRecs, setQueuedRecs] = useState<Set<number>>(new Set());
   const [suggestedExpanded, setSuggestedExpanded] = useState(false);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
   const [fetchError, setFetchError] = useState(false);
 
   // Active project context
@@ -187,20 +188,25 @@ export default function MeetingViewer() {
     }
   }, [projectParam, selectMeeting]);
 
-  // Fetch cross-meeting tag summary + build set of tagged meeting filenames
+  // Fetch cross-meeting tag summary + build set of tagged meeting filenames + dismissed suggestions
   const fetchTagSummary = useCallback(async () => {
     try {
       const p = projectParam();
       const sep = p ? '&' : '?';
-      const [summaryRes, searchRes] = await Promise.all([
+      const [summaryRes, searchRes, dismissedRes] = await Promise.all([
         fetch(`/api/meetings/tags${p}${sep}mode=summary`),
         fetch(`/api/meetings/tags${p}`),
+        fetch(`/api/meetings/suggestions${p}`),
       ]);
       if (summaryRes.ok) setTagSummary(await summaryRes.json());
       if (searchRes.ok) {
         const data = await searchRes.json();
         const filenames = new Set<string>((data.results || []).map((r: { meeting: string }) => r.meeting as string));
         setTaggedMeetings(filenames);
+      }
+      if (dismissedRes.ok) {
+        const data = await dismissedRes.json();
+        setDismissedSuggestions(new Set(data.dismissed || []));
       }
     } catch {}
   }, [projectParam]);
@@ -840,11 +846,19 @@ export default function MeetingViewer() {
 
               {/* Suggested next meetings — separate collapsible */}
               {(() => {
-                const suggestions: { rec: string; source: string; sourceFile: string }[] = [];
+                const suggestions: { text: string; type?: string; topic?: string; source: string; sourceFile: string }[] = [];
                 for (const m of meetings) {
                   if (m.status === 'complete' && m.recommendedMeetings?.length) {
                     for (const rec of m.recommendedMeetings) {
-                      suggestions.push({ rec, source: m.title || m.filename, sourceFile: m.filename });
+                      const recText = typeof rec === 'string' ? rec : rec.text;
+                      if (dismissedSuggestions.has(recText)) continue;
+                      suggestions.push({
+                        text: recText,
+                        type: typeof rec === 'object' ? rec.type : undefined,
+                        topic: typeof rec === 'object' ? rec.topic : undefined,
+                        source: m.title || m.filename,
+                        sourceFile: m.filename,
+                      });
                     }
                   }
                 }
@@ -873,13 +887,8 @@ export default function MeetingViewer() {
                             <div key={i} className="flex items-start gap-2">
                               <button
                                 onClick={async () => {
-                                  const clean = s.rec.replace(/\*\*/g, '').trim();
-                                  const dashMatch = clean.match(/^([^—–:]+)[—–]\s*(.+)/);
-                                  const colonMatch = clean.match(/^([^:]+):\s*(.+)/);
-                                  let type: string, topic: string;
-                                  if (dashMatch) { type = dashMatch[1].trim().toLowerCase().replace(/\s+/g, '-'); topic = dashMatch[2].trim(); }
-                                  else if (colonMatch) { type = colonMatch[1].trim().toLowerCase().replace(/\s+/g, '-'); topic = colonMatch[2].trim(); }
-                                  else { type = 'strategy-session'; topic = clean; }
+                                  const type = s.type ?? 'strategy-session';
+                                  const topic = s.topic ?? s.text;
                                   await fetch('/api/council/planned', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
@@ -892,10 +901,25 @@ export default function MeetingViewer() {
                               >
                                 + Queue
                               </button>
-                              <div className="min-w-0">
-                                <span className="block text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>{s.rec.replace(/\*\*/g, '')}</span>
+                              <div className="min-w-0 flex-1">
+                                <span className="block text-xs leading-snug" style={{ color: 'var(--text-secondary)' }}>{s.text.replace(/\*\*/g, '')}</span>
                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>from {s.source}</span>
                               </div>
+                              <button
+                                onClick={async () => {
+                                  await fetch(`/api/meetings/suggestions${projectParam()}`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ text: s.text }),
+                                  }).catch(() => {});
+                                  setDismissedSuggestions(prev => new Set([...prev, s.text]));
+                                }}
+                                className="shrink-0 text-xs px-1.5 py-0.5 rounded transition-colors hover:brightness-110"
+                                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                                title="Dismiss — won't show again"
+                              >
+                                ✕
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -1266,51 +1290,70 @@ export default function MeetingViewer() {
         >
           <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Recommended next meetings:</div>
           <div className="flex flex-wrap gap-2">
-            {detail.recommendedMeetings.map((rec, i) => (
-              <button
-                key={i}
-                onClick={async () => {
-                  if (queuedRecs.has(i)) return;
-                  // Parse: "**Type** — description", "Type: Topic — desc", or plain text
-                  const clean = rec.replace(/\*\*/g, '').trim();
-                  const dashMatch = clean.match(/^([^—–:]+)[—–]\s*(.+)/);
-                  const colonMatch = clean.match(/^([^:]+):\s*(.+)/);
-                  let type: string, topic: string;
-                  if (dashMatch) {
-                    type = dashMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
-                    topic = dashMatch[2].trim();
-                  } else if (colonMatch) {
-                    type = colonMatch[1].trim().toLowerCase().replace(/\s+/g, '-');
-                    topic = colonMatch[2].trim();
-                  } else {
-                    type = 'strategy-session';
-                    topic = clean;
-                  }
-                  try {
-                    await fetch('/api/council/planned', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        type: 'recommended',
-                        topic,
-                        meetingType: type,
-                        source: detail.filename,
-                      }),
-                    });
-                    setQueuedRecs(prev => new Set([...prev, i]));
-                  } catch {}
-                }}
-                className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-110"
-                style={{
-                  background: queuedRecs.has(i) ? 'var(--bg-elevated)' : 'var(--bg-card)',
-                  color: queuedRecs.has(i) ? 'var(--text-muted)' : 'var(--text-secondary)',
-                  border: '1px solid var(--border)',
-                }}
-                title="Add to planned meetings"
-              >
-                {queuedRecs.has(i) ? '✓ Queued' : `+ ${rec}`}
-              </button>
-            ))}
+            {detail.recommendedMeetings.map((rec, i) => {
+              const recText = typeof rec === 'string' ? rec : rec.text;
+              const recType = typeof rec === 'object' ? rec.type : undefined;
+              const recTopic = typeof rec === 'object' ? rec.topic : undefined;
+              const isDismissed = dismissedSuggestions.has(recText);
+              return (
+                <div key={i} className="flex items-center gap-1">
+                  <button
+                    onClick={async () => {
+                      if (queuedRecs.has(i)) return;
+                      const type = recType ?? (() => {
+                        const clean = recText.replace(/\*\*/g, '').trim();
+                        const m = clean.match(/^([^—–:]+)[—–]/) ?? clean.match(/^([^:]+):/);
+                        return m ? m[1].trim().toLowerCase().replace(/\s+/g, '-') : 'strategy-session';
+                      })();
+                      const topic = recTopic ?? (() => {
+                        const clean = recText.replace(/\*\*/g, '').trim();
+                        const m = clean.match(/^[^—–:]+[—–:]\s*(.+)/);
+                        return m ? m[1].trim() : clean;
+                      })();
+                      try {
+                        await fetch('/api/council/planned', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ type: 'recommended', topic, meetingType: type, source: detail.filename }),
+                        });
+                        setQueuedRecs(prev => new Set([...prev, i]));
+                      } catch {}
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-110"
+                    style={{
+                      background: queuedRecs.has(i) ? 'var(--bg-elevated)' : isDismissed ? 'var(--bg)' : 'var(--bg-card)',
+                      color: queuedRecs.has(i) || isDismissed ? 'var(--text-muted)' : 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                      textDecoration: isDismissed ? 'line-through' : undefined,
+                    }}
+                    title="Add to planned meetings"
+                  >
+                    {queuedRecs.has(i) ? '✓ Queued' : `+ ${recText.replace(/\*\*/g, '')}`}
+                  </button>
+                  {!queuedRecs.has(i) && (
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/meetings/suggestions${projectParam()}`, {
+                          method: isDismissed ? 'DELETE' : 'POST',
+                          headers: isDismissed ? undefined : { 'Content-Type': 'application/json' },
+                          body: isDismissed ? undefined : JSON.stringify({ text: recText }),
+                        } as RequestInit).catch(() => {});
+                        if (isDismissed) {
+                          setDismissedSuggestions(prev => { const n = new Set(prev); n.delete(recText); return n; });
+                        } else {
+                          setDismissedSuggestions(prev => new Set([...prev, recText]));
+                        }
+                      }}
+                      className="text-xs px-1.5 py-1.5 rounded-lg transition-colors hover:brightness-110"
+                      style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      title={isDismissed ? 'Restore' : 'Dismiss'}
+                    >
+                      {isDismissed ? '↩' : '✕'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
