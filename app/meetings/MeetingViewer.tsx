@@ -542,7 +542,7 @@ export default function MeetingViewer() {
                   <span className="text-xs" style={{ color: 'var(--error)' }}>{facilitatorError}</span>
                 )}
                 <a
-                  href="/setup"
+                  href={`/setup?scan=${encodeURIComponent(activeProject || '')}`}
                   className="px-4 py-2 rounded-lg text-sm font-medium"
                   style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >

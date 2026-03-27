@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ProjectProfile } from '@/lib/types';
 
 type Step = 'path' | 'scan' | 'customize' | 'generate';
@@ -39,8 +39,10 @@ const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> 
   'domain-expert': { description: 'Custom domain knowledge specialist', defaultModel: 'sonnet' },
 };
 
-export default function SetupWizard() {
+function SetupWizardInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const autoScanTriggered = useRef(false);
   const [step, setStep] = useState<Step>('path');
   const [projectPath, setProjectPath] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -170,6 +172,53 @@ export default function SetupWizard() {
       setConnecting(false);
     }
   };
+
+  // Auto-scan if ?scan=projectName is in the URL (from "Full setup" link)
+  useEffect(() => {
+    const scanParam = searchParams.get('scan');
+    if (scanParam && !autoScanTriggered.current) {
+      autoScanTriggered.current = true;
+      // Look up the project path from the API
+      fetch('/api/projects')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data) return;
+          const project = data.projects.find((p: { name: string }) => p.name === scanParam);
+          if (project?.path) {
+            setProjectPath(project.path);
+            // Trigger scan with the project path
+            setScanning(true);
+            fetch('/api/setup/scan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: project.path }),
+            })
+              .then(r => r.ok ? r.json() : Promise.reject('Scan failed'))
+              .then((data: ProjectProfile) => {
+                setProfile(data);
+                const selections: AgentSelection[] = [];
+                if (!data.suggestedAgents.includes('facilitator')) {
+                  data.suggestedAgents.unshift('facilitator');
+                }
+                for (const [template, info] of Object.entries(ALL_AGENTS)) {
+                  selections.push({
+                    template, name: template,
+                    description: info.description,
+                    model: info.defaultModel,
+                    tools: [...DEFAULT_TOOLS],
+                    enabled: data.suggestedAgents.includes(template) || template === 'facilitator',
+                  });
+                }
+                setAgents(selections);
+                setStep('scan');
+              })
+              .catch(() => setScanError('Failed to scan project'))
+              .finally(() => setScanning(false));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [searchParams]);
 
   const handleScan = async () => {
     if (!projectPath.trim()) return;
@@ -732,5 +781,13 @@ export default function SetupWizard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SetupWizard() {
+  return (
+    <Suspense fallback={<div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>}>
+      <SetupWizardInner />
+    </Suspense>
   );
 }
