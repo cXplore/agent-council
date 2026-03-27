@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { ProjectProfile } from '@/lib/types';
 
-type Step = 'choose' | 'connect' | 'path' | 'scan' | 'customize' | 'generate';
+type Step = 'path' | 'scan' | 'customize' | 'generate';
 
 interface McpTarget {
   exists: boolean;
@@ -39,7 +39,7 @@ const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> 
 };
 
 export default function SetupWizard() {
-  const [step, setStep] = useState<Step>('choose');
+  const [step, setStep] = useState<Step>('path');
   const [projectPath, setProjectPath] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
@@ -302,27 +302,28 @@ export default function SetupWizard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {step === 'choose' ? 'Connect Your Project' : step === 'connect' ? 'Connect Project' : 'Set Up Your Agent Team'}
+            {step === 'path' && !connected && 'Connect Your Project'}
+            {step === 'path' && connected && 'Project Connected'}
+            {['scan', 'customize', 'generate'].includes(step) && 'Set Up Your Agent Team'}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {step === 'choose' && 'Already have agents? Just connect. Need agents? We\'ll set them up.'}
-            {step === 'connect' && 'Point us at your project. We\'ll find the meetings directory.'}
-            {step === 'path' && 'Point us at your project and we\'ll suggest a team.'}
+            {step === 'path' && !connected && 'Point us at your project and we\'ll get you set up.'}
+            {step === 'path' && connected && 'Here\'s what we found.'}
             {step === 'scan' && 'Here\'s what we found. Review the suggested team.'}
             {step === 'customize' && 'Customize your agents before generating.'}
             {step === 'generate' && 'Your agents are ready.'}
           </p>
         </div>
 
-        {/* Step indicator — only for setup flow */}
-        {!['choose', 'connect'].includes(step) && (
+        {/* Step indicator — only for scan/customize/generate */}
+        {['scan', 'customize', 'generate'].includes(step) && (
           <div className="flex gap-2 mb-8">
-            {(['path', 'scan', 'customize', 'generate'] as Step[]).map((s, i) => (
+            {(['scan', 'customize', 'generate'] as Step[]).map((s, i) => (
               <div
                 key={s}
                 className="h-1 flex-1 rounded-full"
                 style={{
-                  background: i <= ['path', 'scan', 'customize', 'generate'].indexOf(step)
+                  background: i <= ['scan', 'customize', 'generate'].indexOf(step)
                     ? 'var(--accent)'
                     : 'var(--border)',
                 }}
@@ -331,57 +332,8 @@ export default function SetupWizard() {
           </div>
         )}
 
-        {/* Step: Choose path */}
-        {step === 'choose' && (
-          <div className="space-y-4">
-            <button
-              onClick={() => setStep('connect')}
-              className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-                  Connect an existing project
-                </h3>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--accent)', color: 'white' }}>
-                  Recommended
-                </span>
-              </div>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Already using Claude Code? Point us at your project and we&apos;ll connect the meeting viewer. Works with or without existing agents.
-              </p>
-            </button>
-
-            <button
-              onClick={() => setStep('path')}
-              className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
-              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                Scan and generate agents
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                We&apos;ll analyze your codebase and create a tailored agent team. Takes about 30 seconds.
-              </p>
-            </button>
-
-            <a
-              href="/guide"
-              className="w-full text-left rounded-lg p-6 transition-colors hover:brightness-110 block"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-            >
-              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                How does this work?
-              </h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Read the guide to understand agents, meetings, and the setup process.
-              </p>
-            </a>
-          </div>
-        )}
-
-        {/* Step: Connect existing project */}
-        {step === 'connect' && (
+        {/* Step: Path — connect project */}
+        {step === 'path' && (
           <div className="space-y-6">
             <div
               className="rounded-lg p-6"
@@ -418,158 +370,112 @@ export default function SetupWizard() {
                 >
                   {connecting ? 'Connecting...' : 'Connect'}
                 </button>
-                <button
-                  onClick={() => setStep('choose')}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                >
-                  Back
-                </button>
               </div>
             </div>
 
-            {connected && (
-              <div
-                className="rounded-lg p-6"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--live-green)' }} />
-                  <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connected</h3>
-                </div>
-                {connectInfo && (
-                  <div className="text-sm space-y-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
-                    {connectInfo.hasAgents ? (
-                      <p>
-                        Found <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.agentCount} agents</strong> in your project.
-                        {connectInfo.hasFacilitator
-                          ? <span style={{ color: 'var(--live-green)' }}> Facilitator detected — meetings are ready.</span>
-                          : <span style={{ color: 'var(--warning)' }}> No facilitator found — you&apos;ll need one to run meetings. <a href="/setup" onClick={(e) => { e.preventDefault(); setStep('path'); }} className="underline" style={{ color: 'var(--accent)' }}>Generate agents</a></span>
-                        }
-                      </p>
-                    ) : (
-                      <p style={{ color: 'var(--warning)' }}>
-                        No agents found in <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>.claude/agents/</code>. You&apos;ll need to set up a team before running meetings. <a href="/setup" onClick={(e) => { e.preventDefault(); setStep('path'); }} className="underline" style={{ color: 'var(--accent)' }}>Set up agents</a>
-                      </p>
-                    )}
-                    <p>The meeting viewer is now watching your project&apos;s meetings directory.</p>
-                  </div>
-                )}
-                <a
-                  href="/meetings"
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
-                  style={{ background: 'var(--accent)', color: 'white' }}
-                >
-                  Open Meeting Viewer
-                </a>
-
-                {/* MCP auto-setup */}
-                {mcpTargets && (
-                  <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
-                    <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                      Enable live meeting updates
-                    </h4>
-                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                      Agent Council can show real-time progress during meetings (which agent is speaking, round changes). This requires adding the MCP server to your Claude config.
-                    </p>
-                    {Object.entries(mcpTargets).map(([key, target]) => {
-                      const label = key === 'claudeCode' ? 'Claude Code (CLI)' : 'Claude Desktop';
-                      const configured = target.configured || mcpDone[key];
-                      return (
-                        <div key={key} className="flex items-center justify-between py-1.5">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-2 h-2 rounded-full"
-                              style={{ background: configured ? 'var(--live-green)' : 'var(--border)' }}
-                            />
-                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                            {!target.exists && !configured && (
-                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(not installed)</span>
-                            )}
-                          </div>
-                          {configured ? (
-                            <span className="text-xs" style={{ color: 'var(--live-green)' }}>Configured</span>
-                          ) : target.exists ? (
-                            <button
-                              onClick={() => handleConfigureMcp([key])}
-                              disabled={mcpConfiguring}
-                              className="text-xs px-3 py-1 rounded transition-opacity disabled:opacity-50"
-                              style={{ background: 'var(--bg-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
-                            >
-                              {mcpConfiguring ? 'Adding...' : 'Add'}
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                    {Object.values(mcpDone).some(Boolean) && (
-                      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                        Restart Claude Code / Claude Desktop for the MCP tools to appear.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+            <a
+              href="/guide"
+              className="text-sm hover:underline"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              How does this work? Read the guide &rarr;
+            </a>
           </div>
         )}
 
-        {/* Step 1: Project Path */}
-        {step === 'path' && (
-          <div className="space-y-6">
-            {/* Explainer for newcomers */}
-            <div
-              className="rounded-lg p-5 text-sm leading-relaxed"
-              style={{ background: 'var(--accent-muted)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-            >
-              <strong style={{ color: 'var(--text-primary)' }}>What are agents?</strong> Claude Code can use specialized agents — markdown files in your project&apos;s <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--accent)' }}>.claude/agents/</code> folder. Each agent has a role (developer, critic, architect) and personality. They can participate in structured meetings where they deliberate on your project&apos;s direction.
-            </div>
-
+        {/* Connected card — shown on path step when connected */}
+        {step === 'path' && connected && (
+          <div className="mt-6 space-y-6">
             <div
               className="rounded-lg p-6"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
             >
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
-                Project directory
-              </label>
-              <input
-                type="text"
-                value={projectPath}
-                onChange={(e) => setProjectPath(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleScan(); }}
-                placeholder="C:\Projects\my-app or /home/user/my-app"
-                className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
-              />
-              {scanError && (
-                <p className="text-sm mt-2" style={{ color: 'var(--error)' }}>{scanError}</p>
-              )}
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={handleScan}
-                  disabled={!projectPath.trim() || scanning}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
-                  style={{ background: 'var(--accent)', color: 'white' }}
-                >
-                  {scanning ? 'Scanning...' : 'Scan Project'}
-                </button>
-                <button
-                  onClick={() => setStep('choose')}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                >
-                  Back
-                </button>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--live-green)' }} />
+                <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connected</h3>
               </div>
+              {connectInfo && (
+                <div className="text-sm space-y-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
+                  {connectInfo.hasAgents ? (
+                    <p>
+                      Found <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.agentCount} agents</strong> in your project.
+                      {connectInfo.hasFacilitator
+                        ? <span style={{ color: 'var(--live-green)' }}> Facilitator detected — meetings are ready.</span>
+                        : <span style={{ color: 'var(--warning)' }}> No facilitator found — you&apos;ll need one to run meetings. <button onClick={() => handleScan()} className="underline" style={{ color: 'var(--accent)' }}>Generate agents</button></span>
+                      }
+                    </p>
+                  ) : (
+                    <p style={{ color: 'var(--warning)' }}>
+                      No agents found in <code className="px-1 py-0.5 rounded text-xs" style={{ background: 'var(--bg)', color: 'var(--accent)' }}>.claude/agents/</code>. You&apos;ll need to set up a team before running meetings. <button onClick={() => handleScan()} className="underline" style={{ color: 'var(--accent)' }}>Set up agents</button>
+                    </p>
+                  )}
+                  <p>The meeting viewer is now watching your project&apos;s meetings directory.</p>
+                </div>
+              )}
+              <a
+                href="/meetings"
+                className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
+                style={{ background: 'var(--accent)', color: 'white' }}
+              >
+                Open Meeting Viewer
+              </a>
+
+              {/* MCP auto-setup */}
+              {mcpTargets && (
+                <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+                  <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                    Enable live meeting updates
+                  </h4>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    Agent Council can show real-time progress during meetings (which agent is speaking, round changes). This requires adding the MCP server to your Claude config.
+                  </p>
+                  {Object.entries(mcpTargets).map(([key, target]) => {
+                    const label = key === 'claudeCode' ? 'Claude Code (CLI)' : 'Claude Desktop';
+                    const configured = target.configured || mcpDone[key];
+                    return (
+                      <div key={key} className="flex items-center justify-between py-1.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: configured ? 'var(--live-green)' : 'var(--border)' }}
+                          />
+                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                          {!target.exists && !configured && (
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(not installed)</span>
+                          )}
+                        </div>
+                        {configured ? (
+                          <span className="text-xs" style={{ color: 'var(--live-green)' }}>Configured</span>
+                        ) : target.exists ? (
+                          <button
+                            onClick={() => handleConfigureMcp([key])}
+                            disabled={mcpConfiguring}
+                            className="text-xs px-3 py-1 rounded transition-opacity disabled:opacity-50"
+                            style={{ background: 'var(--bg-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+                          >
+                            {mcpConfiguring ? 'Adding...' : 'Add'}
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                  {Object.values(mcpDone).some(Boolean) && (
+                    <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                      Restart Claude Code / Claude Desktop for the MCP tools to appear.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Step 2: Scan Results */}
+        {/* Scan error — shown on path step */}
+        {step === 'path' && scanError && (
+          <p className="text-sm mt-4" style={{ color: 'var(--error)' }}>{scanError}</p>
+        )}
+
+        {/* Step: Scan Results */}
         {step === 'scan' && profile && (
           <div className="space-y-6">
             {/* Detected info */}
@@ -684,10 +590,10 @@ export default function SetupWizard() {
           </div>
         )}
 
-        {/* Step 3: Customize */}
+        {/* Step: Customize */}
         {step === 'customize' && (
           <div className="space-y-4">
-            {agents.filter(a => a.enabled).map((agent, i) => {
+            {agents.filter(a => a.enabled).map((agent) => {
               const originalIndex = agents.findIndex(a => a.template === agent.template);
               return (
                 <div
@@ -750,7 +656,7 @@ export default function SetupWizard() {
           </div>
         )}
 
-        {/* Step 4: Done */}
+        {/* Step: Done */}
         {step === 'generate' && (
           <div className="space-y-6">
             {/* Success banner */}
