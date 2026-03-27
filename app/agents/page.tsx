@@ -143,30 +143,9 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
             required
           </span>
         )}
-        <select
-          className="text-xs rounded px-1 py-0.5 cursor-pointer"
-          style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', outline: 'none' }}
-          value={agent.model}
-          onClick={(e) => e.stopPropagation()}
-          onChange={async (e) => {
-            e.stopPropagation();
-            const newModel = e.target.value;
-            try {
-              const res = await fetch('/api/agents', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
-              });
-              if (res.ok) {
-                setAgents(prev => prev.map(a => a.filename === agent.filename ? { ...a, model: newModel } : a));
-              }
-            } catch {}
-          }}
-        >
-          <option value="opus">opus</option>
-          <option value="sonnet">sonnet</option>
-          <option value="haiku">haiku</option>
-        </select>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          {agent.model}
+        </span>
       </div>
       <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
         {agent.description}
@@ -263,9 +242,29 @@ function AgentsPageInner() {
             )}
           </div>
           <div className="flex items-center gap-3 mb-6 ml-6">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {selected.model}
-            </span>
+            <select
+              className="text-xs rounded px-1.5 py-0.5 cursor-pointer"
+              style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', outline: 'none' }}
+              value={selected.model}
+              onChange={async (e) => {
+                const newModel = e.target.value;
+                try {
+                  const res = await fetch('/api/agents', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: selected.filename, field: 'model', value: newModel }),
+                  });
+                  if (res.ok) {
+                    setAgents(prev => prev.map(a => a.filename === selected.filename ? { ...a, model: newModel } : a));
+                    setSelected(prev => prev ? { ...prev, model: newModel } : prev);
+                  }
+                } catch {}
+              }}
+            >
+              <option value="opus">opus</option>
+              <option value="sonnet">sonnet</option>
+              <option value="haiku">haiku</option>
+            </select>
             {selected.team && (
               <>
                 <span style={{ color: 'var(--text-muted)' }}>&middot;</span>
