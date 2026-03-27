@@ -24,7 +24,8 @@ interface CacheFile {
   mtimes: Record<string, number>;  // filename -> mtime ms
 }
 
-const TAG_REGEX = /^[-*]?\s*(DECISION|OPEN|ACTION):\s*(.+)/i;
+// Matches both formats: "DECISION: text" and "[DECISION] text" (with optional list markers and indentation)
+const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION)[:\]]\s*(.+)/i;
 
 function extractTags(content: string, filename: string): TagEntry[] {
   const entries: TagEntry[] = [];

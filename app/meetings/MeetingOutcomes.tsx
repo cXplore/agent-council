@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 interface OutcomeItem {
   type: 'DECISION' | 'OPEN' | 'ACTION';
@@ -20,7 +20,7 @@ function extractOutcomes(content: string): OutcomeItem[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const match = line.match(/^[-*]?\s*(DECISION|OPEN|ACTION):\s*(.+)/i);
+    const match = line.match(/^[\s\-*]*\[?(DECISION|OPEN|ACTION)[:\]]\s*(.+)/i);
     if (match) {
       const type = match[1].toUpperCase() as OutcomeItem['type'];
       items.push({
@@ -41,6 +41,7 @@ interface MeetingOutcomesProps {
 }
 
 export default function MeetingOutcomes({ content, open, onClose }: MeetingOutcomesProps) {
+  const [notFoundKey, setNotFoundKey] = useState<string | null>(null);
   const outcomes = useMemo(() => extractOutcomes(content), [content]);
 
   const grouped = useMemo(() => {
@@ -92,6 +93,11 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
         return;
       }
     }
+
+    // Nothing found — show inline feedback
+    const key = `${item.type}-${item.lineIndex}`;
+    setNotFoundKey(key);
+    setTimeout(() => setNotFoundKey(null), 3000);
   };
 
   return (
@@ -173,6 +179,11 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
                       title="Click to scroll to context"
                     >
                       <span className="line-clamp-2">{item.text}</span>
+                      {notFoundKey === `${item.type}-${item.lineIndex}` && (
+                        <span className="block text-xs mt-1 transition-opacity" style={{ color: 'var(--text-muted)' }}>
+                          not found in view
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
