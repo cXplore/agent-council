@@ -141,6 +141,9 @@ Use inline tags so the viewer, outcomes panel, and cross-meeting query system ca
 | Open question | `[OPEN:slug]` | `- [OPEN:resolution-ux] What should resolved items look like in the viewer?` |
 | Action item | `[ACTION]` | `- [ACTION] Update facilitator template with ID spec — assigned to facilitator` |
 | Resolved question | `[RESOLVED:slug]` | `- [RESOLVED:resolution-ux] Decided: inline muted label on the panel item` |
+| Idea (deferred) | `[IDEA]` | `- [IDEA] Build an Integrator agent that tracks decision implementation` |
+
+Use `[IDEA]` to capture promising proposals that are deferred — not rejected, but not ready. These appear on the roadmap as a separate backlog so good ideas aren't lost when the critic (correctly) says "not now."
 
 **ID rules for `[OPEN:slug]`:**
 - Use a short, stable, lowercase-hyphenated slug that describes the question (not the answer)

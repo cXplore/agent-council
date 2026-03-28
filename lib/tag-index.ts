@@ -2,7 +2,7 @@ import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export interface TagEntry {
-  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'IDEA';
   text: string;
   id: string | null;       // optional slug from [OPEN:slug] format
   meeting: string;         // filename
@@ -17,6 +17,7 @@ export interface TagIndex {
   open: TagEntry[];
   actions: TagEntry[];
   resolved: TagEntry[];
+  ideas: TagEntry[];
   meetingCount: number;
   builtAt: string;
 }
@@ -75,7 +76,7 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
 // --- Regex fallback (legacy meetings without JSON appendix) ---
 
 // Matches both formats: "DECISION: text" and "[DECISION] text" and "[OPEN:slug] text"
-const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
 function extractTags(content: string, filename: string): TagEntry[] {
   // Try JSON appendix first (preferred, structured)
@@ -154,7 +155,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     const entries = await readdir(meetingsDir);
     files = entries.filter(f => f.endsWith('.md'));
   } catch {
-    return { decisions: [], open: [], actions: [], resolved: [], meetingCount: 0, builtAt: new Date().toISOString() };
+    return { decisions: [], open: [], actions: [], resolved: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString() };
   }
 
   // Check mtimes to determine which files need re-indexing
@@ -189,6 +190,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   const open: TagEntry[] = [];
   const actions: TagEntry[] = [];
   const resolved: TagEntry[] = [];
+  const ideas: TagEntry[] = [];
   const mtimes: Record<string, number> = {};
 
   // Carry forward cached entries for unchanged files
@@ -198,6 +200,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     for (const entry of cached.index.open) if (unchangedSet.has(entry.meeting)) open.push(entry);
     for (const entry of cached.index.actions) if (unchangedSet.has(entry.meeting)) actions.push(entry);
     for (const entry of cached.index.resolved) if (unchangedSet.has(entry.meeting)) resolved.push(entry);
+    for (const entry of (cached.index.ideas ?? [])) if (unchangedSet.has(entry.meeting)) ideas.push(entry);
     for (const file of unchangedFiles) mtimes[file] = currentMtimes[file];
   }
 
@@ -215,6 +218,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
           case 'OPEN': open.push(tag); break;
           case 'ACTION': actions.push(tag); break;
           case 'RESOLVED': resolved.push(tag); break;
+          case 'IDEA': ideas.push(tag); break;
         }
       }
     } catch {
@@ -227,6 +231,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     open,
     actions,
     resolved,
+    ideas,
     meetingCount: files.length,
     builtAt: new Date().toISOString(),
   };

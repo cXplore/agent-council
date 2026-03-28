@@ -59,6 +59,9 @@ function SetupWizardInner() {
   const [mcpTargets, setMcpTargets] = useState<Record<string, McpTarget> | null>(null);
   const [mcpConfiguring, setMcpConfiguring] = useState(false);
   const [mcpDone, setMcpDone] = useState<Record<string, boolean>>({});
+  const [mcpServerPath, setMcpServerPath] = useState('');
+  const [mcpConfirmTarget, setMcpConfirmTarget] = useState<string | null>(null);
+  const [mcpTestResult, setMcpTestResult] = useState<{ status: 'idle' | 'testing' | 'success' | 'error'; message?: string }>({ status: 'idle' });
 
   // Check MCP status when connect succeeds or generate succeeds
   useEffect(() => {
@@ -67,6 +70,7 @@ function SetupWizardInner() {
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data?.targets) setMcpTargets(data.targets);
+          if (data?.serverPath) setMcpServerPath(data.serverPath);
         })
         .catch(() => {});
     }
@@ -87,11 +91,32 @@ function SetupWizardInner() {
           done[key] = (result as { success: boolean }).success;
         }
         setMcpDone(done);
+        // Re-fetch targets to get updated status
+        const statusRes = await fetch('/api/setup/mcp');
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (statusData?.targets) setMcpTargets(statusData.targets);
+        }
       }
     } catch {
       // Silent — MCP setup is optional
     } finally {
       setMcpConfiguring(false);
+      setMcpConfirmTarget(null);
+    }
+  };
+
+  const handleTestMcp = async () => {
+    setMcpTestResult({ status: 'testing' });
+    try {
+      const res = await fetch('/api/health');
+      if (res.ok) {
+        setMcpTestResult({ status: 'success', message: 'Council API is reachable. MCP server will be able to connect.' });
+      } else {
+        setMcpTestResult({ status: 'error', message: `API returned status ${res.status}` });
+      }
+    } catch {
+      setMcpTestResult({ status: 'error', message: 'Could not reach the Council API. Make sure the app is running.' });
     }
   };
 
@@ -495,40 +520,135 @@ function SetupWizardInner() {
                   <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                     Agent Council can show real-time progress during meetings (which agent is speaking, round changes). This requires adding the MCP server to your Claude config.
                   </p>
+
+                  {/* Server path info */}
+                  {mcpServerPath && (
+                    <div className="mb-3 px-3 py-2 rounded text-xs" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>MCP server: </span>
+                      <code style={{ color: 'var(--text-secondary)' }}>{mcpServerPath}</code>
+                    </div>
+                  )}
+
                   {Object.entries(mcpTargets).map(([key, target]) => {
                     const label = key === 'claudeCode' ? 'Claude Code (CLI)' : 'Claude Desktop';
                     const configured = target.configured || mcpDone[key];
+                    const isConfirming = mcpConfirmTarget === key;
                     return (
-                      <div key={key} className="flex items-center justify-between py-1.5">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ background: configured ? 'var(--live-green)' : 'var(--border)' }}
-                          />
-                          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                          {!target.exists && !configured && (
-                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(not installed)</span>
-                          )}
+                      <div key={key} className="py-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: configured ? 'var(--live-green)' : 'var(--border)' }}
+                            />
+                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                            {!target.exists && !configured && (
+                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(not installed)</span>
+                            )}
+                          </div>
+                          {configured ? (
+                            <div className="flex items-center gap-1.5">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="11" stroke="var(--live-green)" strokeWidth="2" />
+                                <path d="M7 12.5L10.5 16L17 9" stroke="var(--live-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="text-xs" style={{ color: 'var(--live-green)' }}>Configured</span>
+                            </div>
+                          ) : target.exists ? (
+                            <button
+                              onClick={() => setMcpConfirmTarget(isConfirming ? null : key)}
+                              disabled={mcpConfiguring}
+                              className="text-xs px-3 py-1 rounded transition-opacity disabled:opacity-50"
+                              style={{ background: 'var(--bg-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+                            >
+                              {isConfirming ? 'Cancel' : 'Add'}
+                            </button>
+                          ) : null}
                         </div>
-                        {configured ? (
-                          <span className="text-xs" style={{ color: 'var(--live-green)' }}>Configured</span>
-                        ) : target.exists ? (
-                          <button
-                            onClick={() => handleConfigureMcp([key])}
-                            disabled={mcpConfiguring}
-                            className="text-xs px-3 py-1 rounded transition-opacity disabled:opacity-50"
-                            style={{ background: 'var(--bg-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
-                          >
-                            {mcpConfiguring ? 'Adding...' : 'Add'}
-                          </button>
-                        ) : null}
+
+                        {/* Configured success detail */}
+                        {configured && mcpDone[key] && (
+                          <div className="mt-1 ml-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Written to <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontSize: '0.65rem' }}>{target.path}</code>
+                          </div>
+                        )}
+
+                        {/* Existing config indicator */}
+                        {!configured && target.exists && target.configured === false && !isConfirming && (
+                          <div className="mt-1 ml-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Config file exists at <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontSize: '0.65rem' }}>{target.path}</code>
+                          </div>
+                        )}
+
+                        {/* Confirmation panel */}
+                        {isConfirming && (
+                          <div className="mt-2 ml-4 p-3 rounded-lg text-xs" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                            <p className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                              This will add the following to your config:
+                            </p>
+                            <pre
+                              className="px-3 py-2 rounded mb-2 overflow-x-auto"
+                              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: '1.4' }}
+                            >
+{`// ${target.path}
+{
+  "mcpServers": {
+    "agent-council": {
+      "command": "node",
+      "args": ["${mcpServerPath.replace(/\\/g, '/')}"]
+    }
+  }
+}`}
+                            </pre>
+                            <p className="mb-2" style={{ color: 'var(--text-muted)' }}>
+                              {target.exists
+                                ? 'Your existing config will be preserved. Only the "agent-council" entry under "mcpServers" will be added or updated.'
+                                : 'A new config file will be created.'}
+                            </p>
+                            <button
+                              onClick={() => handleConfigureMcp([key])}
+                              disabled={mcpConfiguring}
+                              className="px-3 py-1.5 rounded text-xs font-medium transition-opacity disabled:opacity-50"
+                              style={{ background: 'var(--accent)', color: 'white' }}
+                            >
+                              {mcpConfiguring ? 'Writing...' : 'Confirm'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+
+                  {/* Post-configure messages */}
                   {Object.values(mcpDone).some(Boolean) && (
-                    <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                      Restart Claude Code / Claude Desktop for the MCP tools to appear.
-                    </p>
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Restart Claude Code / Claude Desktop for the MCP tools to appear.
+                      </p>
+                      {/* Test connection button */}
+                      <button
+                        onClick={handleTestMcp}
+                        disabled={mcpTestResult.status === 'testing'}
+                        className="text-xs px-3 py-1.5 rounded transition-opacity disabled:opacity-50"
+                        style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                      >
+                        {mcpTestResult.status === 'testing' ? 'Testing...' : 'Test connection'}
+                      </button>
+                      {mcpTestResult.status === 'success' && (
+                        <p className="text-xs flex items-center gap-1.5" style={{ color: 'var(--live-green)' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="11" stroke="currentColor" strokeWidth="2" />
+                            <path d="M7 12.5L10.5 16L17 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          {mcpTestResult.message}
+                        </p>
+                      )}
+                      {mcpTestResult.status === 'error' && (
+                        <p className="text-xs" style={{ color: 'var(--error)' }}>
+                          {mcpTestResult.message}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

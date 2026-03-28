@@ -303,6 +303,33 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   // Fetch single meeting content
   const fetchDetail = useCallback(async (filename: string) => {
     try {
+      // Demo meeting: fetch from static file instead of API
+      if (filename === '__demo__') {
+        const res = await fetch('/demo-meeting.md');
+        if (!res.ok) return;
+        const content = await res.text();
+        const get = (key: string) => {
+          const m = content.match(new RegExp(`<!--\\s*${key}:\\s*(.+?)\\s*-->`));
+          return m ? m[1].trim() : '';
+        };
+        const titleMatch = content.match(/^#\s+(.+)$/m);
+        const participants = get('participants').split(',').map(s => s.trim()).filter(Boolean);
+        const data: MeetingDetail = {
+          filename: '__demo__',
+          date: get('created').slice(0, 10) || '2026-01-15',
+          status: 'complete',
+          type: get('meeting-type') || 'design-review',
+          title: titleMatch ? titleMatch[1] : 'Example Meeting',
+          started: null,
+          participants,
+          modifiedAt: new Date().toISOString(),
+          content,
+          preview: get('topic') || undefined,
+        };
+        setDetail(data);
+        return;
+      }
+
       const res = await fetch(`/api/meetings${projectParam(`file=${encodeURIComponent(filename)}`)}`);
       if (!res.ok) {
         failedPollsRef.current++;
@@ -401,9 +428,12 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
     setContextCards([]);
     fetchDetail(selected);
 
-    pollRef.current = setInterval(() => {
-      if (!pollPausedRef.current) fetchDetail(selected);
-    }, POLL_INTERVAL);
+    // Don't poll static demo meeting
+    if (selected !== '__demo__') {
+      pollRef.current = setInterval(() => {
+        if (!pollPausedRef.current) fetchDetail(selected);
+      }, POLL_INTERVAL);
+    }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
