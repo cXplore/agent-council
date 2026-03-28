@@ -168,6 +168,79 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
   );
 }
 
+function StatsBanner({ agents }: { agents: AgentInfo[] }) {
+  const leads = agents.filter(a => a.role === 'lead').length;
+  const members = agents.length - leads;
+
+  const modelCounts: Record<string, number> = {};
+  for (const a of agents) {
+    const m = a.model || 'unknown';
+    modelCounts[m] = (modelCounts[m] || 0) + 1;
+  }
+
+  const allTools = new Set<string>();
+  for (const a of agents) {
+    for (const t of a.tools) allTools.add(t);
+  }
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+  };
+
+  return (
+    <div className="flex gap-3 mb-6 flex-wrap">
+      {/* Composition */}
+      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+        <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Composition</div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{leads}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>lead{leads !== 1 ? 's' : ''}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/</span>
+          <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{members}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>member{members !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      {/* Models */}
+      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+        <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Models</div>
+        <div className="flex items-baseline gap-3 flex-wrap">
+          {Object.entries(modelCounts)
+            .sort(([, a], [, b]) => b - a)
+            .map(([model, count]) => (
+              <span key={model} className="flex items-baseline gap-1">
+                <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{count}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{model}</span>
+              </span>
+            ))}
+        </div>
+      </div>
+
+      {/* Tools */}
+      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+        <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Tool coverage</div>
+        <div className="flex items-baseline gap-2 mb-1.5">
+          <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{allTools.size}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>unique tool{allTools.size !== 1 ? 's' : ''}</span>
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          {[...allTools].slice(0, 6).map(t => (
+            <span key={t} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+              {t}
+            </span>
+          ))}
+          {allTools.size > 6 && (
+            <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+              +{allTools.size - 6}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AgentsPageInner() {
   const searchParams = useSearchParams();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -375,6 +448,10 @@ function AgentsPageInner() {
           <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
             No active project
           </p>
+        )}
+
+        {!loading && !fetchError && agents.length > 0 && (
+          <StatsBanner agents={agents} />
         )}
 
         {loading ? (

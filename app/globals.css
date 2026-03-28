@@ -85,3 +85,24 @@ body {
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  /* Tighter padding on mobile */
+  .max-w-3xl { padding-left: 1rem; padding-right: 1rem; }
+
+  /* Make meeting header scrollable horizontally on small screens */
+  .meeting-header-actions { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Outcomes panel takes full width on mobile */
+  .meeting-outcomes-panel { min-width: 100% !important; width: 100% !important; }
+
+  /* Stack participants vertically on small screens */
+  .participant-bar { flex-wrap: wrap; gap: 4px; }
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }

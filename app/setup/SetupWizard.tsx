@@ -647,8 +647,16 @@ function SetupWizardInner() {
         {/* Step: Customize */}
         {step === 'customize' && (
           <div className="space-y-4">
+            <div className="flex items-center gap-3 text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+              <span>{enabledCount} agent{enabledCount !== 1 ? 's' : ''} selected</span>
+              <span>&middot;</span>
+              <span>{agents.filter(a => a.enabled && a.model === 'opus').length} opus</span>
+              <span>{agents.filter(a => a.enabled && a.model === 'sonnet').length} sonnet</span>
+              <span>{agents.filter(a => a.enabled && a.model === 'haiku').length} haiku</span>
+            </div>
             {agents.filter(a => a.enabled).map((agent) => {
               const originalIndex = agents.findIndex(a => a.template === agent.template);
+              const isMandatory = ['facilitator', 'project-manager', 'critic', 'north-star'].includes(agent.template);
               return (
                 <div
                   key={agent.template}
@@ -659,6 +667,11 @@ function SetupWizardInner() {
                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                       {agent.name}
                     </span>
+                    {isMandatory && (
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.65rem' }}>
+                        {agent.template === 'facilitator' ? 'engine' : 'triad'}
+                      </span>
+                    )}
                     <select
                       value={agent.model}
                       onChange={(e) => updateAgent(originalIndex, 'model', e.target.value)}
@@ -669,6 +682,13 @@ function SetupWizardInner() {
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
+                    <button
+                      onClick={() => toggleAgent(originalIndex)}
+                      className="ml-auto text-xs px-2 py-0.5 rounded transition-colors hover:brightness-125"
+                      style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    >
+                      Remove
+                    </button>
                   </div>
                   <input
                     type="text"
