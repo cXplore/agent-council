@@ -28,6 +28,23 @@ export function formatTimeAgo(isoDate: string): string {
   return `${days}d ago`;
 }
 
+/** Format duration between two ISO timestamps into a human-readable string */
+export function formatDuration(started: string, ended: string): string {
+  const ms = new Date(ended).getTime() - new Date(started).getTime();
+  if (ms < 0) return '';
+  const totalMins = Math.round(ms / 60000);
+  if (totalMins < 1) return '<1 min';
+  if (totalMins < 60) return `~${totalMins} min`;
+  const hours = totalMins / 60;
+  if (hours < 10) {
+    const rounded = Math.round(hours * 10) / 10;
+    return rounded === Math.floor(rounded)
+      ? `~${Math.floor(rounded)} hr${Math.floor(rounded) !== 1 ? 's' : ''}`
+      : `~${rounded} hrs`;
+  }
+  return `~${Math.round(hours)} hrs`;
+}
+
 /** Small muted badge for project names */
 export function ProjectBadge({ project }: { project: string }) {
   return (
@@ -50,6 +67,7 @@ interface MeetingListCardProps {
   onDelete: (filename: string) => void;
   taggedMeetings: Set<string>;
   hasMultipleProjects: boolean;
+  focused?: boolean;
 }
 
 export default function MeetingListCard({
@@ -58,6 +76,7 @@ export default function MeetingListCard({
   onDelete,
   taggedMeetings,
   hasMultipleProjects,
+  focused,
 }: MeetingListCardProps) {
   return (
     <div
@@ -130,6 +149,15 @@ export default function MeetingListCard({
             </span>
           </>
         )}
+        {m.status === 'complete' && m.started && (() => {
+          const dur = formatDuration(m.started, m.modifiedAt);
+          return dur ? (
+            <>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{dur}</span>
+            </>
+          ) : null;
+        })()}
       </div>
 
       {m.participants.length > 0 && (
