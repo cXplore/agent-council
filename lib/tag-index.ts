@@ -26,10 +26,61 @@ interface CacheFile {
   mtimes: Record<string, number>;  // filename -> mtime ms
 }
 
+// --- JSON appendix parser (preferred, structured source) ---
+
+interface MeetingOutcomesJSON {
+  schema_version: number;
+  decisions?: { text: string; rationale?: string }[];
+  actions?: { text: string; assignee?: string; effort?: string }[];
+  open_questions?: { slug?: string; text: string }[];
+  resolved?: { slug: string; resolution: string }[];
+}
+
+function extractFromJSON(content: string, filename: string): TagEntry[] | null {
+  const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+  if (!jsonMatch) return null;
+
+  try {
+    const data: MeetingOutcomesJSON = JSON.parse(jsonMatch[1]);
+    if (!data.schema_version) return null;
+
+    const entries: TagEntry[] = [];
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const meetingTitle = titleMatch?.[1]?.trim() ?? filename.replace(/\.md$/, '');
+    const statusMatch = content.match(/<!--\s*status:\s*(\S+)\s*-->/);
+    const meetingStatus = statusMatch?.[1] ?? 'complete';
+    const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
+    const date = dateMatch?.[1] ?? null;
+
+    for (const d of data.decisions ?? []) {
+      entries.push({ type: 'DECISION', id: null, text: d.text + (d.rationale ? ` — ${d.rationale}` : ''), meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+    }
+    for (const a of data.actions ?? []) {
+      const suffix = a.assignee ? ` — assigned to ${a.assignee}` : '';
+      entries.push({ type: 'ACTION', id: null, text: a.text + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+    }
+    for (const o of data.open_questions ?? []) {
+      entries.push({ type: 'OPEN', id: o.slug ?? null, text: o.text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+    }
+    for (const r of data.resolved ?? []) {
+      entries.push({ type: 'RESOLVED', id: r.slug, text: r.resolution, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+    }
+
+    return entries;
+  } catch {
+    return null; // JSON parse failed — fall back to regex
+  }
+}
+
+// --- Regex fallback (legacy meetings without JSON appendix) ---
+
 // Matches both formats: "DECISION: text" and "[DECISION] text" and "[OPEN:slug] text"
 const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
 function extractTags(content: string, filename: string): TagEntry[] {
+  // Try JSON appendix first (preferred, structured)
+  const jsonEntries = extractFromJSON(content, filename);
+  if (jsonEntries !== null && jsonEntries.length > 0) return jsonEntries;
   const entries: TagEntry[] = [];
   const lines = content.split('\n');
 

@@ -63,6 +63,13 @@ Every proposal, design, or plan gets examined through five lenses. You don't alw
 - Are we adding infrastructure for hypothetical future requirements?
 - What's the simplest version that would be genuinely useful?
 
+### Lens 6: Verification & Testability
+- How do we know this works? What's the test plan?
+- What are the error states? What happens when the happy path fails?
+- Is there a rollback plan if this goes wrong in production?
+- What metrics would tell us this is working (or not) after deployment?
+- Are the success criteria measurable and time-bounded?
+
 ---
 
 ## Meeting Mode

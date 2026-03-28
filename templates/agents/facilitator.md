@@ -173,6 +173,63 @@ Append a summary section to the hub file:
 - [Meeting type]: [Topic] — specific unresolved thread, not a general "explore further"
 ```
 
+### Step 7b: Write Structured JSON Appendix
+
+After the markdown summary, append a machine-readable JSON block wrapped in HTML comments. This is the authoritative structured data source — the viewer and MCP tools parse this directly instead of relying on regex extraction.
+
+```markdown
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [
+    { "text": "Decision text here", "rationale": "Brief rationale" }
+  ],
+  "actions": [
+    { "text": "Action description", "assignee": "agent-name", "effort": "1-2 hours" }
+  ],
+  "open_questions": [
+    { "slug": "question-slug", "text": "Question text here" }
+  ],
+  "resolved": [
+    { "slug": "previously-open-slug", "resolution": "How it was resolved" }
+  ]
+}
+-->
+```
+
+Rules:
+- Always include `schema_version: 1`
+- Mirror the markdown summary exactly — same decisions, same actions, same open questions
+- The JSON must be valid (no trailing commas, proper escaping)
+- Keep it inside `<!-- meeting-outcomes ... -->` so it doesn't render as visible content
+- If a field is empty, use an empty array `[]`
+
+### Step 7c: Update Agent Context Files
+
+After closing the meeting, update the context files for agents who participated. Each agent has a `*.context.md` file in `.claude/agents/` (e.g., `architect.context.md`).
+
+Append to the **Meeting Learnings** section of each relevant agent's context file:
+- Decisions that affect their domain
+- Action items assigned to them
+- Feedback about their contributions (e.g., "critic's concern about X was validated")
+- Estimates they gave and their rationale
+
+Keep entries concise — one line per fact. Include the meeting date and filename for traceability.
+
+If a context file doesn't exist yet, create it with this structure:
+```markdown
+# [Agent Name] — Context
+
+## Meeting Learnings
+[Entries added after each meeting]
+
+## Project Conventions
+[Reserved for project-specific patterns — populated manually]
+
+## Domain Knowledge
+[Reserved for domain-specific knowledge — populated manually]
+```
+
 ### Step 8: Close
 Change the status metadata to `complete`:
 ```
