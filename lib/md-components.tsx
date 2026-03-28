@@ -5,6 +5,7 @@ const TAG_COLORS: Record<string, { bg: string; text: string }> = {
   DECISION: { bg: 'rgba(96, 165, 250, 0.15)', text: '#60a5fa' },
   OPEN: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
   ACTION: { bg: 'rgba(74, 222, 128, 0.15)', text: '#4ade80' },
+  RESOLVED: { bg: 'rgba(107, 114, 128, 0.12)', text: '#6b7280' },
 };
 
 function extractText(children: React.ReactNode): string {
@@ -20,14 +21,15 @@ function extractText(children: React.ReactNode): string {
 
 function renderTaggedContent(children: React.ReactNode): React.ReactNode {
   const text = extractText(children);
-  // Match DECISION: or OPEN: or ACTION: at start of line (with optional brackets for legacy)
-  const tagMatch = text.match(/^\s*\[?(DECISION|OPEN|ACTION)[:\]]\s*/i);
+  // Match DECISION/OPEN/ACTION/RESOLVED tags at start of line (with optional brackets and slug IDs)
+  const tagMatch = text.match(/^\s*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::[\w-]+)?[:\]]\s*/i);
   if (!tagMatch) return null;
 
   const tagType = tagMatch[1].toUpperCase();
   const normalizedType = tagType.startsWith('ACTION') ? 'ACTION' : tagType;
   const c = TAG_COLORS[normalizedType] || TAG_COLORS.DECISION;
-  const rest = text.replace(/^\s*\[?(DECISION|OPEN|ACTION)[:\]]\s*/i, '');
+  const rest = text.replace(/^\s*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::[\w-]+)?[:\]]\s*/i, '');
+  const isResolved = normalizedType === 'RESOLVED';
 
   return (
     <>
@@ -37,7 +39,7 @@ function renderTaggedContent(children: React.ReactNode): React.ReactNode {
       >
         {normalizedType}
       </span>
-      {rest}
+      {isResolved ? <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{rest}</span> : rest}
     </>
   );
 }

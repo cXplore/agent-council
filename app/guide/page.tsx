@@ -199,6 +199,35 @@ If any call fails, continue normally — meetings work without MCP.`}</pre>
           </div>
         </section>
 
+        {/* Keyboard shortcuts */}
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            Keyboard shortcuts
+          </h2>
+          <div
+            className="rounded-lg p-5 text-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <div className="space-y-2">
+              {[
+                { key: 'j', desc: 'Select first meeting in list' },
+                { key: 'k', desc: 'Select last meeting in list' },
+                { key: 'Esc', desc: 'Back to meeting list from detail view' },
+              ].map(shortcut => (
+                <div key={shortcut.key} className="flex items-center gap-3">
+                  <kbd
+                    className="px-2 py-0.5 rounded text-xs font-mono"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)', minWidth: 32, textAlign: 'center' }}
+                  >
+                    {shortcut.key}
+                  </kbd>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{shortcut.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Tips */}
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>

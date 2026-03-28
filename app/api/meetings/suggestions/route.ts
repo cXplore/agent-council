@@ -23,6 +23,14 @@ async function getStateFilePath(request: NextRequest): Promise<string> {
   return path.join(meetingsDir, '.council-suggestion-state.json');
 }
 
+// Simple async mutex to prevent concurrent read-modify-write races
+let writeLock: Promise<void> = Promise.resolve();
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeLock.then(fn, fn);
+  writeLock = result.then(() => {}, () => {});
+  return result;
+}
+
 async function readState(filePath: string): Promise<SuggestionState> {
   try {
     const content = await readFile(filePath, 'utf-8');
@@ -54,19 +62,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'text is required' }, { status: 400 });
   }
 
-  const state = await readState(filePath);
+  await withLock(async () => {
+    const state = await readState(filePath);
 
-  if (action === 'queue') {
-    if (!state.queued.includes(text)) {
-      state.queued.push(text);
+    if (action === 'queue') {
+      if (!state.queued.includes(text)) {
+        state.queued.push(text);
+      }
+    } else {
+      if (!state.dismissed.includes(text)) {
+        state.dismissed.push(text);
+      }
     }
-  } else {
-    if (!state.dismissed.includes(text)) {
-      state.dismissed.push(text);
-    }
-  }
 
-  await writeState(filePath, state);
+    await writeState(filePath, state);
+  });
+
   return NextResponse.json({ success: true });
 }
 
@@ -80,13 +91,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'text parameter required' }, { status: 400 });
   }
 
-  const state = await readState(filePath);
-  if (from === 'queued') {
-    state.queued = state.queued.filter(q => q !== text);
-  } else {
-    state.dismissed = state.dismissed.filter(d => d !== text);
-  }
-  await writeState(filePath, state);
+  await withLock(async () => {
+    const state = await readState(filePath);
+    if (from === 'queued') {
+      state.queued = state.queued.filter(q => q !== text);
+    } else {
+      state.dismissed = state.dismissed.filter(d => d !== text);
+    }
+    await writeState(filePath, state);
+  });
 
   return NextResponse.json({ success: true });
 }
