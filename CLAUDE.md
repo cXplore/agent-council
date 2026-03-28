@@ -90,6 +90,7 @@ docs/                   # GitHub Pages static site
 | Export API | `app/api/meetings/export/route.ts` |
 | Validation API | `app/api/meetings/validate/route.ts` |
 | Templates API | `app/api/setup/templates/route.ts` |
+| Roadmap API | `app/api/roadmap/route.ts` |
 | Tag index | `lib/tag-index.ts` |
 | Meeting utils | `lib/meeting-utils.ts` |
 | Error boundary | `app/components/ErrorBoundary.tsx` |

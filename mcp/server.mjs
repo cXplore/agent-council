@@ -509,7 +509,7 @@ server.tool(
 // Tool: Get work items — the execution bridge
 server.tool(
   'council_get_work_items',
-  'Get actionable work items from meeting decisions. Use at the start of a coding session to see what the team decided should be built. Returns action items, open questions, and recent decisions — prioritized by recency. This is how meeting decisions turn into code.',
+  'Get actionable work items from meeting decisions. Use at the start of a coding session to see what the team decided should be built. Returns action items, open questions, and recent decisions — prioritized by recency. Filters out done and stale items automatically. This is how meeting decisions turn into code.',
   {
     filter: z.enum(['actions', 'open', 'decisions', 'all']).optional().describe('Filter by item type (default: all)'),
     limit: z.number().optional().describe('Max items to return (default: 15)'),
@@ -518,14 +518,16 @@ server.tool(
     try {
       const maxItems = limit || 15;
 
-      // Fetch unresolved items (actions + open questions)
-      const unresolvedData = await councilRequest('/api/meetings/tags?mode=unresolved');
-      const actions = unresolvedData.actions || [];
-      const open = unresolvedData.open || [];
+      // Fetch from roadmap API which includes status tracking
+      const roadmapData = await councilRequest('/api/roadmap');
+      const allItems = roadmapData.items || [];
 
-      // Fetch recent decisions
-      const decisionsData = await councilRequest('/api/meetings/tags?type=decision');
-      const decisions = (decisionsData.results || []).slice(0, maxItems);
+      // Filter out done and stale items — only show active work
+      const activeItems = allItems.filter(i => i.itemStatus === 'active');
+
+      const actions = activeItems.filter(i => i.type === 'ACTION');
+      const open = activeItems.filter(i => i.type === 'OPEN');
+      const decisions = allItems.filter(i => i.type === 'DECISION').slice(0, maxItems);
 
       const sections = [];
 
@@ -569,7 +571,10 @@ server.tool(
         };
       }
 
-      const summary = `${actions.length} action${actions.length !== 1 ? 's' : ''}, ${open.length} open question${open.length !== 1 ? 's' : ''}, ${decisions.length} recent decision${decisions.length !== 1 ? 's' : ''}`;
+      const doneCount = (roadmapData.counts?.done || 0);
+      const staleCount = (roadmapData.counts?.stale || 0);
+      const filteredNote = (doneCount + staleCount) > 0 ? ` (${doneCount} done, ${staleCount} archived — hidden)` : '';
+      const summary = `${actions.length} action${actions.length !== 1 ? 's' : ''}, ${open.length} open question${open.length !== 1 ? 's' : ''}, ${decisions.length} recent decision${decisions.length !== 1 ? 's' : ''}${filteredNote}`;
 
       return {
         content: [{

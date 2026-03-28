@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 
-interface TagEntry {
+interface RoadmapItem {
   type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
   text: string;
   id: string | null;
@@ -11,17 +11,28 @@ interface TagEntry {
   meetingStatus: string;
   lineNumber: number;
   date: string | null;
+  hash: string;
+  itemStatus: 'active' | 'done' | 'stale';
+  statusNote?: string;
+  statusUpdatedAt?: string;
 }
 
-interface TagsResponse {
-  results: TagEntry[];
+interface RoadmapResponse {
+  items: RoadmapItem[];
   total: number;
   meetingCount: number;
+  counts: {
+    active: number;
+    done: number;
+    stale: number;
+    decisions: number;
+    openQuestions: number;
+  };
 }
 
-/** Group tag entries by meeting, most recent first */
-function groupByMeeting(items: TagEntry[]): { meeting: string; meetingTitle: string; date: string | null; items: TagEntry[] }[] {
-  const map = new Map<string, { meetingTitle: string; date: string | null; items: TagEntry[] }>();
+/** Group items by meeting, most recent first */
+function groupByMeeting(items: RoadmapItem[]): { meeting: string; meetingTitle: string; date: string | null; items: RoadmapItem[] }[] {
+  const map = new Map<string, { meetingTitle: string; date: string | null; items: RoadmapItem[] }>();
   for (const item of items) {
     const existing = map.get(item.meeting);
     if (existing) {
@@ -35,7 +46,7 @@ function groupByMeeting(items: TagEntry[]): { meeting: string; meetingTitle: str
     .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
 }
 
-function TypeBadge({ type }: { type: TagEntry['type'] }) {
+function TypeBadge({ type }: { type: RoadmapItem['type'] }) {
   const config: Record<string, { bg: string; color: string; label: string }> = {
     DECISION: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Decision' },
     ACTION: { bg: 'rgba(34, 197, 94, 0.15)', color: 'var(--live-green)', label: 'Action' },
@@ -53,12 +64,29 @@ function TypeBadge({ type }: { type: TagEntry['type'] }) {
   );
 }
 
-function ProgressBar({ done, inProgress, open }: { done: number; inProgress: number; open: number }) {
-  const total = done + inProgress + open;
+function StatusBadge({ status }: { status: RoadmapItem['itemStatus'] }) {
+  if (status === 'active') return null;
+  const config = {
+    done: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Done' },
+    stale: { bg: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)', label: 'Stale' },
+  };
+  const c = config[status];
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+      style={{ background: c.bg, color: c.color }}
+    >
+      {c.label}
+    </span>
+  );
+}
+
+function ProgressBar({ done, active, open, stale }: { done: number; active: number; open: number; stale: number }) {
+  const total = done + active + open;
   if (total === 0) return null;
 
   const donePct = (done / total) * 100;
-  const inProgressPct = (inProgress / total) * 100;
+  const activePct = (active / total) * 100;
 
   return (
     <div className="w-full">
@@ -71,10 +99,10 @@ function ProgressBar({ done, inProgress, open }: { done: number; inProgress: num
                 style={{ width: `${donePct}%`, background: 'var(--accent)' }}
               />
             )}
-            {inProgressPct > 0 && (
+            {activePct > 0 && (
               <div
                 className="h-full transition-all"
-                style={{ width: `${inProgressPct}%`, background: 'var(--live-green)' }}
+                style={{ width: `${activePct}%`, background: 'var(--live-green)' }}
               />
             )}
           </div>
@@ -85,9 +113,125 @@ function ProgressBar({ done, inProgress, open }: { done: number; inProgress: num
       </div>
       <div className="flex gap-4 text-xs" style={{ color: 'var(--text-muted)' }}>
         <span style={{ color: 'var(--accent)' }}>{done} done</span>
-        <span style={{ color: 'var(--live-green)' }}>{inProgress} in progress</span>
+        <span style={{ color: 'var(--live-green)' }}>{active} in progress</span>
         <span style={{ color: 'var(--warning)' }}>{open} open</span>
+        {stale > 0 && <span>{stale} archived</span>}
       </div>
+    </div>
+  );
+}
+
+function ActionButtons({
+  item,
+  onStatusChange,
+}: {
+  item: RoadmapItem;
+  onStatusChange: (hash: string, status: 'done' | 'active' | 'stale') => Promise<void>;
+}) {
+  const [updating, setUpdating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleStatusChange = async (status: 'done' | 'active' | 'stale') => {
+    setUpdating(true);
+    try {
+      await onStatusChange(item.hash, status);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(item.text).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  if (updating) {
+    return <span className="text-xs" style={{ color: 'var(--text-muted)' }}>...</span>;
+  }
+
+  // Show different buttons based on current status
+  if (item.itemStatus === 'done') {
+    return (
+      <button
+        onClick={() => handleStatusChange('active')}
+        className="text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ color: 'var(--text-muted)', background: 'var(--bg)' }}
+        title="Mark as active again"
+      >
+        Undo
+      </button>
+    );
+  }
+
+  if (item.itemStatus === 'stale') {
+    return (
+      <button
+        onClick={() => handleStatusChange('active')}
+        className="text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ color: 'var(--text-muted)', background: 'var(--bg)' }}
+        title="Restore to active"
+      >
+        Restore
+      </button>
+    );
+  }
+
+  // Active items — only show for ACTION and OPEN types
+  if (item.type !== 'ACTION' && item.type !== 'OPEN') return null;
+
+  return (
+    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+      <button
+        onClick={() => handleStatusChange('done')}
+        className="text-xs px-1.5 py-0.5 rounded"
+        style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)' }}
+        title="Mark as done"
+      >
+        Done
+      </button>
+      <button
+        onClick={() => handleStatusChange('stale')}
+        className="text-xs px-1.5 py-0.5 rounded"
+        style={{ color: 'var(--text-muted)', background: 'var(--bg)' }}
+        title="Mark as stale / archived"
+      >
+        Stale
+      </button>
+      <button
+        onClick={handleCopy}
+        className="text-xs px-1.5 py-0.5 rounded"
+        style={{ color: copied ? 'var(--live-green)' : 'var(--text-muted)', background: 'var(--bg)' }}
+        title="Copy item text to clipboard"
+      >
+        {copied ? 'Copied' : 'Work on this'}
+      </button>
+    </div>
+  );
+}
+
+function ItemRow({
+  item,
+  onStatusChange,
+}: {
+  item: RoadmapItem;
+  onStatusChange: (hash: string, status: 'done' | 'active' | 'stale') => Promise<void>;
+}) {
+  return (
+    <div className="flex items-start gap-2 group">
+      <TypeBadge type={item.type} />
+      <StatusBadge status={item.itemStatus} />
+      <span
+        className="text-sm leading-relaxed flex-1 min-w-0"
+        style={{
+          color: item.itemStatus === 'stale' ? 'var(--text-muted)' : 'var(--text-secondary)',
+          textDecoration: item.itemStatus === 'done' && (item.type === 'ACTION' || item.type === 'OPEN') ? 'line-through' : undefined,
+          opacity: item.itemStatus === 'stale' ? 0.7 : 1,
+        }}
+      >
+        {item.text}
+      </span>
+      <ActionButtons item={item} onStatusChange={onStatusChange} />
     </div>
   );
 }
@@ -97,11 +241,13 @@ function MeetingGroup({
   meetingTitle,
   date,
   items,
+  onStatusChange,
 }: {
   meeting: string;
   meetingTitle: string;
   date: string | null;
-  items: TagEntry[];
+  items: RoadmapItem[];
+  onStatusChange: (hash: string, status: 'done' | 'active' | 'stale') => Promise<void>;
 }) {
   return (
     <div>
@@ -121,12 +267,11 @@ function MeetingGroup({
       </div>
       <div className="space-y-1.5 pl-3" style={{ borderLeft: '2px solid var(--border)' }}>
         {items.map((item, i) => (
-          <div key={`${item.meeting}-${item.lineNumber}-${i}`} className="flex items-start gap-2">
-            <TypeBadge type={item.type} />
-            <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {item.text}
-            </span>
-          </div>
+          <ItemRow
+            key={`${item.meeting}-${item.lineNumber}-${i}`}
+            item={item}
+            onStatusChange={onStatusChange}
+          />
         ))}
       </div>
     </div>
@@ -169,26 +314,42 @@ function EmptySection({ message }: { message: string }) {
 }
 
 function RoadmapInner() {
-  const [data, setData] = useState<TagsResponse | null>(null);
+  const [data, setData] = useState<RoadmapResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/roadmap');
+      if (!res.ok) throw new Error('Roadmap fetch failed');
+      const roadmapData: RoadmapResponse = await res.json();
+      setData(roadmapData);
+      setFetchError(false);
+    } catch {
+      setFetchError(true);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch('/api/meetings/tags');
-        if (!res.ok) throw new Error('Tags fetch failed');
-        const tagsData: TagsResponse = await res.json();
-        setData(tagsData);
-      } catch {
-        setFetchError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
+    setLoading(true);
+    loadData().finally(() => setLoading(false));
+  }, [loadData]);
+
+  const handleStatusChange = async (hash: string, status: 'done' | 'active' | 'stale') => {
+    try {
+      const res = await fetch('/api/roadmap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: hash, status }),
+      });
+      if (!res.ok) throw new Error('Status update failed');
+      // Reload data to reflect change
+      await loadData();
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -243,35 +404,24 @@ function RoadmapInner() {
     );
   }
 
-  // Categorize items
-  const allItems = data.results;
-  const decisions = allItems.filter(r => r.type === 'DECISION');
-  const resolved = allItems.filter(r => r.type === 'RESOLVED');
-  const actions = allItems.filter(r => r.type === 'ACTION');
-  const openItems = allItems.filter(r => r.type === 'OPEN');
+  // Categorize items by their tracked status
+  const allItems = data.items;
 
-  // Build resolved slug set to filter out answered open questions
-  const resolvedSlugs = new Set(
-    resolved.map(r => r.id).filter((id): id is string => id !== null)
-  );
-  const unresolvedOpen = openItems.filter(o => !o.id || !resolvedSlugs.has(o.id));
+  // Active action items and open questions
+  const activeActions = allItems.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+  const activeOpen = allItems.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
 
-  // Done = resolved items + decisions
-  const doneItems = [...resolved, ...decisions];
+  // Done items: explicitly marked done + decisions + resolved
+  const doneItems = allItems.filter(i => i.itemStatus === 'done');
 
-  // In Progress = actions from the 2 most recent meetings
-  const sortedByDate = [...actions].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-  const recentMeetings = new Set<string>();
-  for (const a of sortedByDate) {
-    recentMeetings.add(a.meeting);
-    if (recentMeetings.size >= 2) break;
-  }
-  const inProgressItems = actions.filter(a => recentMeetings.has(a.meeting));
+  // Stale / archived items
+  const staleItems = allItems.filter(i => i.itemStatus === 'stale');
 
   // Group each section by meeting
+  const activeActionGroups = groupByMeeting(activeActions);
+  const activeOpenGroups = groupByMeeting(activeOpen);
   const doneGroups = groupByMeeting(doneItems);
-  const inProgressGroups = groupByMeeting(inProgressItems);
-  const openGroups = groupByMeeting(unresolvedOpen);
+  const staleGroups = groupByMeeting(staleItems);
 
   const hasData = allItems.length > 0;
 
@@ -282,9 +432,9 @@ function RoadmapInner() {
           Roadmap
         </h1>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          {decisions.length} decision{decisions.length !== 1 ? 's' : ''} made,{' '}
-          {actions.length} action{actions.length !== 1 ? 's' : ''} tracked,{' '}
-          {unresolvedOpen.length} question{unresolvedOpen.length !== 1 ? 's' : ''} open
+          {data.counts.decisions} decision{data.counts.decisions !== 1 ? 's' : ''} made,{' '}
+          {activeActions.length} action{activeActions.length !== 1 ? 's' : ''} tracked,{' '}
+          {data.counts.openQuestions} question{data.counts.openQuestions !== 1 ? 's' : ''} open
         </p>
 
         {!hasData ? (
@@ -315,38 +465,39 @@ function RoadmapInner() {
               </div>
               <ProgressBar
                 done={doneItems.length}
-                inProgress={inProgressItems.length}
-                open={unresolvedOpen.length}
+                active={activeActions.length}
+                open={data.counts.openQuestions}
+                stale={staleItems.length}
               />
             </div>
 
             {/* In Progress section */}
             <div>
-              <SectionHeader title="In Progress" count={inProgressItems.length} accent="var(--live-green)" />
-              {inProgressGroups.length > 0 ? (
+              <SectionHeader title="In Progress" count={activeActions.length} accent="var(--live-green)" />
+              {activeActionGroups.length > 0 ? (
                 <div
                   className="rounded-lg px-5 py-4 space-y-5"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                 >
-                  {inProgressGroups.map(g => (
-                    <MeetingGroup key={g.meeting} {...g} />
+                  {activeActionGroups.map(g => (
+                    <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
                   ))}
                 </div>
               ) : (
-                <EmptySection message="No active action items from recent meetings." />
+                <EmptySection message="No active action items. All caught up." />
               )}
             </div>
 
             {/* Open Questions section */}
             <div>
-              <SectionHeader title="Open Questions" count={unresolvedOpen.length} accent="var(--warning)" />
-              {openGroups.length > 0 ? (
+              <SectionHeader title="Open Questions" count={data.counts.openQuestions} accent="var(--warning)" />
+              {activeOpenGroups.length > 0 ? (
                 <div
                   className="rounded-lg px-5 py-4 space-y-5"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                 >
-                  {openGroups.map(g => (
-                    <MeetingGroup key={g.meeting} {...g} />
+                  {activeOpenGroups.map(g => (
+                    <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
                   ))}
                 </div>
               ) : (
@@ -363,13 +514,53 @@ function RoadmapInner() {
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
                 >
                   {doneGroups.map(g => (
-                    <MeetingGroup key={g.meeting} {...g} />
+                    <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
                   ))}
                 </div>
               ) : (
                 <EmptySection message="No completed items yet." />
               )}
             </div>
+
+            {/* Archived / Stale section — collapsed by default */}
+            {staleItems.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setArchivedOpen(!archivedOpen)}
+                  className="flex items-center gap-2 mb-4 group"
+                >
+                  <span
+                    className="text-xs transition-transform"
+                    style={{
+                      color: 'var(--text-muted)',
+                      transform: archivedOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                      display: 'inline-block',
+                    }}
+                  >
+                    &#9654;
+                  </span>
+                  <h2 className="text-lg font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    Archived
+                  </h2>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full tabular-nums"
+                    style={{ background: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)' }}
+                  >
+                    {staleItems.length}
+                  </span>
+                </button>
+                {archivedOpen && (
+                  <div
+                    className="rounded-lg px-5 py-4 space-y-5"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', opacity: 0.8 }}
+                  >
+                    {staleGroups.map(g => (
+                      <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quick links */}
             <div className="flex gap-3 mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
