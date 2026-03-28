@@ -24,8 +24,28 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import http from 'http';
 
+import fs from 'fs';
+import pathModule from 'path';
+
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
+const ACTIVITY_LOG = pathModule.join(process.cwd(), '.council-activity.jsonl');
+const MAX_ACTIVITY_LINES = 200;
+
+// Append activity to JSONL log (capped at MAX_ACTIVITY_LINES)
+function logActivity(tool, params, result) {
+  try {
+    const entry = JSON.stringify({ tool, params, result, timestamp: new Date().toISOString() });
+    fs.appendFileSync(ACTIVITY_LOG, entry + '\n', 'utf-8');
+    // Truncate if over limit
+    try {
+      const lines = fs.readFileSync(ACTIVITY_LOG, 'utf-8').split('\n').filter(Boolean);
+      if (lines.length > MAX_ACTIVITY_LINES) {
+        fs.writeFileSync(ACTIVITY_LOG, lines.slice(-MAX_ACTIVITY_LINES).join('\n') + '\n', 'utf-8');
+      }
+    } catch { /* non-critical */ }
+  } catch { /* non-critical — activity logging is best-effort */ }
+}
 
 // Helper to make HTTP requests to Agent Council with retry
 function councilRequest(path, method = 'GET', body = null, retries = 1) {
@@ -400,6 +420,7 @@ server.tool(
         source: 'claude-mcp',
       });
       const id = data.id || data.meeting?.id || 'unknown';
+      logActivity('council_schedule_meeting', { type, topic, reason }, { id });
       return {
         content: [{
           type: 'text',
@@ -430,6 +451,7 @@ server.tool(
         field,
         value,
       });
+      logActivity('council_update_agent', { filename, field, value }, { success: true });
       return {
         content: [{
           type: 'text',
@@ -461,6 +483,7 @@ server.tool(
         source,
         timestamp: new Date().toISOString(),
       });
+      logActivity('council_add_context', { meeting, source }, { success: true });
       return {
         content: [{
           type: 'text',
@@ -492,6 +515,7 @@ server.tool(
         meeting,
         timestamp: new Date().toISOString(),
       });
+      logActivity('council_resolve_question', { slug, meeting }, { resolution });
       return {
         content: [{
           type: 'text',
