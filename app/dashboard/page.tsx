@@ -422,6 +422,11 @@ function DashboardInner() {
               <RecentActivity recentActivity={analytics.recentActivity} />
               {tags && <TagsSummary tags={tags} />}
             </div>
+
+            {/* Key terms from latest completed meeting */}
+            {keyTerms && keyTerms.terms.length > 0 && (
+              <KeyTermsBar data={keyTerms} />
+            )}
           </div>
         )}
       </div>
