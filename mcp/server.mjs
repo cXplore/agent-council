@@ -27,41 +27,66 @@ import http from 'http';
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
 
-// Helper to make HTTP requests to Agent Council
-function councilRequest(path, method = 'GET', body = null) {
+// Helper to make HTTP requests to Agent Council with retry
+function councilRequest(path, method = 'GET', body = null, retries = 1) {
   return new Promise((resolve, reject) => {
-    const url = new URL(path, COUNCIL_URL);
-    const options = {
-      hostname: url.hostname,
-      port: url.port,
-      path: url.pathname + url.search,
-      method,
-      headers: { 'Content-Type': 'application/json' },
-    };
+    let attempt = 0;
 
-    const req = http.request({ ...options, timeout: 10000 }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch {
-          resolve({ raw: data });
-        }
+    function tryRequest() {
+      attempt++;
+      const url = new URL(path, COUNCIL_URL);
+      const options = {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname + url.search,
+        method,
+        headers: { 'Content-Type': 'application/json' },
+      };
+
+      const req = http.request({ ...options, timeout: 10000 }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          // Handle non-2xx responses
+          if (res.statusCode >= 400) {
+            try {
+              const parsed = JSON.parse(data);
+              reject(new Error(parsed.error || `HTTP ${res.statusCode}`));
+            } catch {
+              reject(new Error(`HTTP ${res.statusCode}: ${data.slice(0, 200)}`));
+            }
+            return;
+          }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve({ raw: data });
+          }
+        });
       });
-    });
 
-    req.on('error', (err) => {
-      reject(new Error(`Agent Council not reachable at ${COUNCIL_URL}: ${err.message}`));
-    });
+      req.on('error', (err) => {
+        if (attempt <= retries) {
+          setTimeout(tryRequest, 500 * attempt);
+          return;
+        }
+        reject(new Error(`Agent Council not reachable at ${COUNCIL_URL}: ${err.message}`));
+      });
 
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error(`Request to Agent Council timed out`));
-    });
+      req.on('timeout', () => {
+        req.destroy();
+        if (attempt <= retries) {
+          setTimeout(tryRequest, 500 * attempt);
+          return;
+        }
+        reject(new Error(`Request to Agent Council timed out`));
+      });
 
-    if (body) req.write(JSON.stringify(body));
-    req.end();
+      if (body) req.write(JSON.stringify(body));
+      req.end();
+    }
+
+    tryRequest();
   });
 }
 
@@ -77,14 +102,22 @@ server.tool(
   {},
   async () => {
     try {
-      const data = await councilRequest('/api/projects');
+      const [projectData, meetingsData] = await Promise.all([
+        councilRequest('/api/projects'),
+        councilRequest('/api/meetings').catch(() => []),
+      ]);
+      const meetings = Array.isArray(meetingsData) ? meetingsData : [];
+      const liveMeetings = meetings.filter(m => m.status === 'in-progress');
       return {
         content: [{
           type: 'text',
           text: JSON.stringify({
             running: true,
-            activeProject: data.activeProject,
-            projectCount: data.projects?.length || 0,
+            activeProject: projectData.activeProject,
+            projectCount: projectData.projects?.length || 0,
+            totalMeetings: meetings.length,
+            liveMeetings: liveMeetings.length,
+            liveMeetingFiles: liveMeetings.map(m => m.filename),
             viewerUrl: COUNCIL_URL + '/meetings',
           }, null, 2),
         }],

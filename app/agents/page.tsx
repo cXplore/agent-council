@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
 import { docComponents } from '@/lib/md-components';
+import { formatType } from '../meetings/MeetingListCard';
+import type { MeetingListItem } from '@/lib/types';
 
 interface AgentInfo {
   filename: string;
@@ -112,6 +114,78 @@ function SuggestionBar({ agent }: { agent: AgentInfo }) {
       {toast && (
         <div className="mt-2 text-xs px-3 py-1.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
           {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MeetingHistory({ agentName, meetings }: { agentName: string; meetings: MeetingListItem[] }) {
+  const participated = meetings.filter(m =>
+    m.participants.some(p => p.toLowerCase() === agentName.toLowerCase())
+  );
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>
+        Meeting history
+        {participated.length > 0 && (
+          <span className="ml-2 font-normal normal-case tracking-normal" style={{ color: 'var(--text-muted)' }}>
+            ({participated.length})
+          </span>
+        )}
+      </h3>
+      {participated.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          No meetings found for this agent.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {participated.map(m => (
+            <a
+              key={m.filename}
+              href={`/meetings?file=${encodeURIComponent(m.filename)}`}
+              className="block rounded-lg px-4 py-3 transition-colors hover:brightness-110"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                  {m.title || m.filename}
+                </span>
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                  style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.7rem' }}
+                >
+                  {formatType(m.type)}
+                </span>
+                {m.status === 'in-progress' && (
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
+                    style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.7rem' }}
+                  >
+                    live
+                  </span>
+                )}
+                <span className="ml-auto text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  {m.date || new Date(m.modifiedAt).toLocaleDateString()}
+                </span>
+              </div>
+              {m.participants.length > 1 && (
+                <div className="flex gap-1 mt-1.5 flex-wrap">
+                  {m.participants.filter(p => p.toLowerCase() !== agentName.toLowerCase()).slice(0, 5).map(p => (
+                    <span key={p} className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                      {p}
+                    </span>
+                  ))}
+                  {m.participants.length - 1 > 5 && (
+                    <span className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
+                      +{m.participants.length - 1 - 5} more
+                    </span>
+                  )}
+                </div>
+              )}
+            </a>
+          ))}
         </div>
       )}
     </div>
@@ -248,6 +322,7 @@ function AgentsPageInner() {
   const [selected, setSelected] = useState<AgentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -278,6 +353,23 @@ function AgentsPageInner() {
     };
     fetchAgents();
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!selected) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/meetings');
+        if (res.ok && !cancelled) {
+          const data: MeetingListItem[] = await res.json();
+          setMeetings(data);
+        }
+      } catch {
+        // Meetings are supplementary — fail silently
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selected]);
 
   if (selected) {
     return (
@@ -362,6 +454,9 @@ function AgentsPageInner() {
 
           {/* Suggestion actions */}
           <SuggestionBar agent={selected} />
+
+          {/* Meeting history */}
+          <MeetingHistory agentName={selected.name} meetings={meetings} />
 
           <div className="space-y-3">
             {(() => {
