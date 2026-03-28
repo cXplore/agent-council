@@ -124,7 +124,7 @@ function ActiveAgents({ agents }: { agents: { name: string; meetingCount: number
       </div>
       <div className="space-y-1.5">
         {display.map((agent) => (
-          <div key={agent.name} className="flex items-center gap-2.5">
+          <a key={agent.name} href={`/agents?agent=${encodeURIComponent(agent.name)}`} className="flex items-center gap-2.5 hover:brightness-125 transition-colors rounded px-1 -mx-1">
             <span
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ background: getAgentColor(agent.name) }}
@@ -138,7 +138,7 @@ function ActiveAgents({ agents }: { agents: { name: string; meetingCount: number
             >
               {agent.meetingCount} meeting{agent.meetingCount !== 1 ? 's' : ''}
             </span>
-          </div>
+          </a>
         ))}
       </div>
     </div>
@@ -296,12 +296,14 @@ function KeyTermsBar({ data }: { data: KeyTermsData }) {
       <div className="space-y-2">
         {display.map((term) => (
           <div key={term.word} className="flex items-center gap-3">
-            <span
-              className="text-xs w-[120px] flex-shrink-0 text-right truncate"
+            <a
+              href={`/meetings?search=${encodeURIComponent(term.word)}`}
+              className="text-xs w-[120px] flex-shrink-0 text-right truncate hover:underline"
               style={{ color: 'var(--text-secondary)' }}
+              title={`Search meetings for "${term.word}"`}
             >
               {term.word}
-            </span>
+            </a>
             <div className="flex-1 h-4 rounded overflow-hidden" style={{ background: 'var(--bg)' }}>
               <div
                 className="h-full rounded transition-all"

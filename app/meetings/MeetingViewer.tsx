@@ -1485,6 +1485,15 @@ export default function MeetingViewer() {
                 >
                   Download
                 </button>
+                <a
+                  href={`/api/meetings/export/html?file=${encodeURIComponent(detail.filename)}${activeProject ? `&project=${encodeURIComponent(activeProject)}` : ''}`}
+                  className="text-xs px-2 py-0.5 rounded transition-colors inline-block"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', textDecoration: 'none' }}
+                  title="Export as standalone HTML file"
+                  download
+                >
+                  HTML
+                </a>
                 <button
                   onClick={() => window.print()}
                   className="text-xs px-2 py-0.5 rounded transition-colors"

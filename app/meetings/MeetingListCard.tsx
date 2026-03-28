@@ -140,6 +140,14 @@ export default function MeetingListCard({
   onTogglePin,
 }: MeetingListCardProps) {
   const timeAgo = useRelativeTime(m.modifiedAt);
+  const [hasNotes, setHasNotes] = useState(false);
+
+  useEffect(() => {
+    try {
+      const notes = localStorage.getItem(`council-notes-${m.filename}`);
+      setHasNotes(!!notes && notes.trim().length > 0);
+    } catch { /* localStorage may be unavailable */ }
+  }, [m.filename]);
 
   return (
     <div
@@ -267,6 +275,11 @@ export default function MeetingListCard({
                   {tagCounts.actions}A
                 </span>
               )}
+            </span>
+          )}
+          {hasNotes && (
+            <span style={{ fontSize: '0.6rem', color: 'var(--accent)', opacity: 0.7 }} title="Has personal notes">
+              ✎
             </span>
           )}
         </span>
