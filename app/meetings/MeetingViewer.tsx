@@ -321,6 +321,8 @@ export default function MeetingViewer() {
     setUserScrolledUp(false);
     setQueuedRecs(new Set());
     setViewRound(null);
+    setMeetingTerms(null);
+    setShowTerms(false);
     fetchDetail(selected);
 
     pollRef.current = setInterval(() => {
@@ -1656,7 +1658,7 @@ export default function MeetingViewer() {
           {showContribDetails && (
             <div
               className="px-6 py-3 text-xs"
-              style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}
+              style={{ borderBottom: showTerms ? 'none' : '1px solid var(--border)', background: 'var(--bg)' }}
             >
               <div className="space-y-1.5" style={{ maxWidth: 420 }}>
                 {Object.entries(wordCounts)
@@ -1681,6 +1683,23 @@ export default function MeetingViewer() {
               </div>
             </div>
           )}
+          {/* Key terms word cloud */}
+          {showTerms && meetingTerms && meetingTerms.length > 0 && (() => {
+            const maxCount = Math.max(...meetingTerms.map(t => t.count));
+            return (
+              <div className="flex flex-wrap gap-2 items-center px-6 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                {meetingTerms.map(t => (
+                  <span key={t.word} style={{
+                    fontSize: Math.max(11, Math.min(22, 11 + t.count / maxCount * 14)),
+                    color: getAgentColor(t.word),
+                    opacity: 0.5 + (t.count / maxCount) * 0.5,
+                  }}>
+                    {t.word}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
           </>
         );
       })()}
