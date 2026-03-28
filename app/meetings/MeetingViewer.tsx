@@ -914,7 +914,7 @@ export default function MeetingViewer() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search meetings..."
+                  placeholder="Search by title, type, agent, or date..."
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-2"
                   style={{
                     background: 'var(--bg)',
@@ -958,7 +958,9 @@ export default function MeetingViewer() {
                     (m.title?.toLowerCase().includes(q)) ||
                     m.type.toLowerCase().includes(q) ||
                     m.participants.some(p => p.toLowerCase().includes(q)) ||
-                    m.preview?.toLowerCase().includes(q)
+                    m.preview?.toLowerCase().includes(q) ||
+                    m.filename.toLowerCase().includes(q) ||
+                    m.date?.includes(q)
                   );
                 }
                 return true;

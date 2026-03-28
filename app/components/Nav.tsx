@@ -21,7 +21,42 @@ interface ProjectsResponse {
   hasWorkspace: boolean;
 }
 
-function ProjectSwitcher({ inline }: { inline?: boolean }) {
+type ConnectionHealth = 'online' | 'slow' | 'offline';
+
+function ConnectionDot({ health }: { health: ConnectionHealth }) {
+  const color =
+    health === 'online' ? 'var(--live-green, #22c55e)' :
+    health === 'slow' ? '#eab308' :
+    '#ef4444';
+
+  return (
+    <span
+      title={health === 'offline' ? 'Server offline' : health === 'slow' ? 'Server slow' : 'Connected'}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          display: 'inline-block',
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: color,
+          flexShrink: 0,
+        }}
+      />
+      {health === 'offline' && (
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>offline</span>
+      )}
+    </span>
+  );
+}
+
+function ProjectSwitcher({ inline, connectionHealth }: { inline?: boolean; connectionHealth: ConnectionHealth }) {
   // router removed — we use window.location.reload() instead
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<ProjectsResponse | null>(null);
@@ -154,16 +189,7 @@ function ProjectSwitcher({ inline }: { inline?: boolean }) {
           background: inline ? 'var(--bg-elevated)' : undefined,
         }}
       >
-        <span
-          style={{
-            display: 'inline-block',
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: isOnWorkspace ? 'var(--text-muted)' : 'var(--accent)',
-            flexShrink: 0,
-          }}
-        />
+        <ConnectionDot health={isOnWorkspace ? 'online' : connectionHealth} />
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {activeLabel}
         </span>
@@ -312,19 +338,40 @@ export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [hasLiveMeeting, setHasLiveMeeting] = useState(false);
+  const [connectionHealth, setConnectionHealth] = useState<ConnectionHealth>('online');
+  const consecutiveFailures = useRef(0);
 
   // Close mobile menu on route change
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  // Poll for live meetings to show indicator
+  // Poll for live meetings to show indicator + track connection health
   useEffect(() => {
     const check = async () => {
+      const start = Date.now();
       try {
         const res = await fetch('/api/meetings');
-        if (!res.ok) return;
-        const data = await res.json();
-        setHasLiveMeeting(Array.isArray(data) && data.some((m: { status: string }) => m.status === 'in-progress'));
-      } catch { /* silent */ }
+        const elapsed = Date.now() - start;
+        if (!res.ok) {
+          consecutiveFailures.current++;
+        } else {
+          consecutiveFailures.current = 0;
+          const data = await res.json();
+          setHasLiveMeeting(Array.isArray(data) && data.some((m: { status: string }) => m.status === 'in-progress'));
+        }
+
+        if (consecutiveFailures.current >= 3) {
+          setConnectionHealth('offline');
+        } else if (elapsed > 2000) {
+          setConnectionHealth('slow');
+        } else {
+          setConnectionHealth('online');
+        }
+      } catch {
+        consecutiveFailures.current++;
+        if (consecutiveFailures.current >= 3) {
+          setConnectionHealth('offline');
+        }
+      }
     };
     check();
     const interval = setInterval(check, 10000);
@@ -350,7 +397,7 @@ export default function Nav() {
 
         {/* Desktop project switcher */}
         <div className="hidden sm:block">
-          <ProjectSwitcher />
+          <ProjectSwitcher connectionHealth={connectionHealth} />
         </div>
 
         <div className="flex-1" />
@@ -422,7 +469,7 @@ export default function Nav() {
         <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
           {/* Mobile project switcher — above nav items */}
           <div style={{ marginBottom: 8 }}>
-            <ProjectSwitcher inline />
+            <ProjectSwitcher inline connectionHealth={connectionHealth} />
           </div>
 
           {NAV_ITEMS.map(item => {
