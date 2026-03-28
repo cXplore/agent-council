@@ -693,7 +693,20 @@ export default function MeetingViewer() {
           )}
 
           {loading ? (
-            <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="loading-shimmer w-2 h-2 rounded-full" />
+                    <div className="loading-shimmer h-4 rounded" style={{ width: `${140 + i * 30}px` }} />
+                  </div>
+                  <div className="ml-5 flex gap-2">
+                    <div className="loading-shimmer h-3 w-20 rounded" />
+                    <div className="loading-shimmer h-3 w-16 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : fetchError ? (
             <div
               className="rounded-lg px-5 py-4 text-sm"
@@ -925,7 +938,9 @@ export default function MeetingViewer() {
               )}
               {meetings.length > 1 && (
                 <div className="flex gap-2 mb-2">
-                  {(['all', 'in-progress', 'complete'] as const).map(f => (
+                  {(['all', 'in-progress', 'complete'] as const).map(f => {
+                    const count = f === 'all' ? meetings.length : meetings.filter(m => m.status === f).length;
+                    return (
                     <button
                       key={f}
                       onClick={() => setStatusFilter(f)}
@@ -937,8 +952,10 @@ export default function MeetingViewer() {
                       }}
                     >
                       {f === 'all' ? 'All' : f === 'in-progress' ? 'Live' : 'Completed'}
+                      {count > 0 && <span className="ml-1 opacity-60">{count}</span>}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {error && (

@@ -550,7 +550,17 @@ function AgentsPageInner() {
         )}
 
         {loading ? (
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="loading-shimmer w-2.5 h-2.5 rounded-full" />
+                  <div className="loading-shimmer h-4 rounded" style={{ width: `${80 + i * 20}px` }} />
+                </div>
+                <div className="loading-shimmer h-3 w-48 rounded mt-2 ml-5" />
+              </div>
+            ))}
+          </div>
         ) : fetchError ? (
           <div
             className="rounded-lg px-5 py-4 text-sm"

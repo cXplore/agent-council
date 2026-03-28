@@ -234,7 +234,25 @@ function DashboardInner() {
           <h1 className="text-2xl font-semibold mb-6" style={{ color: 'var(--text-primary)' }}>
             Dashboard
           </h1>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="loading-shimmer h-3 w-12 rounded mb-2" />
+                <div className="loading-shimmer h-6 w-8 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[1, 2].map(i => (
+              <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="loading-shimmer h-3 w-24 rounded mb-3" />
+                <div className="space-y-2">
+                  <div className="loading-shimmer h-3 w-full rounded" />
+                  <div className="loading-shimmer h-3 w-3/4 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
