@@ -4,8 +4,34 @@ const { execSync, spawn } = require('child_process');
 const http = require('http');
 const path = require('path');
 
-const PORT = process.env.PORT || 3003;
 const appDir = path.join(__dirname, '..');
+
+// Parse CLI args
+const args = process.argv.slice(2);
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`
+  Agent Council — meeting companion for Claude Code agents
+
+  Usage: agent-council [options]
+
+  Options:
+    --port, -p <port>  Server port (default: 3003, env: PORT)
+    --no-open          Don't open browser automatically
+    --help, -h         Show this help message
+    --version, -v      Show version
+`);
+  process.exit(0);
+}
+
+if (args.includes('--version') || args.includes('-v')) {
+  const pkg = require(path.join(appDir, 'package.json'));
+  console.log(`agent-council v${pkg.version}`);
+  process.exit(0);
+}
+
+const portIdx = args.findIndex(a => a === '--port' || a === '-p');
+const PORT = portIdx !== -1 && args[portIdx + 1] ? args[portIdx + 1] : process.env.PORT || 3003;
+const noOpen = args.includes('--no-open');
 
 // Colors
 const dim = (s) => `\x1b[2m${s}\x1b[0m`;
@@ -49,10 +75,12 @@ server.stdout.on('data', (data) => {
     console.log(`  ${dim('Press Ctrl+C to stop')}`);
     console.log('');
 
-    // Open browser
-    const open = process.platform === 'win32' ? 'start'
-      : process.platform === 'darwin' ? 'open' : 'xdg-open';
-    spawn(open, [`http://localhost:${PORT}`], { shell: true, stdio: 'ignore' });
+    // Open browser (unless --no-open)
+    if (!noOpen) {
+      const open = process.platform === 'win32' ? 'start'
+        : process.platform === 'darwin' ? 'open' : 'xdg-open';
+      spawn(open, [`http://localhost:${PORT}`], { shell: true, stdio: 'ignore' });
+    }
   }
 });
 
