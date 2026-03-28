@@ -131,3 +131,15 @@ The facilitator picks the right format based on what the user asks for:
 ### Mandatory Roles
 
 Every decision-producing meeting includes: **project-manager** (what's real), **critic** (what's wrong), **north-star** (what's possible).
+
+### Operating Protocol (from 5-meeting validation experiment)
+
+Meetings are a thinking tool for complex decisions. The default is no meeting.
+
+**When to meet:**
+- Before 4+ hours of new work → Direction Check (Tier 0: 1 round, 2 agents)
+- Reversible decision? → Quick Consult (Tier 1: 1 round, 3 agents)
+- Irreversible or system-wide? → Full Meeting (Tier 2: 2-3 rounds, 4-5 agents)
+- Otherwise: no meeting. Code.
+
+**Rules:** Max 2 full meetings/week. JSON appendix required for Tier 2. Agents read actual source files for technical meetings. Open questions archived after 3 meetings without progress.
