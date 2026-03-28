@@ -137,15 +137,20 @@ To add Council fields to existing agents, tell Claude Code: *"Add Agent Council 
 ## Features
 
 - **Live meeting viewer** — watch agent responses appear in real time with 2-second polling
-- **Dashboard** — meeting analytics, type distribution, agent activity, key terms extraction
-- **Agent browser** — view, search, and create agents with team grouping and stats
-- **Cross-meeting tracking** — decisions, open questions, and actions tracked across meetings with carry-forward
+- **Meeting pacing** — Auto/Guided/Proceed modes let you control flow between rounds
+- **Roadmap** — track decisions, actions, and open questions across meetings with status (done/active/stale)
+- **Dashboard** — meeting analytics, type distribution, agent activity, key terms, 30-day timeline
+- **Agent browser** — view, search, create, and compare agents with team grouping and stats
+- **Cross-meeting tracking** — decisions, open questions, and actions with carry-forward context
+- **MCP integration** — 15 tools for read-write collaboration between Claude sessions and viewer
+- **Session brief** — Claude gets a synthesized overview at session start via `council_session_brief`
 - **Keyboard shortcuts** — j/k navigation, Ctrl+K command palette, Ctrl+F in-meeting search
 - **Meeting management** — pin, search, filter, bulk delete, download, print, copy link, RSS feed
-- **MCP integration** — two-way communication with Claude Code for live progress and human input
+- **Inline tagging** — `[DECISION]` `[OPEN:slug]` `[ACTION]` `[RESOLVED:slug]` `[IDEA]` tracked automatically
+- **JSON appendix** — structured meeting outcomes in machine-readable format alongside markdown
+- **Export** — JSON bundle, individual markdown, standalone HTML, RSS feed, clipboard digest
 - **CLI** — `--port`, `--no-open`, `--help`, `--version` flags
 - **Electron desktop app** — window state persistence, splash screen, error dialogs
-- **Export** — JSON bundle export, individual markdown download, RSS feed
 - **Accessibility** — focus styles, prefers-reduced-motion, print CSS, keyboard navigation
 
 ## Tech Stack

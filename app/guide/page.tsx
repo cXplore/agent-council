@@ -230,6 +230,43 @@ If any call fails, continue normally — meetings work without MCP.`}</pre>
           </div>
         </section>
 
+        {/* Meeting pacing */}
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            Meeting pacing
+          </h2>
+          <div
+            className="rounded-lg p-5 text-sm space-y-3"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <p>Control how meeting rounds advance with three pacing modes:</p>
+            <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-muted)' }}>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Auto</strong> — rounds advance automatically. The facilitator runs without waiting. Best for unattended meetings or when you just want to read the result.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Guided</strong> — the facilitator pauses between rounds and checks for your input via MCP. You can add thoughts, redirect the conversation, or let it continue. Best for meetings where you want to participate.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Proceed</strong> — the facilitator pauses and waits for an explicit &quot;proceed&quot; from you before starting the next round. Best when you want full control over pacing.</li>
+            </ul>
+            <p>Set the pacing mode when starting a meeting, or let the facilitator pick based on whether MCP is connected and a viewer is watching.</p>
+          </div>
+        </section>
+
+        {/* Settings */}
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            Settings
+          </h2>
+          <div
+            className="rounded-lg p-5 text-sm space-y-3"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <p>The <a href="/settings" className="underline" style={{ color: 'var(--accent)' }}>/settings</a> page shows:</p>
+            <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-muted)' }}>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Server status</strong> — whether Agent Council is running, the port, and connection health.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>MCP configuration</strong> — current MCP server config and whether the facilitator can reach the viewer.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>Template status</strong> — which agent templates are available and whether they need updating.</li>
+            </ul>
+          </div>
+        </section>
+
         {/* Extra features */}
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>

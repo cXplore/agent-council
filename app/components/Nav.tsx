@@ -449,15 +449,29 @@ export default function Nav() {
               </Link>
             );
           })}
-          <Link
-            href="/guide"
-            className="text-xs transition-colors"
-            style={{ color: pathname === '/guide' ? 'var(--accent)' : 'var(--text-muted)', opacity: 0.7 }}
-            title="How it works"
-            aria-label="Guide"
-          >
-            ?
-          </Link>
+          <div className="flex items-center gap-3" style={{ borderLeft: '1px solid var(--border)', paddingLeft: 12, marginLeft: 2 }}>
+            <Link
+              href="/guide"
+              className="text-xs transition-colors"
+              style={{ color: pathname === '/guide' ? 'var(--accent)' : 'var(--text-muted)' }}
+              title="Guide"
+              aria-label="Guide"
+            >
+              ?
+            </Link>
+            <Link
+              href="/settings"
+              className="text-xs transition-colors"
+              style={{ color: pathname === '/settings' ? 'var(--accent)' : 'var(--text-muted)' }}
+              title="Settings"
+              aria-label="Settings"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="2.5" />
+                <path d="M13.5 8a5.5 5.5 0 0 0-.08-.88l1.44-1.13a.35.35 0 0 0 .08-.44l-1.37-2.36a.35.35 0 0 0-.42-.15l-1.7.68a5.2 5.2 0 0 0-1.52-.88L9.6 1.1a.35.35 0 0 0-.34-.28H6.74a.35.35 0 0 0-.34.28l-.25 1.74a5.2 5.2 0 0 0-1.52.88l-1.7-.68a.35.35 0 0 0-.42.15L1.14 5.55a.35.35 0 0 0 .08.44l1.44 1.13A5.5 5.5 0 0 0 2.5 8c0 .3.03.59.08.88l-1.44 1.13a.35.35 0 0 0-.08.44l1.37 2.36c.08.15.27.21.42.15l1.7-.68c.47.35.97.65 1.52.88l.25 1.74c.03.16.18.28.34.28h2.52c.16 0 .31-.12.34-.28l.25-1.74a5.2 5.2 0 0 0 1.52-.88l1.7.68c.15.06.34 0 .42-.15l1.37-2.36a.35.35 0 0 0-.08-.44l-1.44-1.13c.05-.29.08-.58.08-.88z" />
+              </svg>
+            </Link>
+          </div>
         </div>
 
         {/* Mobile hamburger */}
@@ -531,6 +545,17 @@ export default function Nav() {
             }}
           >
             Guide
+          </Link>
+          <Link
+            href="/settings"
+            onClick={() => setOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm transition-colors"
+            style={{
+              color: pathname === '/settings' ? 'var(--accent)' : 'var(--text-muted)',
+              background: pathname === '/settings' ? 'var(--accent-muted)' : 'transparent',
+            }}
+          >
+            Settings
           </Link>
         </div>
       )}

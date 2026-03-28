@@ -15,7 +15,7 @@ const COMMANDS: Command[] = [
   { label: 'Roadmap', href: '/roadmap', shortcut: 'R' },
   { label: 'Agents', href: '/agents', shortcut: 'A' },
   { label: 'Setup', href: '/setup', shortcut: 'S' },
-  { label: 'Settings', href: '/settings' },
+  { label: 'Settings', href: '/settings', shortcut: 'X' },
   { label: 'Guide', href: '/guide', shortcut: 'G' },
 ];
 

@@ -790,6 +790,66 @@
         "meetingStatus": "complete",
         "lineNumber": 656,
         "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Phase 1 (build the thing) is complete. Transition to Phase 2 (external validation). No new feature development until at least one external user has installed Agent Council and run a meeting on their own project.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 653,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "The transition task is: build demo meeting, add parsing layer tests with page smoke tests, polish README with GIF/screenshot, then share externally.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 654,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Classify all features into three tiers. Tier 1 (Core): meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config. Tier 2 (Useful): roadmap, settings, shortcuts, meeting management, export, welcome. Tier 3 (Decorative): dashboard analytics, RSS, key terms, validation API, template generator, command palette, print CSS. Tier 3 is frozen — do not maintain, do not extend, evaluate removal before fixing if broken.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 655,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Meeting outputs (42 open questions, 58 action items) are a knowledge base, not a to-do list. Triage aggressively using the 3-meeting archival rule, then stop treating them as work obligations.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 656,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "The hook split (useMeetingData.ts refactor) is deferred. It triggers only if: (a) an external contributor needs to modify the meeting viewer, or (b) new viewer functionality is required. If neither condition triggers within 30 days, archive it as known debt.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 657,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "After the demo meeting and README are shipped, do not start another development session on Agent Council until external feedback arrives. 2-week maximum wait window — if no one tries it, revisit the sharing strategy, not the product.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 658,
+        "date": "2026-03-28"
       }
     ],
     "open": [
@@ -1211,6 +1271,26 @@
         "meetingTitle": "Design Review: Agent Council as a Product — What Features Make This Genuinely Useful?",
         "meetingStatus": "complete",
         "lineNumber": 662,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": "first-external-user",
+        "text": "Where and how to share Agent Council for maximum discovery? GitHub alone may not be sufficient. Community forums, social media, direct outreach to Claude Code users are options but undecided.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 662,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": "demo-meeting-dismissal",
+        "text": "Should the demo meeting disappear once a user connects a project and has their own meetings? Or should it remain accessible as a reference? Minor UX decision deferred to implementation.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 663,
         "date": "2026-03-28"
       }
     ],
@@ -1794,6 +1874,66 @@
         "meetingStatus": "complete",
         "lineNumber": 680,
         "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Build demo meeting: universal topic (\"Should we add caching?\"), 3 agents, 2 rounds, genuine disagreement, critic catches blind spot, clear decision with counterfactual value statement. Include \"Example\" badge UX. — assigned to developer. Effort: 3-4 hours.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 673,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Write parsing layer tests: tag-index.ts, meeting-utils.ts, JSON appendix parser. Plus page smoke tests (each page imports and renders without crashing). — assigned to developer. Effort: 2 hours.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 674,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Polish README: add demo GIF or screenshot of live meeting viewer, emphasize \"pure file I/O\" philosophy, ensure clone-to-first-meeting under 10 minutes, reference demo meeting. — assigned to developer. Effort: 1 hour.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 675,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Add feature tier classification and Phase 1 completion status to CLAUDE.md. — assigned to developer. Effort: 15 minutes.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 676,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Triage meeting debt: archive stale open questions (3+ meetings without progress), mark resolved items, produce clean carry-forward list of 5-8 genuinely open items. — assigned to project-manager. Effort: 1 hour.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 677,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Share Agent Council externally once demo meeting and README are complete. — assigned to human (not a dev task).",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 678,
+        "date": "2026-03-28"
       }
     ],
     "resolved": [
@@ -1834,10 +1974,41 @@
         "meetingStatus": "complete",
         "lineNumber": 0,
         "date": "2026-03-28"
+      },
+      {
+        "type": "RESOLVED",
+        "id": "feature-value-audit",
+        "text": "Resolved by the three-tier classification. Decorative features (dashboard, RSS, word cloud) are acknowledged as overbuilt but frozen rather than removed. No audit needed — freeze and ignore.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 682,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "RESOLVED",
+        "id": "test-timing",
+        "text": "Tests happen now, in the Phase 2 transition sprint, alongside the demo meeting. Parsing layer tests + page smoke tests. Not deferred further.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 683,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "RESOLVED",
+        "id": "action-tracking-gap",
+        "text": "Meeting action items are a knowledge base, not a tracking system. The gap between \"meeting decided X\" and \"X got done\" is accepted as inherent to the meeting model. The MCP work items tool partially bridges this for Claude Code sessions.",
+        "meeting": "2026-03-28-strategy-grounding.md",
+        "meetingTitle": "Strategy Session: Grounding — Where Are We and What Actually Matters Next?",
+        "meetingStatus": "complete",
+        "lineNumber": 684,
+        "date": "2026-03-28"
       }
     ],
-    "meetingCount": 14,
-    "builtAt": "2026-03-28T20:55:37.880Z"
+    "ideas": [],
+    "meetingCount": 15,
+    "builtAt": "2026-03-28T22:12:12.412Z"
   },
   "mtimes": {
     "2026-03-27-architecture-review-cross-meeting.md": 1774645802590.044,
@@ -1848,11 +2019,12 @@
     "2026-03-28-design-review-mcp-read-write-architecture.md": 1774726827576.4656,
     "2026-03-28-design-review-meetings-page-discovery-ux.md": 1774653060751.6697,
     "2026-03-28-design-review-meetingviewer-split.md": 1774725100393.866,
+    "2026-03-28-design-review-product-direction.md": 1774731315021.96,
     "2026-03-28-retrospective-mid-experiment-value.md": 1774728762172.8958,
     "2026-03-28-sprint-planning-development-priorities.md": 1774727633676.5393,
     "2026-03-28-strategy-development-workflows-and-agent-evolution.md": 1774722320463.3257,
     "2026-03-28-strategy-operational-cadence-protocol.md": 1774729426916.6633,
     "2026-03-28-strategy-suggested-meetings-lifecycle.md": 1774654425907.9814,
-    "2026-03-28-design-review-product-direction.md": 1774731315021.96
+    "2026-03-28-strategy-grounding.md": 1774735920789.9944
   }
 }
