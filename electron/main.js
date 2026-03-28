@@ -9,6 +9,29 @@ let tray = null;
 
 const PORT = 3003;
 const isDev = process.env.NODE_ENV === 'development';
+const fs = require('fs');
+
+// Window state persistence
+const stateFile = path.join(app.getPath('userData'), 'window-state.json');
+
+function loadWindowState() {
+  try {
+    return JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+  } catch {
+    return { width: 1280, height: 860 };
+  }
+}
+
+function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+  const bounds = win.getBounds();
+  const state = { width: bounds.width, height: bounds.height, x: bounds.x, y: bounds.y };
+  try {
+    fs.writeFileSync(stateFile, JSON.stringify(state), 'utf-8');
+  } catch {
+    // non-critical
+  }
+}
 
 // Enforce single instance — if another instance is already running, focus it
 const gotTheLock = app.requestSingleInstanceLock();
@@ -150,9 +173,13 @@ function createWindow(startPage = '/meetings') {
     ? path.join(process.resourcesPath, 'app', 'public', 'icon.png')
     : path.join(__dirname, '..', 'public', 'icon.png');
 
+  const savedState = loadWindowState();
+
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 860,
+    width: savedState.width || 1280,
+    height: savedState.height || 860,
+    x: savedState.x,
+    y: savedState.y,
     minWidth: 900,
     minHeight: 600,
     title: 'Agent Council',
@@ -189,6 +216,10 @@ function createWindow(startPage = '/meetings') {
     }
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  mainWindow.on('close', () => {
+    saveWindowState(mainWindow);
   });
 
   mainWindow.on('closed', () => {
