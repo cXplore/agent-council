@@ -57,6 +57,11 @@ export default function MeetingViewer() {
     }
   });
 
+  // Personal notes per meeting (localStorage)
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const noteTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   // In-meeting text search
   const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
   const [meetingSearch, setMeetingSearch] = useState('');
@@ -366,6 +371,54 @@ export default function MeetingViewer() {
     const interval = setInterval(fetchEvents, 3000);
     return () => clearInterval(interval);
   }, [selected, detail?.status]);
+
+  // Load notes from localStorage when selected meeting changes
+  useEffect(() => {
+    if (!selected) {
+      setNoteText('');
+      setNotesOpen(false);
+      return;
+    }
+    try {
+      const stored = localStorage.getItem(`council-notes-${selected}`);
+      setNoteText(stored ?? '');
+    } catch {
+      setNoteText('');
+    }
+  }, [selected]);
+
+  // Save notes to localStorage (debounced)
+  const saveNotes = useCallback((text: string, filename: string) => {
+    if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = setTimeout(() => {
+      try {
+        if (text.trim()) {
+          localStorage.setItem(`council-notes-${filename}`, text);
+        } else {
+          localStorage.removeItem(`council-notes-${filename}`);
+        }
+      } catch { /* ignore storage errors */ }
+    }, 1000);
+  }, []);
+
+  const handleNoteChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value;
+    setNoteText(text);
+    if (selected) saveNotes(text, selected);
+  }, [selected, saveNotes]);
+
+  const handleNoteBlur = useCallback(() => {
+    if (!selected) return;
+    // Save immediately on blur
+    if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
+    try {
+      if (noteText.trim()) {
+        localStorage.setItem(`council-notes-${selected}`, noteText);
+      } else {
+        localStorage.removeItem(`council-notes-${selected}`);
+      }
+    } catch { /* ignore storage errors */ }
+  }, [selected, noteText]);
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -1246,7 +1299,7 @@ export default function MeetingViewer() {
 
               {linkPreview && (
                 <div
-                  className="absolute right-0 top-full mt-2 z-50 rounded-lg p-3 text-xs w-64 animate-in fade-in slide-in-from-top-1 duration-200"
+                  className="absolute right-0 top-full mt-2 z-50 rounded-lg p-3 text-xs w-64"
                   style={{
                     background: 'var(--bg-elevated)',
                     border: '1px solid var(--border)',

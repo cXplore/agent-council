@@ -427,6 +427,17 @@ function DashboardInner() {
             {keyTerms && keyTerms.terms.length > 0 && (
               <KeyTermsBar data={keyTerms} />
             )}
+
+            {/* Quick links */}
+            <div className="flex gap-3 mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+              <a href="/meetings" className="hover:underline" style={{ color: 'var(--accent)' }}>View all meetings</a>
+              <span>&middot;</span>
+              <a href="/agents" className="hover:underline" style={{ color: 'var(--accent)' }}>Browse agents</a>
+              <span>&middot;</span>
+              <a href="/settings" className="hover:underline" style={{ color: 'var(--accent)' }}>Settings</a>
+              <span>&middot;</span>
+              <a href="/api/meetings/feed" className="hover:underline" style={{ color: 'var(--text-muted)' }}>RSS</a>
+            </div>
           </div>
         )}
       </div>
