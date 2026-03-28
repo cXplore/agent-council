@@ -3,6 +3,7 @@
     "decisions": [
       {
         "type": "DECISION",
+        "id": null,
         "text": "Server-side tag extraction in `lib/tag-index.ts` — scans meeting files and returns structured index",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -12,6 +13,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Mtime-based cache file (`.council-tag-cache.json`) in the meetings directory — rebuild when any .md file is newer",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -21,6 +23,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Three API endpoints: `GET /api/meetings/tags` (query), `GET /api/meetings/tags/summary` (counts), `GET /api/meetings/unresolved` (carry-forward)",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -30,6 +33,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "New MCP tool `council_query` for Claude Code to pull cross-meeting context",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -39,6 +43,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "No file-watchers, no in-process cache — file-based cache works across all runtimes (Next.js, Electron, CLI)",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -48,6 +53,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Right-side 320px panel (not left, not inline filter)",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -57,6 +63,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "New `MeetingOutcomes.tsx` component, separate from MeetingViewer",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -66,6 +73,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Regex extraction from raw markdown (`/(DECISION|OPEN|ACTION):\\s*(.+)/gi`)",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -75,6 +83,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Toggle via \"Outcomes (N)\" pill in the stats bar",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -84,6 +93,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Grouped by type — Decisions first, Open Questions second, Actions third",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -93,6 +103,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Click-to-scroll via `scrollIntoView` with ID anchors on rendered blocks",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -102,6 +113,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Collapsed by default, content pushes left when open (desktop), overlay on tablet",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -111,6 +123,67 @@
       },
       {
         "type": "DECISION",
+        "id": null,
+        "text": "Fix regex inconsistency first — `tag-index.ts` must match the bracket format (`[DECISION]`) that `md-components.tsx` already handles. This is a production correctness bug affecting every tag-dependent feature.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 467,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Real-data audit before synthetic test fixtures — run extraction against all existing meeting files and manually audit output. Synthetic tests come after, to cover the gaps the audit reveals.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 468,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Resolution tracking will use inline IDs — format `[OPEN:id]` / `[RESOLVED:id]` in meeting files. Preserves hub model, survives LLM paraphrasing, backward compatible (items without IDs remain visible but aren't auto-resolvable).",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 469,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Scroll failure feedback will be inline on the outcomes panel item (not a toast) — muted label that fades after 3 seconds.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 470,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Drop participants field and synthetic test fixture from this sprint — participants field deferred to resolution tracking sprint; synthetic tests deferred until after real-data audit.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 471,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "Legacy meeting indicator in status bar should be designed as a doorway, not a dead end — reserve space for a future \"Generate outcomes\" action even if it ships as copy-only now.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 472,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
         "text": "Use inline tagging (`DECISION:`, `OPEN:`, `ACTION:`) instead of post-hoc parsing. The facilitator tags during generation, keeping the meeting file as single source of truth.",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
@@ -120,6 +193,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "No action item tracking system. Surface action items but don't own their lifecycle.",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
@@ -129,6 +203,7 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "No database, no sidecar files. All structured data derived on-demand from meeting files.",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
@@ -138,17 +213,139 @@
       },
       {
         "type": "DECISION",
+        "id": null,
         "text": "Decisions are the highest-value output. Prioritize over action items or open questions.",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
         "meetingStatus": "complete",
         "lineNumber": 199,
         "date": "2026-03-27"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Primary user action:** Agent Council enables \"maintaining continuity across meetings.\" The concrete implementation hierarchy is: (1) live meetings, (2) recent completions, (3) planned/next, (4) historical cross-meeting data. This ordering governs page layout and feature priority.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 485,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Remove aggregated suggestions from the list view.** Suggestions should not be collected into a growing list on the meetings page. Instead, they remain attached to their source meeting and are surfaced in a completion card in the detail view. This eliminates the accumulation problem entirely -- there is nothing to cap, expire, or deduplicate.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 487,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Add a completion card to the detail view.** When a meeting completes, a distinct card appears at the bottom of the content showing: key decisions (max 3), open questions needing follow-up (max 2), suggested next meetings (max 2) with single-click \"+ Plan\" buttons, and a link to the full Outcomes panel. The card should be visually distinct from the meeting content -- bordered, elevated, action-oriented.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 489,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Move the cross-meeting status bar below the meeting list.** It is reference material, not primary navigation. Its data quality (especially open questions, which lack RESOLVED tracking) does not yet justify a top-of-page position.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 491,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Window the status bar to recent meetings.** Open questions and actions should display only from the last 5 meetings, not all meetings. Decisions remain cumulative. This prevents the \"numbers only go up\" problem while RESOLVED tagging matures.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 493,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Do not implement time-based expiration for suggested meetings.** Relevance is not correlated with recency.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 495,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**New page hierarchy for the list view:** (1) Title + \"Plan meeting\" button, (2) Live meeting card (promoted, distinct styling), (3) Planned meetings / \"Up Next\" section, (4) Search + filter (inline), (5) Meeting cards, (6) Cross-meeting status bar (bottom).",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 497,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Build dismiss, skip everything else.** The suggestion system does not yet warrant lifecycle tooling beyond a simple dismiss mechanism. The investment is proportional to the feature's uncertain value: ~3.5 hours total for dismiss + structured data + template fix. No auto-resolve, no consolidation, no backlog review agents, no persistent suggestion index.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 570,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Keep suggestions and planned meetings as separate systems.** The semantic boundary between \"system-recommended\" (suggestions) and \"user-committed\" (planned meetings) is meaningful. The promotion path (`+ Queue`) is the intentional bridge. Do not merge the data models.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 572,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Enrich `recommendedMeetings` from `string[]` to `{ text: string, type?: string, topic?: string }[]`.** Parse the existing \"Type: topic\" convention in suggestion text into structured fields. This is a ~45-minute change that enables better display and cleaner dismiss hashing, without requiring a new data model.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 574,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Store dismiss state in `.council-suggestion-state.json`.** A dedicated file with entries containing hash, sourceMeeting, text, status, and dismissedAt. Separate from planned meetings. Append-only invariant: the file reflects suggestions as they existed when first parsed.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 576,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "DECISION",
+        "id": null,
+        "text": "**Fix the source, not just the sink.** Update the facilitator template to make recommended follow-ups exceptional rather than default. Specific guidance: \"Do not recommend follow-ups as a default. Most meetings resolve their own threads. If no follow-up is needed, omit this section entirely.\"",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 578,
+        "date": "2026-03-28"
       }
     ],
     "open": [
       {
         "type": "OPEN",
+        "id": null,
         "text": "Should the cache also index meeting metadata (title, date, participants) for richer queries?",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -158,6 +355,7 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "How does the facilitator know which OPEN items have been resolved in subsequent meetings vs just not mentioned?",
         "meeting": "2026-03-27-architecture-review-cross-meeting.md",
         "meetingTitle": "Architecture Review — Cross-Meeting Query System",
@@ -167,6 +365,7 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "How reliable is start-of-line regex matching against real LLM-generated meeting content?",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -176,6 +375,7 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "Should the panel show a confidence indicator for extraction quality?",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -185,6 +385,7 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "What's the failure UX when a scroll anchor can't find its target?",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -194,6 +395,47 @@
       },
       {
         "type": "OPEN",
+        "id": null,
+        "text": "How do we make ID generation reliable for facilitator agents? Options: (a) IDs auto-assigned by the viewer, (b) strict template requirement, (c) IDs optional — only items with IDs are auto-resolvable. Designer preference: option (c).",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 476,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "If the sprint is time-boxed to one session (~6 hours real time), which items are explicitly dropped? The 9-item list at full scope is 8-10 hours, not 5-6. Team should decide now rather than discover it at hour 5.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 477,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "What is the current state of the Electron build? Is `.council-tag-cache.json` path resolution correct in the packaged app?",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 478,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "What is the primary user action we want Agent Council to make easier? \"Understand past decisions\" vs \"run better meetings\" — these imply different priority orderings.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 479,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
         "text": "How reliable will LLM-generated tags be? Will facilitators consistently apply them?",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
@@ -203,6 +445,7 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "What's the UX for meetings that predate the tagging system?",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
@@ -212,17 +455,99 @@
       },
       {
         "type": "OPEN",
+        "id": null,
         "text": "Should carry-forward prompts be automatic or opt-in per meeting?",
         "meeting": "2026-03-27-strategy-actionable-outcomes.md",
         "meetingTitle": "Strategy Session — Making Meeting Outcomes Actionable",
         "meetingStatus": "complete",
         "lineNumber": 212,
         "date": "2026-03-27"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "Should suggestions and planned meetings share a data model, or remain separate systems? Currently planned meetings are server-side (JSON file) and suggestions are client-side (computed from meeting data). The completion card approach reduces urgency here since suggestions no longer need persistent state on the list view.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 501,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "Should the long-term vision for the status bar be a natural-language briefing rather than counts? e.g., \"3 open questions from the last 2 days. 1 action pending from yesterday's sprint planning.\" This would require templated string generation from the tag index. Not for v1, but worth keeping on record.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 503,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "The 4 concurrent polling intervals (2s, 5s, 10s, 30s) should be audited and potentially consolidated into a shared polling hook during the component split.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 505,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "The empty state does not distinguish between \"never used the app\" and \"used the app, nothing is live right now.\" Not urgent, but a gap in the returning-user experience.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 507,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "If the user insists on an aggregated suggestion view after seeing the dismiss-in-detail-view approach, should it be a tab/panel on the meetings page or a separate route? Do not build unless requested.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 582,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "Should the facilitator eventually manage suggestion lifecycle during carry-forward (reading pending suggestions, judging whether they have been implicitly resolved, and updating statuses)? This is architecturally sound but premature. The `.council-suggestion-state.json` file supports this future without changes.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 584,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "When should we evaluate whether suggestions are earning their keep? A concrete checkpoint (e.g., after 20 meetings or 1 month of use) should be set to revisit this strategy.",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 586,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "OPEN",
+        "id": null,
+        "text": "Should we treat OPEN item resolution (via RESOLVED tags) as the pilot for lifecycle patterns, deferring suggestion lifecycle learnings until we see whether loop-closing works in practice for the simpler case?",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 588,
+        "date": "2026-03-28"
       }
     ],
     "actions": [
       {
         "type": "ACTION",
+        "id": null,
         "text": "Build MeetingOutcomes.tsx with regex extraction and scroll anchors",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -232,6 +557,7 @@
       },
       {
         "type": "ACTION",
+        "id": null,
         "text": "Add \"Outcomes (N)\" toggle to the stats bar",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -241,6 +567,7 @@
       },
       {
         "type": "ACTION",
+        "id": null,
         "text": "Add ID anchors to rendered markdown blocks in md-components.tsx",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
@@ -250,20 +577,215 @@
       },
       {
         "type": "ACTION",
+        "id": null,
         "text": "Test extraction against both existing meeting files",
         "meeting": "2026-03-27-design-review-outcomes-panel.md",
         "meetingTitle": "Design Review — Meeting Outcomes Sidebar Panel",
         "meetingStatus": "complete",
         "lineNumber": 171,
         "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Fix regex in `tag-index.ts` to handle `[DECISION]` bracket format — aligns with `md-components.tsx`. (~30 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 488,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Run tag extraction against all existing meeting files and manually audit output — real-data accuracy check before any further tag-dependent development. (~20 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 489,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Fix silent scroll failure in `MeetingOutcomes.tsx` — inline \"not found\" label on the item, fades after 3 seconds. (~20 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 490,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Add legacy meeting indicator to the cross-meeting status bar — muted \"(N meetings predate tagging)\" text when untagged meetings with summaries are detected. (~30 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 491,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Verify `.council-tag-cache.json` path resolution in packaged Electron app — block no tag-dependent desktop features until confirmed. (~30 min investigation)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 492,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Update facilitator template with explicit ID format for OPEN/ACTION tags — exact format, when to assign, consequence of omission. (~30 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 493,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Update `TagEntry` type and tag regexes to capture optional inline IDs. (~1 hour)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 494,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Add `search` mode to `council_query` MCP tool — wire through to existing tags API `search` mode. (~30 min)",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 495,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Design the mark-resolved interaction UX before any resolution tracking code is written.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 496,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "Schedule resolution tracking end-to-end as the explicit goal of the following sprint.",
+        "meeting": "2026-03-27-sprint-planning-next-priorities.md",
+        "meetingTitle": "Sprint Planning: Next Priorities",
+        "meetingStatus": "complete",
+        "lineNumber": 497,
+        "date": "2026-03-27"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Split MeetingViewer.tsx** into MeetingList.tsx, MeetingDetail.tsx, useMeetingPolling.ts (shared hook), and a thin MeetingViewer.tsx router. Do this first -- it is a prerequisite for the other changes. Estimated: 2 hours.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 519,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Remove the aggregated suggestions collapsible** from the list view (current lines 841-906 in MeetingViewer.tsx). This is a deletion, not a refactor.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 521,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Build the completion card component** for the detail view. Shows when `detail.status === 'complete'`. Contains: up to 3 decisions, up to 2 open questions, up to 2 suggested next meetings with \"+ Plan\" buttons, link to Outcomes panel, and \"Back to meetings\" navigation. Visually distinct from meeting content.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 523,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Reorder the list view** to match the new hierarchy: live meetings promoted to top, planned meetings below that, search + filters inline, meeting cards, status bar at bottom.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 525,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Window the status bar** to show open questions and actions from the last 5 meetings only. Decisions remain cumulative. Update the tag summary API or client-side filtering accordingly.",
+        "meeting": "2026-03-28-design-review-meetings-page-discovery-ux.md",
+        "meetingTitle": "Design Review: Meetings Page & Discovery UX",
+        "meetingStatus": "complete",
+        "lineNumber": 527,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Update the facilitator template** to make Recommended Follow-ups exceptional, not default. Include guidance: \"Do not recommend follow-ups as a default. Most meetings resolve their own threads. If no follow-up is needed, omit this section entirely.\" -- facilitator template (~15 min)",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 598,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Enrich suggestion parsing** in `app/api/meetings/route.ts` to extract type and topic from existing free-text suggestions. Update `recommendedMeetings` type in `lib/types.ts` from `string[]` to structured objects. -- developer (~45 min)",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 600,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Build suggestion dismiss** -- create `.council-suggestion-state.json`, new API endpoint at `/api/council/meeting-suggestions`, dismiss button in the completion card UI. Hash is computed from sourceMeeting + original text. -- developer (~2 hours)",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 602,
+        "date": "2026-03-28"
+      },
+      {
+        "type": "ACTION",
+        "id": null,
+        "text": "**Update MeetingViewer.tsx** to consume the enriched `recommendedMeetings` format and filter out dismissed suggestions before rendering. -- developer (~30 min)",
+        "meeting": "2026-03-28-strategy-suggested-meetings-lifecycle.md",
+        "meetingTitle": "Strategy Session: Suggested Meetings Lifecycle & Backlog Management",
+        "meetingStatus": "complete",
+        "lineNumber": 604,
+        "date": "2026-03-28"
       }
     ],
-    "meetingCount": 3,
-    "builtAt": "2026-03-27T21:56:22.384Z"
+    "resolved": [],
+    "meetingCount": 6,
+    "builtAt": "2026-03-27T23:33:54.329Z"
   },
   "mtimes": {
     "2026-03-27-architecture-review-cross-meeting.md": 1774645802590.044,
     "2026-03-27-design-review-outcomes-panel.md": 1774645032295.4614,
-    "2026-03-27-strategy-actionable-outcomes.md": 1774643349342.1208
+    "2026-03-27-sprint-planning-next-priorities.md": 1774649072321.4048,
+    "2026-03-27-strategy-actionable-outcomes.md": 1774643349342.1208,
+    "2026-03-28-design-review-meetings-page-discovery-ux.md": 1774653060751.6697,
+    "2026-03-28-strategy-suggested-meetings-lifecycle.md": 1774654425907.9814
   }
 }
