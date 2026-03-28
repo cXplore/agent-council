@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
               : [],
           team: frontmatter['team'] ?? '',
           role: frontmatter['role'] ?? 'member',
-          required: frontmatter['required'] === 'true' || frontmatter['required'] === true,
+          required: frontmatter['required'] === 'true',
           content: body.trim(),
         };
       }),

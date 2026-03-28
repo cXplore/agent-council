@@ -55,11 +55,11 @@ export function fillTemplate(template: string, values: Record<string, string>): 
 }
 
 // Parse frontmatter from agent markdown
-export function parseFrontmatter(content: string): { frontmatter: Record<string, any>; body: string } {
+export function parseFrontmatter(content: string): { frontmatter: Record<string, string | string[]>; body: string } {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { frontmatter: {}, body: content };
 
-  const frontmatter: Record<string, any> = {};
+  const frontmatter: Record<string, string | string[]> = {};
   const lines = match[1].split(/\r?\n/);
 
   for (let i = 0; i < lines.length; i++) {
@@ -94,7 +94,7 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
 }
 
 // Serialize frontmatter back to YAML string
-export function serializeFrontmatter(frontmatter: Record<string, any>): string {
+export function serializeFrontmatter(frontmatter: Record<string, string | string[] | boolean>): string {
   const lines: string[] = [];
   for (const [key, value] of Object.entries(frontmatter)) {
     if (Array.isArray(value)) {

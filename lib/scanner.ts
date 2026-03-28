@@ -128,7 +128,7 @@ function hasDirExact(dirs: Set<string>, name: string): boolean {
 // Safe JSON read
 // ---------------------------------------------------------------------------
 
-async function readJson(filePath: string): Promise<any | null> {
+async function readJson(filePath: string): Promise<Record<string, unknown> | null> {
   try {
     const raw = await readFile(filePath, 'utf-8');
     return JSON.parse(raw);
@@ -235,7 +235,7 @@ async function detectFrameworks(
   // Laravel / PHP
   if (hasFile(files, 'composer.json')) {
     const composer = await readJson(path.join(dirPath, 'composer.json'));
-    const req = { ...(composer?.require ?? {}), ...(composer?.['require-dev'] ?? {}) };
+    const req: Record<string, unknown> = { ...(composer?.require as Record<string, unknown> ?? {}), ...(composer?.['require-dev'] as Record<string, unknown> ?? {}) };
     if (req['laravel/framework']) {
       frameworks.push({ name: 'Laravel', confidence: 'high' });
     } else {
@@ -250,8 +250,6 @@ async function detectFrameworks(
 
   // Python frameworks (from requirements.txt or pyproject.toml)
   if (hasFile(files, 'requirements.txt') || hasFile(files, 'pyproject.toml')) {
-    const reqFile = await readJson(path.join(dirPath, 'pyproject.toml')).catch(() => null);
-    const hasFastAPI = hasFile(files, /requirements.*\.txt$/) || reqFile;
     // Quick check for common Python frameworks via directory patterns
     if (hasDir(dirs, 'app') && files.some(f => f.includes('main.py'))) {
       if (!frameworks.some(f => f.name === 'Django')) {
@@ -435,7 +433,7 @@ function suggestPreset(structure: ProjectProfile['structure'], languages: Projec
 
 function suggestAgents(
   structure: ProjectProfile['structure'],
-  _frameworks: ProjectProfile['frameworks'],
+  frameworks: ProjectProfile['frameworks'],
 ): string[] {
   // Always include the mandatory triad + developer
   const agents: string[] = ['project-manager', 'critic', 'north-star', 'developer'];
@@ -446,6 +444,10 @@ function suggestAgents(
   if (structure.hasCICD || structure.hasDocker) agents.push('devops');
   if (structure.hasApi && structure.hasDatabase) agents.push('security-reviewer');
   if (structure.hasApi && structure.hasFrontend && structure.hasTests) agents.push('tech-writer');
+
+  // Add domain expert for specialized frameworks
+  const hasInfra = frameworks.some(f => f.name === 'Terraform' || f.name === '.NET');
+  if (hasInfra && !agents.includes('domain-expert')) agents.push('domain-expert');
 
   return agents;
 }

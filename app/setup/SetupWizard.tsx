@@ -45,7 +45,7 @@ function SetupWizardInner() {
   const autoScanTriggered = useRef(false);
   const [step, setStep] = useState<Step>('path');
   const [projectPath, setProjectPath] = useState('');
-  const [scanning, setScanning] = useState(false);
+  const [, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
   const [profile, setProfile] = useState<ProjectProfile | null>(null);
   const [agents, setAgents] = useState<AgentSelection[]>([]);
@@ -268,6 +268,7 @@ function SetupWizardInner() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSkipToDefaults = () => {
     const selections: AgentSelection[] = [];
     for (const [template, info] of Object.entries(ALL_AGENTS)) {
