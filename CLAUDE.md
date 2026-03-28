@@ -82,6 +82,17 @@ docs/                   # GitHub Pages static site
 | MCP server | `mcp/server.mjs` |
 | Electron main | `electron/main.js` |
 | CLI | `bin/cli.js` |
+| Meeting list card | `app/meetings/MeetingListCard.tsx` |
+| Meeting outcomes panel | `app/meetings/MeetingOutcomes.tsx` |
+| Meeting completion card | `app/meetings/MeetingCompletionCard.tsx` |
+| Dashboard | `app/dashboard/page.tsx` |
+| Analytics API | `app/api/meetings/analytics/route.ts` |
+| Export API | `app/api/meetings/export/route.ts` |
+| Validation API | `app/api/meetings/validate/route.ts` |
+| Templates API | `app/api/setup/templates/route.ts` |
+| Tag index | `lib/tag-index.ts` |
+| Meeting utils | `lib/meeting-utils.ts` |
+| Error boundary | `app/components/ErrorBoundary.tsx` |
 | Agent templates | `templates/agents/*.md` |
 | Team presets | `templates/presets/*.json` |
 | GitHub Pages | `docs/index.html` |
