@@ -61,6 +61,22 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Validate project name: alphanumeric, hyphens, underscores, dots only
+      if (!/^[\w.-]{1,100}$/.test(name)) {
+        return NextResponse.json(
+          { error: 'Project name must be alphanumeric (hyphens, underscores, dots allowed), max 100 chars' },
+          { status: 400 }
+        );
+      }
+
+      // Validate path is absolute
+      if (!path.isAbsolute(projectPath)) {
+        return NextResponse.json(
+          { error: 'projectPath must be an absolute path' },
+          { status: 400 }
+        );
+      }
+
       // Verify project directory exists
       try {
         await stat(projectPath);

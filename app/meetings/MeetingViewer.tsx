@@ -1054,6 +1054,14 @@ export default function MeetingViewer() {
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       {m.date}
                     </span>
+                    {m.participants.length > 0 && (
+                      <>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {m.participants.length} agent{m.participants.length !== 1 ? 's' : ''}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {m.participants.length > 0 && (
