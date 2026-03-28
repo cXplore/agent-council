@@ -49,6 +49,8 @@ export default function MeetingViewer() {
   // Round-by-round view: null = show all, number = show only that round
   const [viewRound, setViewRound] = useState<number | null>(null);
   const [showContribDetails, setShowContribDetails] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [meetingTerms, setMeetingTerms] = useState<{ word: string; count: number }[] | null>(null);
 
   // Pinned meetings (persisted in localStorage)
   const [pinnedMeetings, setPinnedMeetings] = useState<Set<string>>(() => {
@@ -1582,7 +1584,7 @@ export default function MeetingViewer() {
           <>
           <div
             className="px-6 py-2 flex items-center gap-4 text-xs flex-wrap"
-            style={{ borderBottom: showContribDetails ? 'none' : '1px solid var(--border)', color: 'var(--text-muted)' }}
+            style={{ borderBottom: (showContribDetails || showTerms) ? 'none' : '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             <span>{totalWords.toLocaleString()} words (~{Math.ceil(totalWords / 250)} min read)</span>
             <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
@@ -1625,6 +1627,30 @@ export default function MeetingViewer() {
                 </button>
               );
             })()}
+            {/* Terms toggle */}
+            <button
+              onClick={async () => {
+                const next = !showTerms;
+                setShowTerms(next);
+                if (next && !meetingTerms && selected) {
+                  try {
+                    const res = await fetch(`/api/meetings/terms?file=${encodeURIComponent(selected)}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      setMeetingTerms(data.terms ?? []);
+                    }
+                  } catch { /* ignore */ }
+                }
+              }}
+              className="text-xs px-2.5 py-1 rounded-full transition-colors"
+              style={{
+                background: showTerms ? 'rgba(96, 165, 250, 0.15)' : 'var(--bg)',
+                color: showTerms ? '#60a5fa' : 'var(--text-muted)',
+                border: `1px solid ${showTerms ? 'rgba(96, 165, 250, 0.3)' : 'var(--border)'}`,
+              }}
+            >
+              Terms
+            </button>
           </div>
           {/* Expandable contribution details */}
           {showContribDetails && (
