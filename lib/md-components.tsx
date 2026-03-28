@@ -107,6 +107,14 @@ const baseComponents: Components = {
       {children}
     </blockquote>
   ),
+  pre: ({ children }) => (
+    <pre
+      className="text-xs p-4 rounded-lg my-3 overflow-x-auto"
+      style={{ background: 'var(--bg)', border: '1px solid var(--border)', lineHeight: 1.6 }}
+    >
+      {children}
+    </pre>
+  ),
   code: ({ children }) => (
     <code
       className="text-xs px-1.5 py-0.5 rounded"
@@ -114,6 +122,29 @@ const baseComponents: Components = {
     >
       {children}
     </code>
+  ),
+  table: ({ children }) => (
+    <div className="overflow-x-auto my-3">
+      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+        {children}
+      </table>
+    </div>
+  ),
+  th: ({ children }) => (
+    <th
+      className="text-left px-3 py-2 text-xs font-medium"
+      style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-primary)' }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }) => (
+    <td
+      className="px-3 py-2 text-xs"
+      style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+    >
+      {children}
+    </td>
   ),
   input: ({ checked, ...props }) => (
     <input
