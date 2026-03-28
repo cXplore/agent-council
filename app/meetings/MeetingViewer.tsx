@@ -46,6 +46,9 @@ export default function MeetingViewer() {
   const [fetchError, setFetchError] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
+  // Round-by-round view: null = show all, number = show only that round
+  const [viewRound, setViewRound] = useState<number | null>(null);
+
   // Pinned meetings (persisted in localStorage)
   const [pinnedMeetings, setPinnedMeetings] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set<string>();
@@ -314,6 +317,7 @@ export default function MeetingViewer() {
     setSeenContent('');
     setUserScrolledUp(false);
     setQueuedRecs(new Set());
+    setViewRound(null);
     fetchDetail(selected);
 
     pollRef.current = setInterval(() => {
@@ -1253,6 +1257,32 @@ export default function MeetingViewer() {
 
   // ─── Detail View ───
   const isLive = detail?.status === 'in-progress';
+
+  // Parse content into context (before first ## Round) and per-round sections
+  const getContentForRound = useCallback((content: string, round: number | null): string => {
+    if (round === null) return content;
+
+    // Split on ## Round N headers, keeping the headers
+    const parts = content.split(/^(## Round \d+.*)/m);
+    // parts[0] = everything before first ## Round (context)
+    // parts[1] = "## Round 1" header, parts[2] = content after that header
+    // parts[3] = "## Round 2" header, parts[4] = content after that header, etc.
+
+    const contextPart = parts[0] || '';
+    let roundContent = '';
+
+    for (let i = 1; i < parts.length; i += 2) {
+      const header = parts[i];
+      const body = parts[i + 1] || '';
+      const match = header.match(/## Round (\d+)/);
+      if (match && parseInt(match[1], 10) === round) {
+        roundContent = header + body;
+        break;
+      }
+    }
+
+    return contextPart + roundContent;
+  }, []);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
