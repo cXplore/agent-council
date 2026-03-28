@@ -12,6 +12,7 @@ interface Command {
 const COMMANDS: Command[] = [
   { label: 'Meetings', href: '/meetings', shortcut: 'M' },
   { label: 'Dashboard', href: '/dashboard', shortcut: 'D' },
+  { label: 'Roadmap', href: '/roadmap', shortcut: 'R' },
   { label: 'Agents', href: '/agents', shortcut: 'A' },
   { label: 'Setup', href: '/setup', shortcut: 'S' },
   { label: 'Settings', href: '/settings' },
@@ -94,6 +95,8 @@ export default function CommandPalette() {
         background: 'rgba(0, 0, 0, 0.6)',
       }}
       onClick={() => setOpen(false)}
+      role="dialog"
+      aria-modal="true"
     >
       <div
         style={{
@@ -117,6 +120,7 @@ export default function CommandPalette() {
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Go to..."
+            aria-label="Command palette"
             style={{
               width: '100%',
               background: 'transparent',

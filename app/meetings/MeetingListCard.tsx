@@ -290,8 +290,9 @@ export default function MeetingListCard({
               className={`text-xs px-1.5 py-0.5 rounded transition-opacity ${pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
               style={{ color: pinned ? 'var(--accent)' : 'var(--text-muted)' }}
               title={pinned ? 'Unpin meeting' : 'Pin to top'}
+              aria-label={pinned ? 'Unpin meeting' : 'Pin meeting'}
             >
-              {pinned ? '\u{1F4CC}' : '\u{1F4CC}'}
+              {'\u{1F4CC}'}
             </button>
           )}
           {m.status !== 'in-progress' && (
@@ -299,6 +300,7 @@ export default function MeetingListCard({
               onClick={(e) => { e.stopPropagation(); onDelete(m.filename); }}
               className="text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ color: 'var(--text-muted)' }}
+              aria-label="Delete meeting"
             >
               Delete
             </button>

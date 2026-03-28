@@ -31,6 +31,11 @@ interface KeyTermsData {
   meetingTitle: string;
 }
 
+const CARD_STYLE: React.CSSProperties = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+};
+
 function CountCard({
   label,
   value,
@@ -40,13 +45,8 @@ function CountCard({
   value: number;
   accent?: string;
 }) {
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-  };
-
   return (
-    <div className="rounded-lg px-4 py-3 flex-1 min-w-[120px]" style={cardStyle}>
+    <div className="rounded-lg px-4 py-3 flex-1 min-w-[120px]" style={CARD_STYLE}>
       <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
         {label}
       </div>
@@ -66,13 +66,8 @@ function TypeDistribution({ meetingsByType }: { meetingsByType: Record<string, n
 
   const max = entries[0][1];
 
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-  };
-
   return (
-    <div className="rounded-lg px-5 py-4" style={cardStyle}>
+    <div className="rounded-lg px-5 py-4" style={CARD_STYLE}>
       <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
         Meeting types
       </div>
@@ -112,13 +107,8 @@ function ActiveAgents({ agents }: { agents: { name: string; meetingCount: number
   const display = agents.slice(0, 10);
   if (display.length === 0) return null;
 
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-  };
-
   return (
-    <div className="rounded-lg px-5 py-4" style={cardStyle}>
+    <div className="rounded-lg px-5 py-4" style={CARD_STYLE}>
       <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
         Most active agents
       </div>
@@ -237,13 +227,8 @@ function MeetingTimeline({ meetings }: { meetings: { filename: string; title: st
   const midDate = new Date(thirtyDaysAgo.getTime() + (now.getTime() - thirtyDaysAgo.getTime()) / 2);
   const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-  };
-
   return (
-    <div className="rounded-lg px-5 py-4" style={cardStyle}>
+    <div className="rounded-lg px-5 py-4" style={CARD_STYLE}>
       <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
         Meeting timeline (30 days)
       </div>
@@ -280,13 +265,8 @@ function KeyTermsBar({ data }: { data: KeyTermsData }) {
 
   const max = display[0].count;
 
-  const cardStyle: React.CSSProperties = {
-    background: 'var(--bg-card)',
-    border: '1px solid var(--border)',
-  };
-
   return (
-    <div className="rounded-lg px-5 py-4" style={cardStyle}>
+    <div className="rounded-lg px-5 py-4" style={CARD_STYLE}>
       <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
         Key terms (latest meeting)
       </div>
@@ -512,7 +492,7 @@ function DashboardInner() {
               <div className="rounded-lg px-5 py-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                 <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Recent meetings</div>
                 <div className="space-y-1.5">
-                  {recentMeetings.slice(0, 5).map(m => (
+                  {recentMeetings.map(m => (
                     <a
                       key={m.filename}
                       href={`/meetings?file=${encodeURIComponent(m.filename)}`}
@@ -550,7 +530,7 @@ function DashboardInner() {
 
 export default function DashboardPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>}>
       <DashboardInner />
     </Suspense>
   );

@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
     try {
       const entries = await readdir(agentsDir);
       files = entries.filter(f => f.endsWith('.md'));
-    } catch (err: any) {
-      if (err.code === 'ENOENT') {
+    } catch (err: unknown) {
+      if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
         return NextResponse.json({ agents: [], project: projectName, error: 'Agents directory not found' });
       }
       throw err;
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ agents, project: projectName });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Agents list error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
@@ -113,7 +113,7 @@ export async function PATCH(req: NextRequest) {
     await writeFile(filePath, newContent, 'utf-8');
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Agent update error:', err);
     return NextResponse.json({ error: 'Failed to update agent' }, { status: 500 });
   }

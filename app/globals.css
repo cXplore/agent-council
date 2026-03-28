@@ -24,6 +24,20 @@
   --warning: #f59e0b;
   --success: var(--live-green);
   --text-on-accent: #ffffff;
+
+  /* Semantic tag colors */
+  --color-decision: #60a5fa;
+  --color-decision-bg: rgba(96, 165, 250, 0.15);
+  --color-open: #fbbf24;
+  --color-open-bg: rgba(251, 191, 36, 0.15);
+  --color-action: #4ade80;
+  --color-action-bg: rgba(74, 222, 128, 0.15);
+  --color-resolved: #6b7280;
+  --color-resolved-bg: rgba(107, 114, 128, 0.12);
+  --color-idea: #a855f7;
+  --color-idea-bg: rgba(168, 85, 247, 0.15);
+  --color-suggestion: #a78bfa;
+  --color-suggestion-bg: rgba(167, 139, 250, 0.12);
 }
 
 /* Focus styles for accessibility */

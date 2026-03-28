@@ -211,6 +211,9 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
 
   const connectionLostRef = useRef(false);
 
+  // Track document visibility to pause polling when tab is backgrounded
+  const isVisibleRef = useRef(true);
+
   const contentRef = useRef<HTMLDivElement>(null);
   const lastModifiedRef = useRef<string>('');
   const lastContentLengthRef = useRef(0);
@@ -220,6 +223,16 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   const selectedRef = useRef<string | null>(searchParams.get('file'));
   const userExplicitlyBackRef = useRef(false);
   const userScrolledUpRef = useRef(false);
+
+  // Pause polling when tab is backgrounded, refresh on return
+  useEffect(() => {
+    const handler = () => {
+      isVisibleRef.current = document.visibilityState === 'visible';
+      // Tab became visible — next poll cycle will refresh automatically
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, []);
 
   // Update both state and URL when selecting a meeting
   const selectMeeting = useCallback((filename: string | null) => {
@@ -391,8 +404,8 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   useEffect(() => {
     fetchList();
     fetchTagSummary();
-    const interval = setInterval(fetchList, 5000);
-    const tagInterval = setInterval(fetchTagSummary, 30000);
+    const interval = setInterval(() => { if (isVisibleRef.current) fetchList(); }, 5000);
+    const tagInterval = setInterval(() => { if (isVisibleRef.current) fetchTagSummary(); }, 30000);
     return () => { clearInterval(interval); clearInterval(tagInterval); };
   }, [fetchList, fetchTagSummary]);
 
@@ -408,7 +421,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
       } catch { /* silent */ }
     };
     fetchPlanned();
-    const interval = setInterval(fetchPlanned, 10000);
+    const interval = setInterval(() => { if (isVisibleRef.current) fetchPlanned(); }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -431,7 +444,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
     // Don't poll static demo meeting
     if (selected !== '__demo__') {
       pollRef.current = setInterval(() => {
-        if (!pollPausedRef.current) fetchDetail(selected);
+        if (!pollPausedRef.current && isVisibleRef.current) fetchDetail(selected);
       }, POLL_INTERVAL);
     }
     return () => {
@@ -499,7 +512,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
 
     fetchEvents();
     fetchContext();
-    const interval = setInterval(() => { fetchEvents(); fetchContext(); }, 3000);
+    const interval = setInterval(() => { if (isVisibleRef.current) { fetchEvents(); fetchContext(); } }, 3000);
     return () => clearInterval(interval);
   }, [selected, detail?.status]);
 

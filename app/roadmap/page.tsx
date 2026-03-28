@@ -510,6 +510,7 @@ function RoadmapInner() {
                 <button
                   key={f}
                   onClick={() => setRoadmapFilter(f)}
+                  aria-pressed={roadmapFilter === f}
                   className="text-xs px-3 py-1 rounded-full transition-colors"
                   style={{
                     background: roadmapFilter === f ? 'var(--accent-muted)' : 'transparent',
@@ -588,6 +589,7 @@ function RoadmapInner() {
                 <button
                   onClick={() => setArchivedOpen(!archivedOpen)}
                   className="flex items-center gap-2 mb-4 group"
+                  aria-expanded={archivedOpen}
                 >
                   <span
                     className="text-xs transition-transform"
@@ -639,7 +641,7 @@ function RoadmapInner() {
 
 export default function RoadmapPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</div>}>
       <RoadmapInner />
     </Suspense>
   );

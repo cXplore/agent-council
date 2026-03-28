@@ -125,8 +125,8 @@ export async function POST(req: NextRequest) {
 
         await writeFile(filePath, content, 'utf-8');
         createdFiles.push(filePath);
-      } catch (err: any) {
-        errors.push({ agent: agent.name, error: err.message ?? 'Unknown error' });
+      } catch (err: unknown) {
+        errors.push({ agent: agent.name, error: err instanceof Error ? err.message : 'Unknown error' });
       }
     }
 
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
       agentsDir,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Generate error:', err);
     return NextResponse.json(
       { error: 'Internal server error' },

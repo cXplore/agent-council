@@ -2,11 +2,11 @@ import React from 'react';
 import type { Components } from 'react-markdown';
 
 const TAG_COLORS: Record<string, { bg: string; text: string }> = {
-  DECISION: { bg: 'rgba(96, 165, 250, 0.15)', text: '#60a5fa' },
-  OPEN: { bg: 'rgba(251, 191, 36, 0.15)', text: '#fbbf24' },
-  ACTION: { bg: 'rgba(74, 222, 128, 0.15)', text: '#4ade80' },
-  RESOLVED: { bg: 'rgba(107, 114, 128, 0.12)', text: '#6b7280' },
-  IDEA: { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7' },
+  DECISION: { bg: 'var(--color-decision-bg)', text: 'var(--color-decision)' },
+  OPEN: { bg: 'var(--color-open-bg)', text: 'var(--color-open)' },
+  ACTION: { bg: 'var(--color-action-bg)', text: 'var(--color-action)' },
+  RESOLVED: { bg: 'var(--color-resolved-bg)', text: 'var(--color-resolved)' },
+  IDEA: { bg: 'var(--color-idea-bg)', text: 'var(--color-idea)' },
 };
 
 function extractText(children: React.ReactNode): string {
