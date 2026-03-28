@@ -144,3 +144,17 @@ Meetings are a thinking tool for complex decisions. The default is no meeting.
 - Otherwise: no meeting. Code.
 
 **Rules:** Max 2 full meetings/week. JSON appendix required for Tier 2. Agents read actual source files for technical meetings. Open questions archived after 3 meetings without progress.
+
+## Project Phase
+
+Phase 1 (build the thing) is complete — 81 commits, 147 roadmap items done. Phase 2 (external validation) is next. No new features until at least one external user has installed Agent Council and run a meeting. The Phase 2 roadmap is populated by user feedback, not internal imagination.
+
+## Feature Tiers
+
+When working on Agent Council, use this classification to decide where to spend time:
+
+- **Tier 1 — Core (maintain actively):** Meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config system
+- **Tier 2 — Useful (keep, low maintenance):** Roadmap page, settings, keyboard shortcuts, meeting management, export, welcome page
+- **Tier 3 — Decorative (freeze — do not maintain, do not extend):** Dashboard analytics, RSS feed, key terms API, validation API, template generator API, command palette, print CSS, share preview metadata
+
+If a Tier 3 feature breaks, evaluate removal before fixing. Do not add new features to any tier until Phase 2 feedback arrives.
