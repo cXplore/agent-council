@@ -38,6 +38,18 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   '.dart': 'Dart',
   '.vue': 'Vue',
   '.svelte': 'Svelte',
+  '.lua': 'Lua',
+  '.zig': 'Zig',
+  '.ex': 'Elixir',
+  '.exs': 'Elixir',
+  '.erl': 'Erlang',
+  '.scala': 'Scala',
+  '.r': 'R',
+  '.R': 'R',
+  '.tf': 'HCL',
+  '.proto': 'Protobuf',
+  '.graphql': 'GraphQL',
+  '.gql': 'GraphQL',
 };
 
 // ---------------------------------------------------------------------------
@@ -236,6 +248,36 @@ async function detectFrameworks(
     frameworks.push({ name: 'Flutter/Dart', confidence: 'high' });
   }
 
+  // Python frameworks (from requirements.txt or pyproject.toml)
+  if (hasFile(files, 'requirements.txt') || hasFile(files, 'pyproject.toml')) {
+    const reqFile = await readJson(path.join(dirPath, 'pyproject.toml')).catch(() => null);
+    const hasFastAPI = hasFile(files, /requirements.*\.txt$/) || reqFile;
+    // Quick check for common Python frameworks via directory patterns
+    if (hasDir(dirs, 'app') && files.some(f => f.includes('main.py'))) {
+      if (!frameworks.some(f => f.name === 'Django')) {
+        // Could be FastAPI — check for common indicators
+        frameworks.push({ name: 'FastAPI', confidence: 'medium' });
+      }
+    }
+    if (hasFile(files, 'flask') || hasDir(dirs, 'templates')) {
+      if (!frameworks.some(f => f.name === 'Django')) {
+        frameworks.push({ name: 'Flask', confidence: 'medium' });
+      }
+    }
+  }
+
+  // .NET
+  if (hasFile(files, /\.csproj$/) || hasFile(files, /\.sln$/)) {
+    frameworks.push({ name: '.NET', confidence: 'high' });
+  }
+
+  // Terraform
+  if (hasFile(files, /\.tf$/) && hasDir(dirs, '.terraform')) {
+    frameworks.push({ name: 'Terraform', confidence: 'high' });
+  } else if (hasFile(files, /\.tf$/)) {
+    frameworks.push({ name: 'Terraform', confidence: 'medium' });
+  }
+
   // Package.json-based detection (React, Vue, Svelte, Express, etc.)
   if (pkg) {
     if (allDeps['react'] && !frameworks.some(f => f.name === 'Next.js')) {
@@ -268,6 +310,15 @@ async function detectFrameworks(
     }
     if (allDeps['remix'] || allDeps['@remix-run/react']) {
       frameworks.push({ name: 'Remix', confidence: 'high' });
+    }
+    if (allDeps['tailwindcss']) {
+      frameworks.push({ name: 'TailwindCSS', confidence: 'high', version: depVersion('tailwindcss') });
+    }
+    if (allDeps['electron']) {
+      frameworks.push({ name: 'Electron', confidence: 'high', version: depVersion('electron') });
+    }
+    if (allDeps['@modelcontextprotocol/sdk']) {
+      frameworks.push({ name: 'MCP', confidence: 'high', version: depVersion('@modelcontextprotocol/sdk') });
     }
   }
 
