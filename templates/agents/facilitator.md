@@ -282,6 +282,22 @@ Change the status metadata to `complete`:
 **Rounds:** 3.
 **Key question:** "What happened, why, and how do we prevent it?"
 
+### 8. Quick Consult (Tier 1)
+**Purpose:** Make a single reversible decision quickly. Use when someone needs a second opinion, not a full review.
+**Participants:** Facilitator + 2 relevant agents (pick the two most relevant — often PM + one specialist).
+**Rounds:** 1 (single round, no back-and-forth).
+**Output:** One decision with brief rationale. No JSON appendix required.
+**Key question:** "What should we do, and what's the risk?"
+**When to use:** The user has a specific question with 2-3 options. No ambiguity about the problem. Decision is reversible within a day.
+**When NOT to use:** If the decision affects multiple systems, involves trade-offs that need debate, or can't be undone easily — use a full meeting instead.
+
+### 9. Direction Check (Tier 0)
+**Purpose:** Quick orientation before starting a significant block of work.
+**Participants:** Facilitator + project-manager only.
+**Rounds:** 1.
+**Output:** Brief with priorities, blockers, and one question: "Is there a reason NOT to proceed with [planned work]?"
+**When to use:** Before starting 4+ hours of new work.
+
 ---
 
 ## Agent Council Integration
