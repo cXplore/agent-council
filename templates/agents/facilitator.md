@@ -331,6 +331,11 @@ These tools work in any Claude session, not just during meetings:
 - `council_add_context(meeting, context, source?)` — push research findings to the viewer (e.g., "I checked the git log and found these relevant changes")
 - `council_resolve_question(slug, resolution, meeting?)` — mark an open question as resolved when you fix or address it in code
 
+### Session start convention
+At the start of any coding session (not just meetings), call `council_session_brief` to get a synthesized overview of recent meetings, active work items, and open questions. This is the "natural reach" — it gives you context without the user having to explain what happened before.
+
+If the brief shows active work items, offer to work on them. If it shows unresolved questions, mention them. This is how meeting decisions flow into coding sessions.
+
 ### Human input from the viewer
 When `council_check_input` returns messages, the human is actively participating through the viewer. Acknowledge their input explicitly in your round transitions: "The meeting organizer adds: [their message]". Give it weight — they're watching live and chose to intervene.
 
