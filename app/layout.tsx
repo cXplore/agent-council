@@ -19,6 +19,12 @@ export const metadata: Metadata = {
   title: "Agent Council",
   description: "Run structured meetings between your Claude Code agents. Watch them deliberate in real time.",
   icons: { icon: '/icon.svg' },
+  openGraph: {
+    title: 'Agent Council',
+    description: 'Run structured meetings between your Claude Code agents. Watch them deliberate in real time.',
+    type: 'website',
+    siteName: 'Agent Council',
+  },
 };
 
 export default function RootLayout({

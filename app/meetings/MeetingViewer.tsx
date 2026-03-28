@@ -1133,20 +1133,45 @@ export default function MeetingViewer() {
                   <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white" aria-label="Dismiss error">&#x2715;</button>
                 </div>
               )}
-              {sortedMeetings.map((m, i) => (
-                <MeetingListCard
-                  key={m.filename}
-                  meeting={m}
-                  onSelect={(filename) => { selectMeeting(filename); setUserExplicitlyBack(false); setFocusedIndex(null); }}
-                  onDelete={deleteMeeting}
-                  taggedMeetings={taggedMeetings}
-                  hasMultipleProjects={hasMultipleProjects}
-                  focused={focusedIndex === i}
-                  tagCounts={tagCountsByMeeting[m.filename]}
-                  pinned={pinnedMeetings.has(m.filename)}
-                  onTogglePin={togglePin}
-                />
-              ))}
+              {(() => {
+                // Add date group headers between meetings
+                const now = new Date();
+                const todayStr = now.toISOString().slice(0, 10);
+                const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+                let lastGroup = '';
+
+                return sortedMeetings.map((m, i) => {
+                  const group = m.status === 'in-progress' ? 'live'
+                    : pinnedMeetings.has(m.filename) ? 'pinned'
+                    : m.date === todayStr ? 'today'
+                    : (m.date && m.date >= weekAgo) ? 'this-week'
+                    : 'older';
+                  const showHeader = group !== lastGroup && sortedMeetings.length > 3;
+                  lastGroup = group;
+                  const groupLabels: Record<string, string> = { live: 'Live', pinned: 'Pinned', today: 'Today', 'this-week': 'This Week', older: 'Earlier' };
+
+                  return (
+                    <div key={m.filename}>
+                      {showHeader && group !== 'live' && group !== 'pinned' && (
+                        <div className="text-xs font-medium uppercase tracking-wider mt-4 mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+                          {groupLabels[group] || group}
+                        </div>
+                      )}
+                      <MeetingListCard
+                        meeting={m}
+                        onSelect={(filename) => { selectMeeting(filename); setUserExplicitlyBack(false); setFocusedIndex(null); }}
+                        onDelete={deleteMeeting}
+                        taggedMeetings={taggedMeetings}
+                        hasMultipleProjects={hasMultipleProjects}
+                        focused={focusedIndex === i}
+                        tagCounts={tagCountsByMeeting[m.filename]}
+                        pinned={pinnedMeetings.has(m.filename)}
+                        onTogglePin={togglePin}
+                      />
+                    </div>
+                  );
+                });
+              })()}
             </div>
           )}
 
