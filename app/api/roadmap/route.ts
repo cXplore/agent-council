@@ -177,8 +177,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'id is required (string)' }, { status: 400 });
     }
 
-    if (!status || !['done', 'active', 'stale'].includes(status)) {
-      return NextResponse.json({ error: 'status must be done, active, or stale' }, { status: 400 });
+    if (!status || !['done', 'active', 'stale', 'working'].includes(status)) {
+      return NextResponse.json({ error: 'status must be done, active, stale, or working' }, { status: 400 });
     }
 
     if (note && (typeof note !== 'string' || note.length > 2000)) {

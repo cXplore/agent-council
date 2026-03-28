@@ -12,7 +12,7 @@ interface RoadmapItem {
   lineNumber: number;
   date: string | null;
   hash: string;
-  itemStatus: 'active' | 'done' | 'stale';
+  itemStatus: 'active' | 'done' | 'stale' | 'working';
   statusNote?: string;
   statusUpdatedAt?: string;
 }
@@ -66,11 +66,13 @@ function TypeBadge({ type }: { type: RoadmapItem['type'] }) {
 
 function StatusBadge({ status }: { status: RoadmapItem['itemStatus'] }) {
   if (status === 'active') return null;
-  const config = {
+  const config: Record<string, { bg: string; color: string; label: string }> = {
     done: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Done' },
     stale: { bg: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)', label: 'Stale' },
+    working: { bg: 'rgba(124, 109, 216, 0.2)', color: 'var(--accent)', label: '⚡ Working' },
   };
   const c = config[status];
+  if (!c) return null;
   return (
     <span
       className="text-xs px-1.5 py-0.5 rounded flex-shrink-0"
@@ -217,8 +219,19 @@ function ItemRow({
   item: RoadmapItem;
   onStatusChange: (hash: string, status: 'done' | 'active' | 'stale') => Promise<void>;
 }) {
+  const isWorking = item.itemStatus === 'working';
   return (
-    <div className="flex items-start gap-2 group">
+    <div
+      className={`flex items-start gap-2 group rounded-lg ${isWorking ? 'px-2 py-1.5 -mx-2' : ''}`}
+      style={isWorking ? {
+        background: 'rgba(124, 109, 216, 0.08)',
+        border: '1px solid rgba(124, 109, 216, 0.3)',
+        animation: 'pulse 2s ease-in-out infinite',
+      } : undefined}
+    >
+      {isWorking && (
+        <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0 mt-2" style={{ background: 'var(--accent)' }} />
+      )}
       <TypeBadge type={item.type} />
       <StatusBadge status={item.itemStatus} />
       <span
@@ -423,8 +436,8 @@ function RoadmapInner() {
   const allItems = data.items;
 
   // Active action items and open questions
-  const activeActions = allItems.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
-  const activeOpen = allItems.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
+  const activeActions = allItems.filter(i => i.type === 'ACTION' && (i.itemStatus === 'active' || i.itemStatus === 'working'));
+  const activeOpen = allItems.filter(i => i.type === 'OPEN' && (i.itemStatus === 'active' || i.itemStatus === 'working'));
 
   // Done items: explicitly marked done + decisions + resolved
   const doneItems = allItems.filter(i => i.itemStatus === 'done');
