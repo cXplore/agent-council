@@ -207,13 +207,41 @@ export default function MeetingList(props: MeetingListProps) {
             </div>
           </div>
         ) : (
-          /* Ready -- show hint */
+          /* Ready — context-aware banner */
           <div
             className="rounded-lg px-5 py-4 mb-6 text-sm"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
-            in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
+            {meetings.length > 0 && tagSummary ? (
+              // Returning user — show context
+              <div className="flex items-center gap-3 flex-wrap">
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+                </span>
+                {tagSummary.open > 0 && (
+                  <>
+                    <span>&middot;</span>
+                    <span style={{ color: '#fbbf24' }}>{tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}</span>
+                  </>
+                )}
+                {tagSummary.actions > 0 && (
+                  <>
+                    <span>&middot;</span>
+                    <span style={{ color: '#4ade80' }}>{tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}</span>
+                  </>
+                )}
+                <span>&middot;</span>
+                <a href="/roadmap" className="hover:underline" style={{ color: 'var(--accent)' }}>
+                  View roadmap
+                </a>
+              </div>
+            ) : (
+              // New user — show hint
+              <>
+                <span style={{ color: 'var(--text-secondary)' }}>New meeting:</span>{' '}
+                in Claude Code, ask for one — <em>&quot;run a meeting about the API design&quot;</em> or <em>&quot;let&apos;s have a design review on the dashboard&quot;</em>. It shows up here live.
+              </>
+            )}
           </div>
         )}
 

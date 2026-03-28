@@ -122,6 +122,20 @@ function extractTags(content: string, filename: string): TagEntry[] {
   return entries;
 }
 
+/**
+ * Invalidate the tag cache so the next buildTagIndex call re-reads all files.
+ * Call this after modifying meeting files (e.g., appending [RESOLVED:slug]).
+ */
+export async function invalidateTagCache(meetingsDir: string): Promise<void> {
+  const cachePath = path.join(meetingsDir, '.council-tag-cache.json');
+  try {
+    const { unlink } = await import('node:fs/promises');
+    await unlink(cachePath);
+  } catch {
+    // Cache file may not exist — that's fine
+  }
+}
+
 export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   // Check cache first
   const cachePath = path.join(meetingsDir, '.council-tag-cache.json');

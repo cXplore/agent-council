@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { appendFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
+import { invalidateTagCache } from '@/lib/tag-index';
 
 // Track resolved open questions
 // Claude can mark questions resolved from any session via MCP
@@ -78,6 +79,8 @@ export async function POST(request: NextRequest) {
         const filePath = path.join(active.meetingsDir, safeName);
         await appendFile(filePath, `\n[RESOLVED:${slug}] ${resolution}\n`, 'utf-8');
         appended = true;
+        // Invalidate tag cache so the resolution is picked up immediately
+        await invalidateTagCache(active.meetingsDir).catch(() => {});
       } catch {
         // Non-critical — store in memory regardless
       }
