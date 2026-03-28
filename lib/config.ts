@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { CouncilConfig, ProjectConfig } from './types';
 
@@ -126,6 +126,23 @@ function resolveProjectDir(project: ProjectConfig, key: 'agentsDir' | 'meetingsD
   const dir = project[key];
   if (path.isAbsolute(dir)) return dir;
   return path.join(project.path, dir);
+}
+
+/** Validate that connected projects still exist on disk */
+export async function validateProjects(config: CouncilConfig): Promise<{ valid: string[]; missing: string[] }> {
+  const valid: string[] = [];
+  const missing: string[] = [];
+
+  for (const [name, project] of Object.entries(config.projects)) {
+    try {
+      await stat(project.path);
+      valid.push(name);
+    } catch {
+      missing.push(name);
+    }
+  }
+
+  return { valid, missing };
 }
 
 /** Get config for a specific project by name */

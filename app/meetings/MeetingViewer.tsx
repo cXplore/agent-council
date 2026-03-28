@@ -30,7 +30,7 @@ export default function MeetingViewer() {
 
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [copied, setCopied] = useState<'summary' | 'all' | null>(null);
+  const [copied, setCopied] = useState<'summary' | 'all' | 'link' | null>(null);
   const [outcomesOpen, setOutcomesOpen] = useState(false);
   const [addingFacilitator, setAddingFacilitator] = useState(false);
   const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
@@ -365,6 +365,20 @@ export default function MeetingViewer() {
     }),
     [meetings, statusFilter, searchQuery]
   );
+
+  // Build per-meeting tag counts from tagDetails for card badges
+  const tagCountsByMeeting = useMemo(() => {
+    if (!tagDetails) return {};
+    const counts: Record<string, { decisions: number; open: number; actions: number }> = {};
+    const inc = (filename: string, key: 'decisions' | 'open' | 'actions') => {
+      if (!counts[filename]) counts[filename] = { decisions: 0, open: 0, actions: 0 };
+      counts[filename][key]++;
+    };
+    for (const item of tagDetails.decisions) inc(item.meeting, 'decisions');
+    for (const item of tagDetails.open) inc(item.meeting, 'open');
+    for (const item of tagDetails.actions) inc(item.meeting, 'actions');
+    return counts;
+  }, [tagDetails]);
 
   // Reset focused index when the filtered list changes
   useEffect(() => {
@@ -1051,6 +1065,7 @@ export default function MeetingViewer() {
                   taggedMeetings={taggedMeetings}
                   hasMultipleProjects={hasMultipleProjects}
                   focused={focusedIndex === i}
+                  tagCounts={tagCountsByMeeting[m.filename]}
                 />
               ))}
             </div>
@@ -1106,6 +1121,20 @@ export default function MeetingViewer() {
             <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               {detail.title || formatType(detail.type)}
             </span>
+
+            <button
+              onClick={async () => {
+                const link = window.location.origin + '/meetings?file=' + encodeURIComponent(detail.filename);
+                await navigator.clipboard.writeText(link);
+                setCopied('link');
+                setTimeout(() => setCopied(null), 1500);
+              }}
+              className="text-xs px-2 py-0.5 rounded transition-colors"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              title="Copy meeting link to clipboard"
+            >
+              {copied === 'link' ? 'Copied!' : 'Copy link'}
+            </button>
 
             {isLive ? (
               <span

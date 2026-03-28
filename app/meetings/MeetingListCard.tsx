@@ -177,8 +177,29 @@ export default function MeetingListCard({
       )}
 
       <div className="flex items-center justify-between mt-2 ml-5">
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {formatTimeAgo(m.modifiedAt)}
+        <span className="flex items-center gap-1.5">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {formatTimeAgo(m.modifiedAt)}
+          </span>
+          {tagCounts && (tagCounts.decisions > 0 || tagCounts.open > 0 || tagCounts.actions > 0) && (
+            <span className="flex items-center gap-1" style={{ opacity: 0.7 }}>
+              {tagCounts.decisions > 0 && (
+                <span style={{ fontSize: '0.6rem', color: '#60a5fa' }} title={`${tagCounts.decisions} decision${tagCounts.decisions !== 1 ? 's' : ''}`}>
+                  {tagCounts.decisions}D
+                </span>
+              )}
+              {tagCounts.open > 0 && (
+                <span style={{ fontSize: '0.6rem', color: '#fbbf24' }} title={`${tagCounts.open} open question${tagCounts.open !== 1 ? 's' : ''}`}>
+                  {tagCounts.open}Q
+                </span>
+              )}
+              {tagCounts.actions > 0 && (
+                <span style={{ fontSize: '0.6rem', color: '#4ade80' }} title={`${tagCounts.actions} action${tagCounts.actions !== 1 ? 's' : ''}`}>
+                  {tagCounts.actions}A
+                </span>
+              )}
+            </span>
+          )}
         </span>
         {m.status !== 'in-progress' && (
           <button

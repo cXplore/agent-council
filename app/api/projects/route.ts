@@ -1,24 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { getConfig, saveConfig } from '@/lib/config';
+import { getConfig, saveConfig, validateProjects } from '@/lib/config';
 
 /** GET /api/projects — list all projects + active */
 export async function GET() {
   try {
     const config = await getConfig();
 
+    // Check which projects are still accessible
+    const { missing } = await validateProjects(config);
+    const missingSet = new Set(missing);
+
     const projects = Object.entries(config.projects).map(([name, p]) => ({
       name,
       path: p.path,
       meetingsDir: p.meetingsDir,
       agentsDir: p.agentsDir,
+      accessible: !missingSet.has(name),
     }));
 
     return NextResponse.json({
       projects,
       activeProject: config.activeProject,
       hasWorkspace: true,
+      missingProjects: missing.length > 0 ? missing : undefined,
     });
   } catch {
     return NextResponse.json({ error: 'Failed to load projects' }, { status: 500 });
