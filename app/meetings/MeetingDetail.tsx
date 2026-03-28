@@ -1055,7 +1055,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         </div>
       )}
 
-      {/* Chat input for live meetings */}
+      {/* Chat input + pace control for live meetings */}
       {isLive && (
         <div
           className="sticky bottom-0 px-6 py-3"
@@ -1064,6 +1064,34 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             borderTop: '1px solid var(--border)',
           }}
         >
+          {/* Pace control bar */}
+          <div className="max-w-3xl mx-auto flex items-center gap-2 mb-2">
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Pacing:</span>
+            <button
+              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-auto' }) })}
+              className="text-xs px-2 py-0.5 rounded transition-colors"
+              style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              title="Facilitator proceeds automatically between rounds"
+            >
+              Auto
+            </button>
+            <button
+              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-guided' }) })}
+              className="text-xs px-2 py-0.5 rounded transition-colors"
+              style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
+              title="Facilitator waits for your approval before each round"
+            >
+              Guided
+            </button>
+            <button
+              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'proceed' }) })}
+              className="text-xs px-3 py-1 rounded-lg font-medium transition-colors"
+              style={{ background: 'var(--live-green)', color: '#0a0a0b' }}
+              title="Signal the facilitator to proceed to the next round"
+            >
+              ▶ Proceed
+            </button>
+          </div>
           <div className="max-w-3xl mx-auto flex gap-3">
             <input
               type="text"

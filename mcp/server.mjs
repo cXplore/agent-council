@@ -696,6 +696,38 @@ server.tool(
   }
 );
 
+// Tool: Check meeting pace — should the facilitator wait or proceed?
+server.tool(
+  'council_check_pace',
+  'Check if the viewer wants you to wait before proceeding to the next round. In "guided" mode, wait for the human to click Proceed before starting the next round. In "auto" mode (default), proceed immediately. Call this BETWEEN rounds.',
+  {
+    meeting: z.string().describe('Meeting filename'),
+  },
+  async ({ meeting }) => {
+    try {
+      const data = await councilRequest(`/api/council/pace?meeting=${encodeURIComponent(meeting)}`);
+      if (data.mode === 'guided' && !data.proceed) {
+        return {
+          content: [{
+            type: 'text',
+            text: `WAIT — The viewer is in "guided" mode. The human wants to review before the next round. Do NOT proceed until you call council_check_pace again and get proceed: true. Poll every 5-10 seconds.`,
+          }],
+        };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: `Proceed — mode is "${data.mode}", you can start the next round.`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not check pace (proceeding by default): ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();

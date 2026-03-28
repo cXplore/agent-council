@@ -318,7 +318,8 @@ All `council_notify` calls require the meeting filename as the `meeting` paramet
 - Call `council_notify(event: "meeting_starting", meeting: "filename.md")` when you create the hub file.
 - Call `council_notify(event: "round_starting", meeting: "filename.md", detail: "Round 1")` before each round.
 - Call `council_notify(event: "agent_speaking", meeting: "filename.md", detail: "agent-name")` before spawning each agent.
-- Between rounds, call `council_check_input(meeting: "filename.md")`. If the human typed something, incorporate it as input for the next round.
+- Between rounds, call `council_check_pace(meeting: "filename.md")`. If the response says WAIT, poll every 5-10 seconds until you get proceed: true. The human is reading and may want to give input first.
+- Also call `council_check_input(meeting: "filename.md")`. If the human typed something, incorporate it as input for the next round.
 - Call `council_notify(event: "meeting_complete", meeting: "filename.md")` when you close the meeting.
 
 If any MCP call fails (viewer not running), log a note and continue — do not block the meeting on MCP availability.
