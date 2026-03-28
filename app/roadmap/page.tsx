@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 
 interface RoadmapItem {
   type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
@@ -319,12 +319,23 @@ function RoadmapInner() {
   const [roadmapFilter, setRoadmapFilter] = useState<'all' | 'actions' | 'questions' | 'decisions'>('all');
   const [fetchError, setFetchError] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const prevCountsRef = useRef<{ done: number; active: number } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
       const res = await fetch('/api/roadmap');
       if (!res.ok) throw new Error('Roadmap fetch failed');
       const roadmapData: RoadmapResponse = await res.json();
+
+      // Detect changes for visual feedback
+      const newDone = roadmapData.counts?.done ?? 0;
+      const newActive = roadmapData.counts?.active ?? 0;
+      if (prevCountsRef.current && (prevCountsRef.current.done !== newDone || prevCountsRef.current.active !== newActive)) {
+        setLastUpdate(new Date().toLocaleTimeString());
+      }
+      prevCountsRef.current = { done: newDone, active: newActive };
+
       setData(roadmapData);
       setFetchError(false);
     } catch {
@@ -335,6 +346,9 @@ function RoadmapInner() {
   useEffect(() => {
     setLoading(true);
     loadData().finally(() => setLoading(false));
+    // Poll every 5 seconds for live updates while the page is open
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, [loadData]);
 
   const handleStatusChange = async (hash: string, status: 'done' | 'active' | 'stale') => {
@@ -461,8 +475,13 @@ function RoadmapInner() {
               className="rounded-lg px-5 py-4"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
-              <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                Overall progress
+              <div className="text-xs mb-3 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
+                <span>Overall progress</span>
+                <span className="flex items-center gap-2">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--live-green)' }} />
+                  <span>live</span>
+                  {lastUpdate && <span style={{ opacity: 0.6 }}>· updated {lastUpdate}</span>}
+                </span>
               </div>
               <ProgressBar
                 done={doneItems.length}
