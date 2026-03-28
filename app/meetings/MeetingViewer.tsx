@@ -1259,15 +1259,10 @@ export default function MeetingViewer() {
   const isLive = detail?.status === 'in-progress';
 
   // Parse content into context (before first ## Round) and per-round sections
-  const getContentForRound = useCallback((content: string, round: number | null): string => {
+  function getContentForRound(content: string, round: number | null): string {
     if (round === null) return content;
 
-    // Split on ## Round N headers, keeping the headers
     const parts = content.split(/^(## Round \d+.*)/m);
-    // parts[0] = everything before first ## Round (context)
-    // parts[1] = "## Round 1" header, parts[2] = content after that header
-    // parts[3] = "## Round 2" header, parts[4] = content after that header, etc.
-
     const contextPart = parts[0] || '';
     let roundContent = '';
 
@@ -1282,7 +1277,7 @@ export default function MeetingViewer() {
     }
 
     return contextPart + roundContent;
-  }, []);
+  }
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
@@ -1906,37 +1901,60 @@ export default function MeetingViewer() {
           }
           return (
             <div className="fixed right-4 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2">
-              {rounds?.map((r, i) => {
-                const agents = agentsByRound[i + 1] || [];
+              {/* "All" button to reset round filter */}
+              {viewRound !== null && (
+                <button
+                  onClick={() => setViewRound(null)}
+                  className="text-xs px-2 py-1 rounded transition-colors"
+                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                  title="Show all rounds"
+                  aria-label="Show all rounds"
+                >
+                  All
+                </button>
+              )}
+              {rounds?.map((_r, i) => {
+                const roundNum = i + 1;
+                const agents = agentsByRound[roundNum] || [];
                 const tooltip = agents.length > 0
-                  ? `Round ${i + 1}: ${agents.join(', ')}`
-                  : `Round ${i + 1}`;
+                  ? `Round ${roundNum}: ${agents.join(', ')}`
+                  : `Round ${roundNum}`;
+                const isActive = viewRound === roundNum;
                 return (
                 <button
                   key={i}
                   onClick={() => {
-                    // Find the first element matching this round heading
-                    const elements = contentRef.current?.querySelectorAll('h2, em, strong');
-                    const target = Array.from(elements || []).find(el =>
-                      el.textContent?.trim().startsWith(`Round ${i + 1}`)
-                    );
-                    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    if (isActive) {
+                      // Clicking the active round again resets to show all
+                      setViewRound(null);
+                    } else {
+                      setViewRound(roundNum);
+                      // Scroll to top of content when filtering
+                      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                  title={tooltip}
-                  aria-label={`Jump to Round ${i + 1} (${agents.length} agents)`}
+                  style={isActive
+                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'white' }
+                    : { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
+                  }
+                  title={isActive ? `Showing Round ${roundNum} only — click to show all` : tooltip}
+                  aria-label={`${isActive ? 'Viewing' : 'View'} Round ${roundNum} (${agents.length} agents)`}
                 >
-                  R{i + 1}{agents.length > 0 && <span style={{ opacity: 0.6 }}>{` (${agents.length})`}</span>}
+                  R{roundNum}{agents.length > 0 && <span style={{ opacity: 0.6 }}>{` (${agents.length})`}</span>}
                 </button>
                 );
               })}
               {hasSummary && (
                 <button
                   onClick={() => {
-                    const headings = contentRef.current?.querySelectorAll('h2');
-                    Array.from(headings || []).find(h => h.textContent?.trim() === 'Summary')
-                      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    setViewRound(null);
+                    // After resetting, scroll to summary
+                    requestAnimationFrame(() => {
+                      const headings = contentRef.current?.querySelectorAll('h2');
+                      Array.from(headings || []).find(h => h.textContent?.trim() === 'Summary')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
@@ -1980,8 +1998,24 @@ export default function MeetingViewer() {
             </div>
           ) : (
             <div className="prose prose-sm prose-invert max-w-none">
+              {viewRound !== null && (
+                <div
+                  className="mb-4 flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', color: 'var(--text-secondary)' }}
+                >
+                  <span>Viewing <strong style={{ color: 'var(--accent)' }}>Round {viewRound}</strong> only</span>
+                  <button
+                    onClick={() => setViewRound(null)}
+                    className="ml-auto text-xs px-2 py-0.5 rounded transition-colors"
+                    style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+                  >
+                    Show all
+                  </button>
+                </div>
+              )}
               {(() => {
-                const clean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const fullClean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const clean = viewRound !== null ? getContentForRound(fullClean, viewRound) : fullClean;
                 const cleanSeen = seenContent.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const hasNew = clean.length > cleanSeen.length && cleanSeen.length > 0;
                 // Split at a double-newline (block boundary) to avoid breaking markdown mid-block
