@@ -207,6 +207,30 @@ export function extractSummary(content: string): string | null {
 /**
  * Extract all agent names from meeting content.
  */
+/**
+ * Filter meeting content to show only a specific round (or all if round is null).
+ * Returns the context part (before first ## Round) plus the matching round content.
+ */
+export function getContentForRound(content: string, round: number | null): string {
+  if (round === null) return content;
+
+  const parts = content.split(/^(## Round \d+.*)/m);
+  const contextPart = parts[0] || '';
+  let roundContent = '';
+
+  for (let i = 1; i < parts.length; i += 2) {
+    const header = parts[i];
+    const body = parts[i + 1] || '';
+    const match = header.match(/## Round (\d+)/);
+    if (match && parseInt(match[1], 10) === round) {
+      roundContent = header + body;
+      break;
+    }
+  }
+
+  return contextPart + roundContent;
+}
+
 export function extractAgents(content: string): string[] {
   const agents = new Set<string>();
 
