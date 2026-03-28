@@ -315,6 +315,239 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
   );
 }
 
+interface TemplateInfo {
+  template: string;
+  name: string;
+  description: string;
+  model: string;
+  role: string;
+  required: boolean;
+  contentLength: number;
+}
+
+function CreateAgentForm({ onCreated }: { onCreated: () => void }) {
+  const [templates, setTemplates] = useState<TemplateInfo[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [agentName, setAgentName] = useState('');
+  const [model, setModel] = useState('sonnet');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/setup/templates');
+        if (res.ok) {
+          const data = await res.json();
+          setTemplates(data.templates ?? []);
+          if (data.templates?.length > 0) {
+            const first = data.templates[0];
+            setSelectedTemplate(first.template);
+            setAgentName(first.name);
+            setModel(first.model || 'sonnet');
+            setDescription(first.description);
+          }
+        }
+      } catch {
+        // Templates are required — show error inline
+      } finally {
+        setLoadingTemplates(false);
+      }
+    })();
+  }, []);
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    const tmpl = templates.find(t => t.template === templateId);
+    if (tmpl) {
+      setAgentName(tmpl.name);
+      setModel(tmpl.model || 'sonnet');
+      setDescription(tmpl.description);
+    }
+    setFeedback(null);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedTemplate || !agentName.trim()) return;
+    setSubmitting(true);
+    setFeedback(null);
+
+    try {
+      // Get active project path
+      const projRes = await fetch('/api/projects');
+      if (!projRes.ok) throw new Error('Could not load project info');
+      const projData = await projRes.json();
+      const active = projData.activeProject;
+      const proj = projData.projects?.find((p: { name: string }) => p.name === active);
+      if (!proj?.path) throw new Error('No active project path found');
+
+      const res = await fetch('/api/setup/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetDir: proj.path,
+          agents: [{
+            name: agentName.trim(),
+            template: selectedTemplate,
+            model,
+            description: description.trim() || undefined,
+          }],
+          projectProfile: {
+            frameworks: [],
+            languages: [],
+            packageManager: 'npm',
+          },
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setFeedback({ type: 'error', message: result.error || 'Failed to create agent' });
+        return;
+      }
+
+      if (result.errors?.length > 0 && (!result.created || result.created.length === 0)) {
+        setFeedback({ type: 'error', message: result.errors[0].error });
+        return;
+      }
+
+      const msg = result.created?.length > 0
+        ? `Created ${agentName}`
+        : 'Agent created';
+      setFeedback({ type: 'success', message: result.errors?.length > 0 ? `${msg} (with warnings)` : msg });
+
+      // Reset form
+      setAgentName('');
+      setDescription('');
+
+      // Refresh agents list after a brief moment so the user sees the success message
+      setTimeout(() => onCreated(), 600);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unexpected error';
+      setFeedback({ type: 'error', message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--bg)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-primary)',
+    outline: 'none',
+  };
+
+  return (
+    <div
+      className="rounded-lg p-5 mb-6"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+    >
+      <h3 className="text-sm font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        Create new agent
+      </h3>
+
+      {loadingTemplates ? (
+        <div className="loading-shimmer h-8 w-48 rounded" />
+      ) : templates.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          No templates available. Add templates to the templates/agents directory.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {/* Template selector */}
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Template</label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+              className="w-full rounded px-3 py-2 text-sm"
+              style={inputStyle}
+            >
+              {templates.map(t => (
+                <option key={t.template} value={t.template}>{t.template}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Agent name</label>
+            <input
+              type="text"
+              value={agentName}
+              onChange={(e) => { setAgentName(e.target.value); setFeedback(null); }}
+              placeholder="e.g. project-manager"
+              className="w-full rounded px-3 py-2 text-sm"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Model */}
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Model</label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="w-full rounded px-3 py-2 text-sm"
+              style={inputStyle}
+            >
+              <option value="opus">opus</option>
+              <option value="sonnet">sonnet</option>
+              <option value="haiku">haiku</option>
+            </select>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Description</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => { setDescription(e.target.value); setFeedback(null); }}
+              placeholder="What does this agent do?"
+              className="w-full rounded px-3 py-2 text-sm"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Submit */}
+          <div className="flex items-center gap-3 pt-1">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !agentName.trim() || !selectedTemplate}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity"
+              style={{
+                background: 'var(--accent)',
+                color: 'white',
+                opacity: submitting || !agentName.trim() ? 0.5 : 1,
+                cursor: submitting || !agentName.trim() ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {submitting ? 'Creating...' : 'Create agent'}
+            </button>
+
+            {feedback && (
+              <span
+                className="text-xs px-3 py-1.5 rounded"
+                style={{
+                  background: feedback.type === 'success' ? 'var(--live-green-muted)' : 'var(--bg)',
+                  color: feedback.type === 'success' ? 'var(--live-green)' : 'var(--error)',
+                  border: feedback.type === 'error' ? '1px solid var(--error)' : undefined,
+                }}
+              >
+                {feedback.message}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AgentsPageInner() {
   const searchParams = useSearchParams();
   const [agents, setAgents] = useState<AgentInfo[]>([]);
@@ -323,6 +556,10 @@ function AgentsPageInner() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshAgents = () => setRefreshKey(k => k + 1);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -352,7 +589,7 @@ function AgentsPageInner() {
       }
     };
     fetchAgents();
-  }, [searchParams]);
+  }, [searchParams, refreshKey]);
 
   useEffect(() => {
     if (!selected) return;
@@ -537,12 +774,23 @@ function AgentsPageInner() {
                 Connect another project
               </a>
             )}
+            <button
+              onClick={() => setShowCreateForm(v => !v)}
+              className="text-xs px-2.5 py-1 rounded transition-colors hover:brightness-125"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              {showCreateForm ? 'Cancel' : '+ New Agent'}
+            </button>
           </div>
         )}
         {!project && !loading && (
           <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
             No active project
           </p>
+        )}
+
+        {showCreateForm && (
+          <CreateAgentForm onCreated={() => { refreshAgents(); setShowCreateForm(false); }} />
         )}
 
         {!loading && !fetchError && agents.length > 0 && (

@@ -1445,9 +1445,22 @@ export default function MeetingViewer() {
           const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);
           const hasSummary = detail.content.includes('## Summary');
           if (!rounds && !hasSummary) return null;
+          // Extract agent names per round from ### AgentName (Round N) headings
+          const agentsByRound: Record<number, string[]> = {};
+          const agentMatches = detail.content.matchAll(/^### (.+?) \(Round (\d+)\)/gm);
+          for (const m of agentMatches) {
+            const roundNum = parseInt(m[2], 10);
+            if (!agentsByRound[roundNum]) agentsByRound[roundNum] = [];
+            agentsByRound[roundNum].push(m[1]);
+          }
           return (
             <div className="fixed right-4 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2">
-              {rounds?.map((r, i) => (
+              {rounds?.map((r, i) => {
+                const agents = agentsByRound[i + 1] || [];
+                const tooltip = agents.length > 0
+                  ? `Round ${i + 1}: ${agents.join(', ')}`
+                  : `Round ${i + 1}`;
+                return (
                 <button
                   key={i}
                   onClick={() => {
@@ -1460,12 +1473,13 @@ export default function MeetingViewer() {
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors"
                   style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                  title={r}
-                  aria-label={`Jump to Round ${i + 1}`}
+                  title={tooltip}
+                  aria-label={`Jump to Round ${i + 1} (${agents.length} agents)`}
                 >
-                  R{i + 1}
+                  R{i + 1}{agents.length > 0 && <span style={{ opacity: 0.6 }}>{` (${agents.length})`}</span>}
                 </button>
-              ))}
+                );
+              })}
               {hasSummary && (
                 <button
                   onClick={() => {
