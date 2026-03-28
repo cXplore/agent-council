@@ -88,9 +88,11 @@ export default function MeetingListCard({
       className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group cursor-pointer"
       style={{
         background: 'var(--bg-card)',
-        border: m.status === 'in-progress'
-          ? '1px solid var(--live-green)'
-          : '1px solid var(--border)',
+        border: focused
+          ? '1px solid var(--accent)'
+          : m.status === 'in-progress'
+            ? '1px solid var(--live-green)'
+            : '1px solid var(--border)',
       }}
     >
       <div className="flex items-center gap-3 mb-1">

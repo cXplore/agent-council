@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
@@ -43,6 +43,7 @@ export default function MeetingViewer() {
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set());
   const [queuedSuggestions, setQueuedSuggestions] = useState<Set<string>>(new Set());
   const [fetchError, setFetchError] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
   // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
@@ -345,6 +346,36 @@ export default function MeetingViewer() {
     setUserScrolledUp(!nearBottom);
   }, []);
 
+  // Filtered meetings list (shared between render and keyboard nav)
+  const filteredMeetings = useMemo(() =>
+    meetings.filter(m => {
+      if (statusFilter !== 'all' && m.status !== statusFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          (m.title?.toLowerCase().includes(q)) ||
+          m.type.toLowerCase().includes(q) ||
+          m.participants.some(p => p.toLowerCase().includes(q)) ||
+          m.preview?.toLowerCase().includes(q) ||
+          m.filename.toLowerCase().includes(q) ||
+          m.date?.includes(q)
+        );
+      }
+      return true;
+    }),
+    [meetings, statusFilter, searchQuery]
+  );
+
+  // Reset focused index when the filtered list changes
+  useEffect(() => {
+    setFocusedIndex(prev => {
+      if (prev === null) return null;
+      if (filteredMeetings.length === 0) return null;
+      if (prev >= filteredMeetings.length) return filteredMeetings.length - 1;
+      return prev;
+    });
+  }, [filteredMeetings]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -355,19 +386,29 @@ export default function MeetingViewer() {
         selectMeeting(null);
         setUserExplicitlyBack(true);
       }
-      // j/k to navigate meetings in list view
-      if (!selected && meetings.length > 0) {
-        if (e.key === 'j' || e.key === 'k') {
+      // j/k to navigate meetings in list view, Enter to select
+      if (!selected && filteredMeetings.length > 0) {
+        if (e.key === 'j') {
           e.preventDefault();
-          // No meeting focused — select first/last
-          selectMeeting(e.key === 'j' ? meetings[0].filename : meetings[meetings.length - 1].filename);
+          setFocusedIndex(prev =>
+            prev === null ? 0 : (prev + 1) % filteredMeetings.length
+          );
+        } else if (e.key === 'k') {
+          e.preventDefault();
+          setFocusedIndex(prev =>
+            prev === null ? filteredMeetings.length - 1 : (prev - 1 + filteredMeetings.length) % filteredMeetings.length
+          );
+        } else if (e.key === 'Enter' && focusedIndex !== null) {
+          e.preventDefault();
+          selectMeeting(filteredMeetings[focusedIndex].filename);
           setUserExplicitlyBack(false);
+          setFocusedIndex(null);
         }
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [selected, meetings, selectMeeting]);
+  }, [selected, filteredMeetings, focusedIndex, selectMeeting]);
 
   const scrollToBottom = () => {
     contentRef.current?.scrollTo({
