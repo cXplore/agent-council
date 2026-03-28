@@ -234,6 +234,8 @@ If the `agent-council` MCP server is available, use it to coordinate with the li
 ### Before starting a meeting
 Call `council_status` to check if the viewer is running. If it is, the human may be watching live — pace your output accordingly.
 
+Call `council_planned_meetings` to check if there are queued meetings. If the user asked for a meeting and a planned meeting matches their request, mark it as running with `council_update_planned`. When the meeting completes, mark it as done.
+
 ### During a meeting
 All `council_notify` calls require the meeting filename as the `meeting` parameter.
 

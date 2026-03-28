@@ -1008,28 +1008,15 @@ export default function MeetingViewer() {
                   <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white" aria-label="Dismiss error">&#x2715;</button>
                 </div>
               )}
-              {meetings.filter(m => {
-                if (statusFilter !== 'all' && m.status !== statusFilter) return false;
-                if (searchQuery) {
-                  const q = searchQuery.toLowerCase();
-                  return (
-                    (m.title?.toLowerCase().includes(q)) ||
-                    m.type.toLowerCase().includes(q) ||
-                    m.participants.some(p => p.toLowerCase().includes(q)) ||
-                    m.preview?.toLowerCase().includes(q) ||
-                    m.filename.toLowerCase().includes(q) ||
-                    m.date?.includes(q)
-                  );
-                }
-                return true;
-              }).map((m) => (
+              {filteredMeetings.map((m, i) => (
                 <MeetingListCard
                   key={m.filename}
                   meeting={m}
-                  onSelect={(filename) => { selectMeeting(filename); setUserExplicitlyBack(false); }}
+                  onSelect={(filename) => { selectMeeting(filename); setUserExplicitlyBack(false); setFocusedIndex(null); }}
                   onDelete={deleteMeeting}
                   taggedMeetings={taggedMeetings}
                   hasMultipleProjects={hasMultipleProjects}
+                  focused={focusedIndex === i}
                 />
               ))}
             </div>
@@ -1041,7 +1028,9 @@ export default function MeetingViewer() {
               <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>j</kbd>
               {' / '}
               <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>k</kbd>
-              {' select meeting · '}
+              {' navigate · '}
+              <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>enter</kbd>
+              {' select · '}
               <kbd className="px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>esc</kbd>
               {' go back'}
             </div>
