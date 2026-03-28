@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
 import CommandPalette from "./components/CommandPalette";
+import { ToastProvider } from "./components/Toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,9 +32,11 @@ export default function RootLayout({
         <link rel="alternate" type="application/rss+xml" title="Agent Council Meetings" href="/api/meetings/feed" />
       </head>
       <body className="min-h-screen antialiased">
-        <Nav />
-        <CommandPalette />
-        {children}
+        <ToastProvider>
+          <Nav />
+          <CommandPalette />
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
