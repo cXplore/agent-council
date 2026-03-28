@@ -247,6 +247,14 @@ All `council_notify` calls require the meeting filename as the `meeting` paramet
 
 If any MCP call fails (viewer not running), log a note and continue — do not block the meeting on MCP availability.
 
+### Between meetings (any Claude session)
+These tools work in any Claude session, not just during meetings:
+
+- `council_schedule_meeting(type, topic, reason?)` — schedule a meeting for later when you identify something that needs group discussion
+- `council_update_agent(filename, field, value)` — update agent metadata after meeting decisions (e.g., change architect's description based on new responsibilities)
+- `council_add_context(meeting, context, source?)` — push research findings to the viewer (e.g., "I checked the git log and found these relevant changes")
+- `council_resolve_question(slug, resolution, meeting?)` — mark an open question as resolved when you fix or address it in code
+
 ### Human input from the viewer
 When `council_check_input` returns messages, the human is actively participating through the viewer. Acknowledge their input explicitly in your round transitions: "The meeting organizer adds: [their message]". Give it weight — they're watching live and chose to intervene.
 

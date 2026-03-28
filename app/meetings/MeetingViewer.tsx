@@ -90,6 +90,7 @@ export default function MeetingViewer() {
 
   // MCP event tracking
   const [latestEvent, setLatestEvent] = useState<string | null>(null);
+  const [contextCards, setContextCards] = useState<{ id: string; context: string; source?: string; timestamp: string }[]>([]);
 
   // Planned meetings
   const [plannedMeetings, setPlannedMeetings] = useState<{ id: string; type: string; topic: string; trigger?: string; source?: string }[]>([]);
@@ -323,6 +324,7 @@ export default function MeetingViewer() {
     setViewRound(null);
     setMeetingTerms(null);
     setShowTerms(false);
+    setContextCards([]);
     fetchDetail(selected);
 
     pollRef.current = setInterval(() => {
@@ -376,8 +378,26 @@ export default function MeetingViewer() {
       }
     };
 
+    // Also poll for MCP-pushed context
+    const fetchContext = async () => {
+      try {
+        const res = await fetch(`/api/council/context?meeting=${encodeURIComponent(selected)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.entries?.length > 0) {
+            setContextCards(prev => {
+              const existingIds = new Set(prev.map(c => c.id));
+              const newEntries = data.entries.filter((e: { id: string }) => !existingIds.has(e.id));
+              return newEntries.length > 0 ? [...prev, ...newEntries] : prev;
+            });
+          }
+        }
+      } catch { /* silent */ }
+    };
+
     fetchEvents();
-    const interval = setInterval(fetchEvents, 3000);
+    fetchContext();
+    const interval = setInterval(() => { fetchEvents(); fetchContext(); }, 3000);
     return () => clearInterval(interval);
   }, [selected, detail?.status]);
 
@@ -2143,6 +2163,31 @@ export default function MeetingViewer() {
                   </>
                 );
               })()}
+
+              {/* MCP-pushed context cards */}
+              {contextCards.length > 0 && (
+                <div className="mt-6 space-y-2">
+                  {contextCards.map(card => (
+                    <div
+                      key={card.id}
+                      className="rounded-lg px-4 py-3 text-sm"
+                      style={{ background: 'rgba(124, 109, 216, 0.08)', border: '1px solid rgba(124, 109, 216, 0.2)' }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>
+                          Context from Claude
+                        </span>
+                        {card.source && (
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            via {card.source}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ color: 'var(--text-secondary)' }}>{card.context}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {isLive && (
                 <div className="mt-8 flex items-center gap-2">
