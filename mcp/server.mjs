@@ -380,6 +380,132 @@ server.tool(
   }
 );
 
+// Tool: Schedule a meeting for later
+server.tool(
+  'council_schedule_meeting',
+  'Schedule a meeting for later. Use when you identify something that needs group discussion. The meeting appears in the viewer for the user to approve or run.',
+  {
+    type: z.string().describe('Meeting type: standup, design-review, strategy, architecture, retrospective, sprint-planning, incident-review'),
+    topic: z.string().describe('What the meeting should discuss'),
+    reason: z.string().optional().describe('Why this meeting is needed — what prompted it'),
+    participants: z.array(z.string()).optional().describe('Suggested participants'),
+  },
+  async ({ type, topic, reason, participants }) => {
+    try {
+      const data = await councilRequest('/api/council/planned', 'POST', {
+        type,
+        topic,
+        reason,
+        participants,
+        source: 'claude-mcp',
+      });
+      const id = data.id || data.meeting?.id || 'unknown';
+      return {
+        content: [{
+          type: 'text',
+          text: `Meeting scheduled: "${topic}" (${type}). Planned meeting ID: ${id}. It will appear in the Agent Council viewer for the user to approve or run.`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not schedule meeting: ${err.message}` }],
+      };
+    }
+  }
+);
+
+// Tool: Update an agent's metadata
+server.tool(
+  'council_update_agent',
+  'Update an agent\'s metadata (model, team, role, or description). Use after meetings decide on role changes.',
+  {
+    filename: z.string().describe('Agent filename (e.g., "architect.md")'),
+    field: z.enum(['model', 'team', 'role', 'description']).describe('Field to update'),
+    value: z.string().describe('New value'),
+  },
+  async ({ filename, field, value }) => {
+    try {
+      await councilRequest('/api/agents', 'PATCH', {
+        filename,
+        field,
+        value,
+      });
+      return {
+        content: [{
+          type: 'text',
+          text: `Agent "${filename}" updated: ${field} → "${value}"`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not update agent: ${err.message}` }],
+      };
+    }
+  }
+);
+
+// Tool: Push context to the meeting viewer
+server.tool(
+  'council_add_context',
+  'Push context or research findings to the meeting viewer. Use when you discover relevant information during a session that the viewer should display.',
+  {
+    meeting: z.string().describe('Meeting filename this context relates to'),
+    context: z.string().describe('The context text to display'),
+    source: z.string().optional().describe('Where this context came from (e.g., "git log", "code analysis")'),
+  },
+  async ({ meeting, context, source }) => {
+    try {
+      await councilRequest('/api/council/context', 'POST', {
+        meeting,
+        context,
+        source,
+        timestamp: new Date().toISOString(),
+      });
+      return {
+        content: [{
+          type: 'text',
+          text: `Context added to meeting "${meeting}"${source ? ` (source: ${source})` : ''}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not add context: ${err.message}` }],
+      };
+    }
+  }
+);
+
+// Tool: Resolve an open question from a meeting
+server.tool(
+  'council_resolve_question',
+  'Mark an open question from a meeting as resolved. Use when you fix or address something that was flagged as [OPEN:slug] in a meeting.',
+  {
+    slug: z.string().describe('The slug ID of the open question (e.g., "auth-flow", "api-versioning")'),
+    resolution: z.string().describe('How the question was resolved'),
+    meeting: z.string().optional().describe('Which meeting file to append the resolution to'),
+  },
+  async ({ slug, resolution, meeting }) => {
+    try {
+      const data = await councilRequest('/api/council/resolve', 'POST', {
+        slug,
+        resolution,
+        meeting,
+        timestamp: new Date().toISOString(),
+      });
+      return {
+        content: [{
+          type: 'text',
+          text: `Resolved [OPEN:${slug}]: ${resolution}${meeting ? ` (appended to ${meeting})` : ''}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not resolve question: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
