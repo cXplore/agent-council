@@ -77,6 +77,7 @@ export default function MeetingViewer() {
   // Connection health tracking
   const [connectionLost, setConnectionLost] = useState(false);
   const [pollPaused, setPollPaused] = useState(false);
+  const pollPausedRef = useRef(false);
   const failedPollsRef = useRef(0);
 
   const connectionLostRef = useRef(false);
@@ -109,6 +110,7 @@ export default function MeetingViewer() {
   useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
   useEffect(() => { userScrolledUpRef.current = userScrolledUp; }, [userScrolledUp]);
   useEffect(() => { connectionLostRef.current = connectionLost; }, [connectionLost]);
+  useEffect(() => { pollPausedRef.current = pollPaused; }, [pollPaused]);
 
   // Fetch project state on mount
   useEffect(() => {
@@ -297,15 +299,15 @@ export default function MeetingViewer() {
     setQueuedRecs(new Set());
     fetchDetail(selected);
 
-    if (!pollPaused) {
-      pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
-    }
+    pollRef.current = setInterval(() => {
+      if (!pollPausedRef.current) fetchDetail(selected);
+    }, POLL_INTERVAL);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
       if (seenContentTimerRef.current) clearTimeout(seenContentTimerRef.current);
     };
-  }, [selected, fetchDetail, pollPaused]);
+  }, [selected, fetchDetail]);
 
   // Poll MCP events for live meetings
   useEffect(() => {
