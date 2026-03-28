@@ -4,6 +4,19 @@ export function formatType(type: string): string {
   return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Get a subtle type indicator character for meeting types */
+export function getTypeIndicator(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes('standup')) return '\u25B3'; // triangle
+  if (t.includes('design')) return '\u25CB'; // circle
+  if (t.includes('strategy')) return '\u25C7'; // diamond
+  if (t.includes('architecture')) return '\u25A1'; // square
+  if (t.includes('retrospective')) return '\u25C1'; // left-pointing triangle
+  if (t.includes('sprint')) return '\u25B7'; // right-pointing triangle
+  if (t.includes('incident')) return '\u25CF'; // filled circle
+  return '\u25CB'; // default: circle
+}
+
 export function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const mins = Math.floor(diff / 60000);
@@ -102,6 +115,7 @@ export default function MeetingListCard({
       </div>
       <div className="flex items-center gap-2 ml-5 mb-1">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span style={{ marginRight: 4, opacity: 0.6 }}>{getTypeIndicator(m.type)}</span>
           {formatType(m.type)}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
