@@ -263,9 +263,21 @@ function DashboardInner() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-          Dashboard
-        </h1>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Dashboard
+          </h1>
+          {hasData && (
+            <a
+              href="/api/meetings/export"
+              className="text-xs px-3 py-1.5 rounded-lg transition-colors hover:brightness-125"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              download
+            >
+              Export meetings (JSON)
+            </a>
+          )}
+        </div>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
           {analytics.totalMeetings} meeting{analytics.totalMeetings !== 1 ? 's' : ''} &middot;{' '}
           {analytics.totalParticipants.length} agent{analytics.totalParticipants.length !== 1 ? 's' : ''} &middot;{' '}
