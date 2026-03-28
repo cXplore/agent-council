@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     let hasFacilitator = false;
     try {
       const agentFiles = await readdir(path.join(projectPath, agentsDir));
-      const mdFiles = agentFiles.filter(f => f.endsWith('.md'));
+      const mdFiles = agentFiles.filter(f => f.endsWith('.md') && !f.endsWith('.context.md'));
       agentCount = mdFiles.length;
       hasFacilitator = mdFiles.includes('facilitator.md');
     } catch {

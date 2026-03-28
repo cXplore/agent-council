@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     let files: string[];
     try {
       const entries = await readdir(agentsDir);
-      files = entries.filter(f => f.endsWith('.md'));
+      files = entries.filter(f => f.endsWith('.md') && !f.endsWith('.context.md'));
     } catch (err: unknown) {
       if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
         return NextResponse.json({ agents: [], project: projectName, error: 'Agents directory not found' });
