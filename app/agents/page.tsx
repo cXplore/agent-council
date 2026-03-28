@@ -868,12 +868,19 @@ function AgentsPageInner() {
               </a>
             </div>
           </div>
+        ) : filteredAgents.length === 0 ? (
+          <div
+            className="rounded-lg px-5 py-4 text-sm text-center"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+          >
+            No agents match &ldquo;{searchQuery}&rdquo;
+          </div>
         ) : (() => {
           // Group by team if any agents have teams
-          const hasTeams = agents.some(a => a.team);
+          const hasTeams = filteredAgents.some(a => a.team);
           const groups: Record<string, AgentInfo[]> = {};
           if (hasTeams) {
-            for (const agent of agents) {
+            for (const agent of filteredAgents) {
               const team = agent.team || 'Other';
               if (!groups[team]) groups[team] = [];
               groups[team].push(agent);
@@ -917,7 +924,7 @@ function AgentsPageInner() {
 
           return (
             <div className="space-y-2">
-              {agents.map(agent => (
+              {filteredAgents.map(agent => (
                 <AgentCard key={agent.filename} agent={agent} onSelect={setSelected} />
               ))}
             </div>

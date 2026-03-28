@@ -338,6 +338,7 @@ export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [hasLiveMeeting, setHasLiveMeeting] = useState(false);
+  const [meetingCount, setMeetingCount] = useState(0);
   const [connectionHealth, setConnectionHealth] = useState<ConnectionHealth>('online');
   const consecutiveFailures = useRef(0);
 
@@ -356,7 +357,10 @@ export default function Nav() {
         } else {
           consecutiveFailures.current = 0;
           const data = await res.json();
-          setHasLiveMeeting(Array.isArray(data) && data.some((m: { status: string }) => m.status === 'in-progress'));
+          if (Array.isArray(data)) {
+            setHasLiveMeeting(data.some((m: { status: string }) => m.status === 'in-progress'));
+            setMeetingCount(data.length);
+          }
         }
 
         if (consecutiveFailures.current >= 3) {
@@ -429,6 +433,18 @@ export default function Nav() {
                     title="Live meeting in progress"
                   />
                 )}
+                {item.href === '/meetings' && meetingCount > 0 && (
+                  <span
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: 11,
+                      fontWeight: 400,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ({meetingCount})
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -489,6 +505,18 @@ export default function Nav() {
                 }}
               >
                 {item.label}
+                {item.href === '/meetings' && meetingCount > 0 && (
+                  <span
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: 11,
+                      fontWeight: 400,
+                      marginLeft: 4,
+                    }}
+                  >
+                    ({meetingCount})
+                  </span>
+                )}
               </Link>
             );
           })}
