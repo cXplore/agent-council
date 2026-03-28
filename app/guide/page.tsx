@@ -210,9 +210,11 @@ If any call fails, continue normally — meetings work without MCP.`}</pre>
           >
             <div className="space-y-2">
               {[
-                { key: 'j', desc: 'Select first meeting in list' },
-                { key: 'k', desc: 'Select last meeting in list' },
-                { key: 'Esc', desc: 'Back to meeting list from detail view' },
+                { key: 'Ctrl+K', desc: 'Open command palette' },
+                { key: 'Ctrl+F', desc: 'Search within a meeting' },
+                { key: 'j / k', desc: 'Navigate meeting list up/down' },
+                { key: 'Enter', desc: 'Select focused meeting' },
+                { key: 'Esc', desc: 'Back to list / close search' },
               ].map(shortcut => (
                 <div key={shortcut.key} className="flex items-center gap-3">
                   <kbd
