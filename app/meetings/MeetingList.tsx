@@ -418,8 +418,8 @@ export default function MeetingList(props: MeetingListProps) {
           <EmptyStateWithDemo selectMeeting={selectMeeting} setUserExplicitlyBack={setUserExplicitlyBack} setFocusedIndex={setFocusedIndex} />
         ) : (
           <div className="space-y-3">
-            {/* Cross-meeting tag summary -- expandable */}
-            {tagSummary && (tagSummary.open > 0 || tagSummary.actions > 0 || tagSummary.decisions > 0) && (
+            {/* Cross-meeting tag summary -- expandable (only show if there are unresolved items worth expanding) */}
+            {tagSummary && tagSummary.decisions > 0 && (
               <div
                 className="rounded-lg mb-2"
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
@@ -443,21 +443,9 @@ export default function MeetingList(props: MeetingListProps) {
                   }}
                   className="flex items-center gap-3 text-xs px-3 py-2 w-full cursor-pointer hover:brightness-110 transition-colors flex-wrap"
                 >
-                  {tagSummary.decisions > 0 && (
-                    <span style={{ color: '#60a5fa' }}>
-                      {tagSummary.decisions} decision{tagSummary.decisions !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {tagSummary.open > 0 && (
-                    <span style={{ color: '#fbbf24' }}>
-                      {tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                  {tagSummary.actions > 0 && (
-                    <span style={{ color: '#4ade80' }}>
-                      {tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}
-                    </span>
-                  )}
+                  <span style={{ color: 'var(--color-decision)' }}>
+                    {tagSummary.decisions} decision{tagSummary.decisions !== 1 ? 's' : ''}
+                  </span>
                   <span style={{ color: 'var(--text-muted)' }}>
                     across {tagSummary.meetingCount} meeting{tagSummary.meetingCount !== 1 ? 's' : ''}
                   </span>
@@ -468,9 +456,9 @@ export default function MeetingList(props: MeetingListProps) {
                 {tagExpanded && tagDetails && (
                   <div className="px-3 pb-3 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
                     {([
-                      { key: 'decisions' as const, label: 'Decisions', color: '#60a5fa', border: 'rgba(96, 165, 250, 0.4)' },
-                      { key: 'open' as const, label: 'Open Questions', color: '#fbbf24', border: 'rgba(251, 191, 36, 0.4)' },
-                      { key: 'actions' as const, label: 'Pending Actions', color: '#4ade80', border: 'rgba(74, 222, 128, 0.4)' },
+                      { key: 'decisions' as const, label: 'Decisions', color: 'var(--color-decision)', border: 'var(--color-decision-bg)' },
+                      { key: 'open' as const, label: 'Open Questions', color: 'var(--color-open)', border: 'var(--color-open-bg)' },
+                      { key: 'actions' as const, label: 'Pending Actions', color: 'var(--color-action)', border: 'var(--color-action-bg)' },
                     ]).map(({ key, label, color, border }) => {
                       const items = tagDetails[key];
                       if (!items?.length) return null;
