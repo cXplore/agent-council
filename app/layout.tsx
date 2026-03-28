@@ -26,6 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        <link rel="alternate" type="application/rss+xml" title="Agent Council Meetings" href="/api/meetings/feed" />
+      </head>
       <body className="min-h-screen antialiased">
         <Nav />
         {children}
