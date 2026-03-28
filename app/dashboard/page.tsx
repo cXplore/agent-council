@@ -21,6 +21,16 @@ interface TagSummary {
   meetingCount: number;
 }
 
+interface TermEntry {
+  word: string;
+  count: number;
+}
+
+interface KeyTermsData {
+  terms: TermEntry[];
+  meetingTitle: string;
+}
+
 function CountCard({
   label,
   value,
@@ -195,9 +205,61 @@ function TagsSummary({ tags }: { tags: TagSummary }) {
   );
 }
 
+function KeyTermsBar({ data }: { data: KeyTermsData }) {
+  const display = data.terms.slice(0, 10);
+  if (display.length === 0) return null;
+
+  const max = display[0].count;
+
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+  };
+
+  return (
+    <div className="rounded-lg px-5 py-4" style={cardStyle}>
+      <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+        Key terms (latest meeting)
+      </div>
+      <div className="text-xs mb-3 truncate" style={{ color: 'var(--text-secondary)' }}>
+        {data.meetingTitle}
+      </div>
+      <div className="space-y-2">
+        {display.map((term) => (
+          <div key={term.word} className="flex items-center gap-3">
+            <span
+              className="text-xs w-[120px] flex-shrink-0 text-right truncate"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              {term.word}
+            </span>
+            <div className="flex-1 h-4 rounded overflow-hidden" style={{ background: 'var(--bg)' }}>
+              <div
+                className="h-full rounded transition-all"
+                style={{
+                  width: `${(term.count / max) * 100}%`,
+                  background: 'var(--accent)',
+                  minWidth: 4,
+                }}
+              />
+            </div>
+            <span
+              className="text-xs w-[28px] flex-shrink-0 text-right tabular-nums"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {term.count}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardInner() {
   const [analytics, setAnalytics] = useState<MeetingAnalytics | null>(null);
   const [tags, setTags] = useState<TagSummary | null>(null);
+  const [keyTerms, setKeyTerms] = useState<KeyTermsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
@@ -217,6 +279,24 @@ function DashboardInner() {
         if (tagsRes.ok) {
           const tagsData: TagSummary = await tagsRes.json();
           setTags(tagsData);
+        }
+
+        // Fetch key terms for the most recent completed meeting
+        try {
+          const meetingsRes = await fetch('/api/meetings');
+          if (meetingsRes.ok) {
+            const meetings: { filename: string; status: string; title: string }[] = await meetingsRes.json();
+            const completed = meetings.find(m => m.status === 'complete');
+            if (completed) {
+              const termsRes = await fetch(`/api/meetings/terms?file=${encodeURIComponent(completed.filename)}`);
+              if (termsRes.ok) {
+                const termsData: { terms: TermEntry[] } = await termsRes.json();
+                setKeyTerms({ terms: termsData.terms, meetingTitle: completed.title });
+              }
+            }
+          }
+        } catch {
+          // Key terms are non-critical; silently skip on failure
         }
       } catch {
         setFetchError(true);
