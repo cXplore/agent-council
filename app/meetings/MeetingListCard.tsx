@@ -1,4 +1,46 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import type { MeetingListItem } from '@/lib/types';
+
+// Shared interval: one 60s timer drives all useRelativeTime consumers
+let subscriberCount = 0;
+let intervalId: ReturnType<typeof setInterval> | null = null;
+const listeners = new Set<() => void>();
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  subscriberCount++;
+  if (subscriberCount === 1) {
+    intervalId = setInterval(() => {
+      listeners.forEach((fn) => fn());
+    }, 60_000);
+  }
+  return () => {
+    listeners.delete(listener);
+    subscriberCount--;
+    if (subscriberCount === 0 && intervalId !== null) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  };
+}
+
+/** Hook that returns a live-updating relative time string, refreshing every 60s. */
+function useRelativeTime(isoDate: string): string {
+  const [display, setDisplay] = useState(() => formatTimeAgo(isoDate));
+
+  useEffect(() => {
+    // Sync immediately in case isoDate changed
+    setDisplay(formatTimeAgo(isoDate));
+    const unsubscribe = subscribe(() => {
+      setDisplay(formatTimeAgo(isoDate));
+    });
+    return unsubscribe;
+  }, [isoDate]);
+
+  return display;
+}
 
 export function formatType(type: string): string {
   return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -97,6 +139,8 @@ export default function MeetingListCard({
   pinned,
   onTogglePin,
 }: MeetingListCardProps) {
+  const timeAgo = useRelativeTime(m.modifiedAt);
+
   return (
     <div
       key={m.filename}
@@ -204,7 +248,7 @@ export default function MeetingListCard({
       <div className="flex items-center justify-between mt-2 ml-5">
         <span className="flex items-center gap-1.5">
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {formatTimeAgo(m.modifiedAt)}
+            {timeAgo}
           </span>
           {tagCounts && (tagCounts.decisions > 0 || tagCounts.open > 0 || tagCounts.actions > 0) && (
             <span className="flex items-center gap-1" style={{ opacity: 0.7 }}>

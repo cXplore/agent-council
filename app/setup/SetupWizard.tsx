@@ -401,7 +401,7 @@ function SetupWizardInner() {
                 value={projectPath}
                 onChange={(e) => setProjectPath(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleConnect(); }}
-                placeholder="C:\Projects\my-app or /home/user/my-app"
+                placeholder={typeof navigator !== 'undefined' && navigator.platform?.startsWith('Win') ? 'C:\\Projects\\my-app' : '/home/user/my-app'}
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none"
                 style={{
                   background: 'var(--bg)',
