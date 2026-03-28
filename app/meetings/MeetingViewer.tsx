@@ -76,6 +76,7 @@ export default function MeetingViewer() {
 
   // Connection health tracking
   const [connectionLost, setConnectionLost] = useState(false);
+  const [pollPaused, setPollPaused] = useState(false);
   const failedPollsRef = useRef(0);
 
   const connectionLostRef = useRef(false);
@@ -296,13 +297,15 @@ export default function MeetingViewer() {
     setQueuedRecs(new Set());
     fetchDetail(selected);
 
-    pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
+    if (!pollPaused) {
+      pollRef.current = setInterval(() => fetchDetail(selected), POLL_INTERVAL);
+    }
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (recentlyUpdatedTimerRef.current) clearTimeout(recentlyUpdatedTimerRef.current);
       if (seenContentTimerRef.current) clearTimeout(seenContentTimerRef.current);
     };
-  }, [selected, fetchDetail]);
+  }, [selected, fetchDetail, pollPaused]);
 
   // Poll MCP events for live meetings
   useEffect(() => {
@@ -1749,6 +1752,20 @@ export default function MeetingViewer() {
                         Connection lost — retrying...
                       </span>
                     </>
+                  ) : pollPaused ? (
+                    <>
+                      <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--text-muted)' }} />
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Auto-refresh paused
+                      </span>
+                      <button
+                        onClick={() => setPollPaused(false)}
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
+                      >
+                        Resume
+                      </button>
+                    </>
                   ) : (
                     <>
                       <span
@@ -1758,6 +1775,14 @@ export default function MeetingViewer() {
                       <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                         {recentlyUpdated ? 'New response received' : latestEvent || 'Watching for updates...'}
                       </span>
+                      <button
+                        onClick={() => setPollPaused(true)}
+                        className="text-xs px-2 py-0.5 rounded opacity-0 hover:opacity-100 transition-opacity"
+                        style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        title="Pause auto-refresh"
+                      >
+                        Pause
+                      </button>
                     </>
                   )}
                 </div>
