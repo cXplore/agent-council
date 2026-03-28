@@ -69,6 +69,8 @@ interface MeetingListCardProps {
   hasMultipleProjects: boolean;
   focused?: boolean;
   tagCounts?: { decisions: number; open: number; actions: number };
+  pinned?: boolean;
+  onTogglePin?: (filename: string) => void;
 }
 
 export default function MeetingListCard({
@@ -79,6 +81,8 @@ export default function MeetingListCard({
   hasMultipleProjects,
   focused,
   tagCounts,
+  pinned,
+  onTogglePin,
 }: MeetingListCardProps) {
   return (
     <div
@@ -201,15 +205,27 @@ export default function MeetingListCard({
             </span>
           )}
         </span>
-        {m.status !== 'in-progress' && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(m.filename); }}
-            className="text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Delete
-          </button>
-        )}
+        <span className="flex items-center gap-1">
+          {onTogglePin && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onTogglePin(m.filename); }}
+              className={`text-xs px-1.5 py-0.5 rounded transition-opacity ${pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              style={{ color: pinned ? 'var(--accent)' : 'var(--text-muted)' }}
+              title={pinned ? 'Unpin meeting' : 'Pin to top'}
+            >
+              {pinned ? '\u{1F4CC}' : '\u{1F4CC}'}
+            </button>
+          )}
+          {m.status !== 'in-progress' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(m.filename); }}
+              className="text-xs px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Delete
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );

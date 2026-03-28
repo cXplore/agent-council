@@ -45,6 +45,17 @@ export default function MeetingViewer() {
   const [fetchError, setFetchError] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
+  // Pinned meetings (persisted in localStorage)
+  const [pinnedMeetings, setPinnedMeetings] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const stored = localStorage.getItem('council-pinned-meetings');
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  });
+
   // In-meeting text search
   const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
   const [meetingSearch, setMeetingSearch] = useState('');
@@ -383,6 +394,35 @@ export default function MeetingViewer() {
     [meetings, statusFilter, searchQuery]
   );
 
+  // Toggle pin on a meeting and persist to localStorage
+  const togglePin = useCallback((filename: string) => {
+    setPinnedMeetings(prev => {
+      const next = new Set(prev);
+      if (next.has(filename)) {
+        next.delete(filename);
+      } else {
+        next.add(filename);
+      }
+      try {
+        localStorage.setItem('council-pinned-meetings', JSON.stringify([...next]));
+      } catch { /* ignore storage errors */ }
+      return next;
+    });
+  }, []);
+
+  // Sort filtered meetings: live first, then pinned, then the rest
+  const sortedMeetings = useMemo(() => {
+    return [...filteredMeetings].sort((a, b) => {
+      const aLive = a.status === 'in-progress' ? 1 : 0;
+      const bLive = b.status === 'in-progress' ? 1 : 0;
+      if (aLive !== bLive) return bLive - aLive;
+      const aPinned = pinnedMeetings.has(a.filename) ? 1 : 0;
+      const bPinned = pinnedMeetings.has(b.filename) ? 1 : 0;
+      if (aPinned !== bPinned) return bPinned - aPinned;
+      return 0; // preserve existing order for ties
+    });
+  }, [filteredMeetings, pinnedMeetings]);
+
   // Build per-meeting tag counts from tagDetails for card badges
   const tagCountsByMeeting = useMemo(() => {
     if (!tagDetails) return {};
@@ -397,15 +437,15 @@ export default function MeetingViewer() {
     return counts;
   }, [tagDetails]);
 
-  // Reset focused index when the filtered list changes
+  // Reset focused index when the sorted list changes
   useEffect(() => {
     setFocusedIndex(prev => {
       if (prev === null) return null;
-      if (filteredMeetings.length === 0) return null;
-      if (prev >= filteredMeetings.length) return filteredMeetings.length - 1;
+      if (sortedMeetings.length === 0) return null;
+      if (prev >= sortedMeetings.length) return sortedMeetings.length - 1;
       return prev;
     });
-  }, [filteredMeetings]);
+  }, [sortedMeetings]);
 
   // Keyboard shortcuts
   useEffect(() => {
