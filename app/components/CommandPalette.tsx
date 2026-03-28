@@ -14,6 +14,7 @@ const COMMANDS: Command[] = [
   { label: 'Dashboard', href: '/dashboard', shortcut: 'D' },
   { label: 'Agents', href: '/agents', shortcut: 'A' },
   { label: 'Setup', href: '/setup', shortcut: 'S' },
+  { label: 'Settings', href: '/settings' },
   { label: 'Guide', href: '/guide', shortcut: 'G' },
 ];
 
