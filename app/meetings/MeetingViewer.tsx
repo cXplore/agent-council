@@ -31,6 +31,7 @@ export default function MeetingViewer() {
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState<'summary' | 'all' | 'link' | null>(null);
+  const [linkPreview, setLinkPreview] = useState(false);
   const [outcomesOpen, setOutcomesOpen] = useState(false);
   const [addingFacilitator, setAddingFacilitator] = useState(false);
   const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
@@ -1226,19 +1227,51 @@ export default function MeetingViewer() {
               {detail.title || formatType(detail.type)}
             </span>
 
-            <button
-              onClick={async () => {
-                const link = window.location.origin + '/meetings?file=' + encodeURIComponent(detail.filename);
-                await navigator.clipboard.writeText(link);
-                setCopied('link');
-                setTimeout(() => setCopied(null), 1500);
-              }}
-              className="text-xs px-2 py-0.5 rounded transition-colors"
-              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-              title="Copy meeting link to clipboard"
-            >
-              {copied === 'link' ? 'Copied!' : 'Copy link'}
-            </button>
+            <div className="relative">
+              <button
+                onClick={async () => {
+                  const link = window.location.origin + '/meetings?file=' + encodeURIComponent(detail.filename);
+                  await navigator.clipboard.writeText(link);
+                  setCopied('link');
+                  setLinkPreview(true);
+                  setTimeout(() => setCopied(null), 1500);
+                  setTimeout(() => setLinkPreview(false), 3000);
+                }}
+                className="text-xs px-2 py-0.5 rounded transition-colors"
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                title="Copy meeting link to clipboard"
+              >
+                {copied === 'link' ? 'Copied!' : 'Copy link'}
+              </button>
+
+              {linkPreview && (
+                <div
+                  className="absolute right-0 top-full mt-2 z-50 rounded-lg p-3 text-xs w-64 animate-in fade-in slide-in-from-top-1 duration-200"
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <div className="font-medium mb-1 truncate">
+                    {detail.title || formatType(detail.type)}
+                  </div>
+                  <div className="mb-1" style={{ color: 'var(--text-muted)' }}>
+                    {formatType(detail.type)} &middot; {detail.date || 'No date'}
+                  </div>
+                  <div className="mb-2" style={{ color: 'var(--text-muted)' }}>
+                    {detail.participants.length} agent{detail.participants.length !== 1 ? 's' : ''} participated
+                  </div>
+                  <div
+                    className="truncate font-mono text-[10px] px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+                  >
+                    {window.location.origin}/meetings?file=...
+                  </div>
+                </div>
+              )}
+            </div>
 
             {isLive ? (
               <span
