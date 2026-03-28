@@ -5,6 +5,50 @@ import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType } from './MeetingListCard';
 
+/** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
+function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
+  const [counts, setCounts] = useState<{ active: number; open: number; done: number } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/roadmap')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.counts) setCounts({ active: data.counts.active ?? 0, open: data.counts.open ?? 0, done: data.counts.done ?? 0 });
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <span style={{ color: 'var(--text-secondary)' }}>
+        {meetingCount} meeting{meetingCount !== 1 ? 's' : ''}
+      </span>
+      {counts && counts.open > 0 && (
+        <>
+          <span>&middot;</span>
+          <span style={{ color: 'var(--color-open)' }}>{counts.open} open question{counts.open !== 1 ? 's' : ''}</span>
+        </>
+      )}
+      {counts && counts.active > 0 && (
+        <>
+          <span>&middot;</span>
+          <span style={{ color: 'var(--color-action)' }}>{counts.active} active action{counts.active !== 1 ? 's' : ''}</span>
+        </>
+      )}
+      {counts && counts.done > 0 && counts.open === 0 && counts.active === 0 && (
+        <>
+          <span>&middot;</span>
+          <span style={{ color: 'var(--text-muted)' }}>All caught up</span>
+        </>
+      )}
+      <span>&middot;</span>
+      <a href="/roadmap" className="hover:underline" style={{ color: 'var(--accent)' }}>
+        View roadmap
+      </a>
+    </div>
+  );
+}
+
 export interface MeetingListProps extends MeetingData {
   activeProject: string | null;
   hasProject: boolean | null;
@@ -214,29 +258,9 @@ export default function MeetingList(props: MeetingListProps) {
             className="rounded-lg px-5 py-4 mb-6 text-sm"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            {meetings.length > 0 && tagSummary ? (
-              // Returning user — show context
-              <div className="flex items-center gap-3 flex-wrap">
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
-                </span>
-                {tagSummary.open > 0 && (
-                  <>
-                    <span>&middot;</span>
-                    <span style={{ color: '#fbbf24' }}>{tagSummary.open} open question{tagSummary.open !== 1 ? 's' : ''}</span>
-                  </>
-                )}
-                {tagSummary.actions > 0 && (
-                  <>
-                    <span>&middot;</span>
-                    <span style={{ color: '#4ade80' }}>{tagSummary.actions} action{tagSummary.actions !== 1 ? 's' : ''}</span>
-                  </>
-                )}
-                <span>&middot;</span>
-                <a href="/roadmap" className="hover:underline" style={{ color: 'var(--accent)' }}>
-                  View roadmap
-                </a>
-              </div>
+            {meetings.length > 0 ? (
+              // Returning user — show context from roadmap (status-aware)
+              <ReturningUserBanner meetingCount={meetings.length} />
             ) : (
               // New user — show hint
               <>
