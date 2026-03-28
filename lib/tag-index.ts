@@ -92,46 +92,56 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     return { decisions: [], open: [], actions: [], resolved: [], meetingCount: 0, builtAt: new Date().toISOString() };
   }
 
-  // Check if cache is still valid by comparing mtimes
-  if (cached) {
-    let cacheValid = true;
-    const currentMtimes: Record<string, number> = {};
+  // Check mtimes to determine which files need re-indexing
+  const currentMtimes: Record<string, number> = {};
+  const changedFiles: string[] = [];
+  const unchangedFiles: string[] = [];
 
-    for (const file of files) {
-      try {
-        const fileStat = await stat(path.join(meetingsDir, file));
-        currentMtimes[file] = fileStat.mtimeMs;
-        if (!cached.mtimes[file] || cached.mtimes[file] !== fileStat.mtimeMs) {
-          cacheValid = false;
-        }
-      } catch {
-        cacheValid = false;
+  for (const file of files) {
+    try {
+      const fileStat = await stat(path.join(meetingsDir, file));
+      currentMtimes[file] = fileStat.mtimeMs;
+      if (cached?.mtimes[file] && cached.mtimes[file] === fileStat.mtimeMs) {
+        unchangedFiles.push(file);
+      } else {
+        changedFiles.push(file);
       }
-    }
-
-    // Also check if files were removed
-    if (Object.keys(cached.mtimes).length !== files.length) {
-      cacheValid = false;
-    }
-
-    if (cacheValid) {
-      return cached.index;
+    } catch {
+      changedFiles.push(file); // treat unreadable as changed
     }
   }
 
-  // Rebuild index
+  // Check for removed files
+  const removedFiles = cached ? Object.keys(cached.mtimes).filter(f => !files.includes(f)) : [];
+
+  // If nothing changed, return cached index
+  if (cached && changedFiles.length === 0 && removedFiles.length === 0) {
+    return cached.index;
+  }
+
+  // Incremental rebuild: reuse cached entries for unchanged files, re-index changed ones
   const decisions: TagEntry[] = [];
   const open: TagEntry[] = [];
   const actions: TagEntry[] = [];
   const resolved: TagEntry[] = [];
   const mtimes: Record<string, number> = {};
 
-  for (const file of files) {
+  // Carry forward cached entries for unchanged files
+  if (cached) {
+    const unchangedSet = new Set(unchangedFiles);
+    for (const entry of cached.index.decisions) if (unchangedSet.has(entry.meeting)) decisions.push(entry);
+    for (const entry of cached.index.open) if (unchangedSet.has(entry.meeting)) open.push(entry);
+    for (const entry of cached.index.actions) if (unchangedSet.has(entry.meeting)) actions.push(entry);
+    for (const entry of cached.index.resolved) if (unchangedSet.has(entry.meeting)) resolved.push(entry);
+    for (const file of unchangedFiles) mtimes[file] = currentMtimes[file];
+  }
+
+  // Re-index only changed files
+  for (const file of changedFiles) {
     try {
       const filePath = path.join(meetingsDir, file);
       const content = await readFile(filePath, 'utf-8');
-      const fileStat = await stat(filePath);
-      mtimes[file] = fileStat.mtimeMs;
+      mtimes[file] = currentMtimes[file];
 
       const tags = extractTags(content, file);
       for (const tag of tags) {

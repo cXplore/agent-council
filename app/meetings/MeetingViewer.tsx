@@ -1185,6 +1185,23 @@ export default function MeetingViewer() {
                 >
                   {copied === 'all' ? 'Copied!' : 'Copy all'}
                 </button>
+                <button
+                  onClick={() => {
+                    if (!detail?.content) return;
+                    const blob = new Blob([detail.content], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = detail.filename || 'meeting.md';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="text-xs px-2 py-0.5 rounded transition-colors"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                  title="Download meeting as markdown file"
+                >
+                  Download
+                </button>
               </>
             )}
           </>
