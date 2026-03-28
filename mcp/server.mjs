@@ -590,6 +590,88 @@ server.tool(
   }
 );
 
+// Tool: Session brief — synthesized context for starting a coding session
+server.tool(
+  'council_session_brief',
+  'Get a synthesized brief for starting a coding session. Combines: recent meeting summaries, active work items, open questions, and project context into a single actionable overview. Call this at the START of any session to know what the team decided and what needs doing.',
+  {},
+  async () => {
+    try {
+      const sections = [];
+
+      // 1. Get recent meetings
+      const meetingsData = await councilRequest('/api/meetings').catch(() => []);
+      const meetings = Array.isArray(meetingsData) ? meetingsData : [];
+      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 3);
+
+      if (recentCompleted.length > 0) {
+        sections.push('RECENT MEETINGS:');
+        for (const m of recentCompleted) {
+          sections.push(`  ${m.title || m.filename} (${m.date || 'unknown'}) — ${m.participants?.length || 0} agents`);
+        }
+        sections.push('');
+      }
+
+      // 2. Get active work items
+      const roadmapData = await councilRequest('/api/roadmap').catch(() => ({ items: [], counts: {} }));
+      const items = roadmapData.items || [];
+      const activeActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+      const activeOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
+      const counts = roadmapData.counts || {};
+
+      if (activeActions.length > 0) {
+        sections.push(`ACTIVE WORK (${activeActions.length} items):`);
+        for (const a of activeActions.slice(0, 7)) {
+          sections.push(`  → ${a.text.slice(0, 120)}`);
+          sections.push(`    from: ${a.meetingTitle || a.meeting}`);
+        }
+        if (activeActions.length > 7) sections.push(`  ... and ${activeActions.length - 7} more`);
+        sections.push('');
+      }
+
+      if (activeOpen.length > 0) {
+        sections.push(`OPEN QUESTIONS (${activeOpen.length}):`);
+        for (const o of activeOpen.slice(0, 5)) {
+          sections.push(`  ? ${o.text.slice(0, 120)}`);
+        }
+        if (activeOpen.length > 5) sections.push(`  ... and ${activeOpen.length - 5} more`);
+        sections.push('');
+      }
+
+      // 3. Progress summary
+      const done = counts.done || 0;
+      const active = counts.active || 0;
+      const open = counts.open || 0;
+      const total = done + active + open;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      sections.push(`PROGRESS: ${done} done, ${active} active, ${open} open (${pct}% complete)`);
+
+      // 4. Live meetings
+      const live = meetings.filter(m => m.status === 'in-progress');
+      if (live.length > 0) {
+        sections.push('');
+        sections.push('⚡ LIVE MEETINGS:');
+        for (const m of live) {
+          sections.push(`  ${m.title || m.filename}`);
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: sections.length > 0
+            ? `Agent Council Session Brief:\n\n${sections.join('\n')}`
+            : 'No meeting data yet. Run your first meeting to generate context.',
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not generate brief: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
