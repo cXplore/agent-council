@@ -93,6 +93,14 @@ docs/                   # GitHub Pages static site
 | Tag index | `lib/tag-index.ts` |
 | Meeting utils | `lib/meeting-utils.ts` |
 | Error boundary | `app/components/ErrorBoundary.tsx` |
+| Command palette | `app/components/CommandPalette.tsx` |
+| Toast notifications | `app/components/Toast.tsx` |
+| Settings page | `app/settings/page.tsx` |
+| 404 page | `app/not-found.tsx` |
+| Health check API | `app/api/health/route.ts` |
+| RSS feed API | `app/api/meetings/feed/route.ts` |
+| Key terms API | `app/api/meetings/terms/route.ts` |
+| Meeting template API | `app/api/meetings/template/route.ts` |
 | Agent templates | `templates/agents/*.md` |
 | Team presets | `templates/presets/*.json` |
 | GitHub Pages | `docs/index.html` |
