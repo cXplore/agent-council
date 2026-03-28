@@ -1267,7 +1267,7 @@ export default function MeetingViewer() {
             className="px-6 py-2 flex items-center gap-4 text-xs flex-wrap"
             style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            <span>{totalWords.toLocaleString()} words</span>
+            <span>{totalWords.toLocaleString()} words (~{Math.ceil(totalWords / 250)} min read)</span>
             <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
             <span>{Object.keys(wordCounts).length} agents</span>
             <div className="flex-1" />
