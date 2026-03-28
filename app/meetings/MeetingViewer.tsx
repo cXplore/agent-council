@@ -45,6 +45,12 @@ export default function MeetingViewer() {
   const [fetchError, setFetchError] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
 
+  // In-meeting text search
+  const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
+  const [meetingSearch, setMeetingSearch] = useState('');
+  const [meetingSearchIndex, setMeetingSearchIndex] = useState(0);
+  const meetingSearchRef = useRef<HTMLInputElement>(null);
+
   // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [hasProject, setHasProject] = useState<boolean | null>(null); // null = loading
@@ -393,6 +399,26 @@ export default function MeetingViewer() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ctrl+F / Cmd+F — open in-meeting search when viewing a detail
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && selected) {
+        e.preventDefault();
+        setMeetingSearchOpen(true);
+        setMeetingSearch('');
+        setMeetingSearchIndex(0);
+        // Focus the search input after it renders
+        setTimeout(() => meetingSearchRef.current?.focus(), 0);
+        return;
+      }
+
+      // Escape — close search bar first, then go back to list
+      if (e.key === 'Escape') {
+        if (meetingSearchOpen) {
+          setMeetingSearchOpen(false);
+          setMeetingSearch('');
+          return;
+        }
+      }
+
       // Don't capture when typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
@@ -422,7 +448,7 @@ export default function MeetingViewer() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [selected, filteredMeetings, focusedIndex, selectMeeting]);
+  }, [selected, filteredMeetings, focusedIndex, selectMeeting, meetingSearchOpen]);
 
   const scrollToBottom = () => {
     contentRef.current?.scrollTo({

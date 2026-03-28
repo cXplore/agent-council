@@ -228,6 +228,22 @@ If any call fails, continue normally — meetings work without MCP.`}</pre>
           </div>
         </section>
 
+        {/* Extra features */}
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            More features
+          </h2>
+          <div
+            className="rounded-lg p-5 text-sm space-y-3"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            <p><strong style={{ color: 'var(--text-primary)' }}>Dashboard.</strong> The <a href="/dashboard" className="underline" style={{ color: 'var(--accent)' }}>/dashboard</a> page shows meeting analytics: type distribution, most active agents, and outcome tracking across all meetings.</p>
+            <p><strong style={{ color: 'var(--text-primary)' }}>Export.</strong> Download all meetings as a JSON bundle from the dashboard, or download individual meetings as markdown from the detail view.</p>
+            <p><strong style={{ color: 'var(--text-primary)' }}>Create agents.</strong> The <a href="/agents" className="underline" style={{ color: 'var(--accent)' }}>/agents</a> page lets you create new agents from templates without leaving the browser.</p>
+            <p><strong style={{ color: 'var(--text-primary)' }}>Plan meetings.</strong> Queue future meetings from the meeting list page. Claude picks them up via MCP and offers to run them.</p>
+          </div>
+        </section>
+
         {/* Tips */}
         <section className="mb-10">
           <h2 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
