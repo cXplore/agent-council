@@ -51,6 +51,12 @@ export default function MeetingViewer() {
   const [meetingSearchIndex, setMeetingSearchIndex] = useState(0);
   const meetingSearchRef = useRef<HTMLInputElement>(null);
 
+  // window.find is non-standard but supported in all major browsers
+  const windowFind = useCallback((query: string, caseSensitive = false, backward = false) => {
+    const win = window as unknown as { find?: (q: string, cs: boolean, bw: boolean) => boolean };
+    return win.find?.(query, caseSensitive, backward) ?? false;
+  }, []);
+
   // Active project context
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [hasProject, setHasProject] = useState<boolean | null>(null); // null = loading
@@ -1220,6 +1226,14 @@ export default function MeetingViewer() {
                 >
                   Download
                 </button>
+                <button
+                  onClick={() => window.print()}
+                  className="text-xs px-2 py-0.5 rounded transition-colors"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                  title="Print meeting transcript"
+                >
+                  Print
+                </button>
               </>
             )}
           </>
@@ -1466,6 +1480,143 @@ export default function MeetingViewer() {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-6 py-8 relative"
       >
+        {/* In-meeting text search bar */}
+        {meetingSearchOpen && detail && (
+          <div
+            className="sticky top-0 z-20 flex items-center gap-2 px-4 py-2 rounded-lg mb-4 shadow-lg"
+            style={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--accent)',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              ref={meetingSearchRef}
+              type="text"
+              value={meetingSearch}
+              onChange={(e) => {
+                setMeetingSearch(e.target.value);
+                setMeetingSearchIndex(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setMeetingSearchOpen(false);
+                  setMeetingSearch('');
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  // Navigate to next/prev match
+                  const content = detail?.content || '';
+                  const query = meetingSearch.toLowerCase();
+                  if (!query) return;
+                  const matches: number[] = [];
+                  let idx = content.toLowerCase().indexOf(query);
+                  while (idx !== -1) {
+                    matches.push(idx);
+                    idx = content.toLowerCase().indexOf(query, idx + 1);
+                  }
+                  if (matches.length === 0) return;
+                  const nextIndex = e.shiftKey
+                    ? (meetingSearchIndex - 1 + matches.length) % matches.length
+                    : (meetingSearchIndex + 1) % matches.length;
+                  setMeetingSearchIndex(nextIndex);
+                  // Scroll to match by finding the text in the rendered content
+                  if (contentRef.current) {
+                    const selection = window.getSelection();
+                    selection?.removeAllRanges();
+                    contentRef.current.focus();
+                    windowFind(meetingSearch, false, e.shiftKey);
+                  }
+                }
+              }}
+              placeholder="Search in meeting..."
+              className="flex-1 text-sm bg-transparent outline-none"
+              style={{ color: 'var(--text-primary)' }}
+              autoFocus
+            />
+            {/* Match count */}
+            <span className="text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+              {(() => {
+                if (!meetingSearch) return '';
+                const content = detail?.content || '';
+                const query = meetingSearch.toLowerCase();
+                let count = 0;
+                let idx = content.toLowerCase().indexOf(query);
+                while (idx !== -1) {
+                  count++;
+                  idx = content.toLowerCase().indexOf(query, idx + 1);
+                }
+                if (count === 0) return 'No matches';
+                return `${meetingSearchIndex + 1} of ${count} match${count !== 1 ? 'es' : ''}`;
+              })()}
+            </span>
+            {/* Prev / Next buttons */}
+            <button
+              onClick={() => {
+                const content = detail?.content || '';
+                const query = meetingSearch.toLowerCase();
+                if (!query) return;
+                let count = 0;
+                let idx = content.toLowerCase().indexOf(query);
+                while (idx !== -1) { count++; idx = content.toLowerCase().indexOf(query, idx + 1); }
+                if (count === 0) return;
+                const prev = (meetingSearchIndex - 1 + count) % count;
+                setMeetingSearchIndex(prev);
+                if (contentRef.current) {
+                  const selection = window.getSelection();
+                  selection?.removeAllRanges();
+                  contentRef.current.focus();
+                  windowFind(meetingSearch, false, true);
+                  meetingSearchRef.current?.focus();
+                }
+              }}
+              className="p-1 rounded hover:brightness-125 transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Previous match (Shift+Enter)"
+              aria-label="Previous match"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+            </button>
+            <button
+              onClick={() => {
+                const content = detail?.content || '';
+                const query = meetingSearch.toLowerCase();
+                if (!query) return;
+                let count = 0;
+                let idx = content.toLowerCase().indexOf(query);
+                while (idx !== -1) { count++; idx = content.toLowerCase().indexOf(query, idx + 1); }
+                if (count === 0) return;
+                const next = (meetingSearchIndex + 1) % count;
+                setMeetingSearchIndex(next);
+                if (contentRef.current) {
+                  const selection = window.getSelection();
+                  selection?.removeAllRanges();
+                  contentRef.current.focus();
+                  windowFind(meetingSearch);
+                  meetingSearchRef.current?.focus();
+                }
+              }}
+              className="p-1 rounded hover:brightness-125 transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Next match (Enter)"
+              aria-label="Next match"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+            </button>
+            {/* Close button */}
+            <button
+              onClick={() => { setMeetingSearchOpen(false); setMeetingSearch(''); }}
+              className="p-1 rounded hover:brightness-125 transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              title="Close (Escape)"
+              aria-label="Close search"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          </div>
+        )}
+
         {/* Round jump markers */}
         {detail && detail.content && (() => {
           const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);

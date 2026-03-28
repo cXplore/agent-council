@@ -106,3 +106,15 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }
+
+/* Print styles for meeting transcripts */
+@media print {
+  nav, .sticky, button, .meeting-new-content, .loading-shimmer,
+  [aria-label="Close outcomes panel"], [aria-label="Dismiss error"] { display: none !important; }
+  body { background: white !important; color: black !important; }
+  .prose, .meeting-content { color: #222 !important; }
+  h1, h2, h3 { color: #000 !important; page-break-after: avoid; }
+  .prose h2 { border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+  a { color: #333 !important; text-decoration: underline; }
+  @page { margin: 2cm; }
+}
