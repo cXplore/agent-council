@@ -385,6 +385,10 @@ export default function MeetingViewer() {
     } catch {
       setNoteText('');
     }
+    return () => {
+      // Flush any pending save when switching meetings
+      if (noteTimerRef.current) clearTimeout(noteTimerRef.current);
+    };
   }, [selected]);
 
   // Save notes to localStorage (debounced)
@@ -1394,6 +1398,19 @@ export default function MeetingViewer() {
                 </button>
               </>
             )}
+
+            {/* Notes toggle — available for both live and completed meetings */}
+            <button
+              onClick={() => setNotesOpen(prev => !prev)}
+              className="text-xs px-2 py-0.5 rounded transition-colors"
+              style={{
+                color: notesOpen ? 'var(--accent)' : (noteText.trim() ? 'var(--text-primary)' : 'var(--text-muted)'),
+                border: `1px solid ${notesOpen ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+              title={notesOpen ? 'Hide personal notes' : 'Show personal notes'}
+            >
+              {noteText.trim() ? 'Notes *' : 'Notes'}
+            </button>
           </>
         )}
       </div>
@@ -1410,18 +1427,26 @@ export default function MeetingViewer() {
           <span style={{ color: 'var(--text-muted)' }}>Participants:</span>
           {detail.participants.map((p) => {
             const hasSpoken = detail.content?.includes(`**${p}:**`) ?? false;
+            const initial = p.charAt(0).toUpperCase();
+            const color = getAgentColor(p);
             return (
               <a
                 key={p}
                 href={`/agents?agent=${encodeURIComponent(p)}`}
-                className="px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
                 style={{
-                  color: getAgentColor(p),
-                  background: `${getAgentColor(p).replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
+                  color,
+                  background: `${color.replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
                   opacity: hasSpoken ? 1 : 0.4,
                 }}
                 title={hasSpoken ? `${p} has spoken — click to view profile` : `${p} — waiting to speak`}
               >
+                <span
+                  className="inline-flex items-center justify-center rounded-full text-xs font-bold"
+                  style={{ width: 16, height: 16, background: color, color: '#0a0a0b', fontSize: '0.6rem' }}
+                >
+                  {initial}
+                </span>
                 {p}
               </a>
             );
@@ -1957,6 +1982,43 @@ export default function MeetingViewer() {
       )}
 
       </div>{/* End Content + Outcomes wrapper */}
+
+      {/* Collapsible personal notes section */}
+      {notesOpen && (
+        <div
+          className="px-6 py-3"
+          style={{
+            background: 'var(--bg-secondary)',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                Personal Notes
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+                Saved to this browser
+              </span>
+            </div>
+            <textarea
+              value={noteText}
+              onChange={handleNoteChange}
+              onBlur={handleNoteBlur}
+              placeholder="Write your notes about this meeting..."
+              rows={4}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-y"
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                minHeight: '80px',
+                maxHeight: '300px',
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Error banner */}
       {error && (
