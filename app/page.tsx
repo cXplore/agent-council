@@ -6,7 +6,7 @@ export default async function Home() {
     const config = await getConfig();
     const hasProjects = Object.keys(config.projects).length > 0;
     if (!hasProjects && config.activeProject === 'workspace') {
-      redirect('/setup');
+      redirect('/welcome');
     }
   } catch {
     // Fall through to meetings
