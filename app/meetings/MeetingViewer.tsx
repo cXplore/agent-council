@@ -8,7 +8,7 @@ import { getAgentColor } from '@/lib/utils';
 import { createMeetingComponents } from '@/lib/md-components';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 import MeetingCompletionCard from './MeetingCompletionCard';
-import MeetingListCard, { formatType, formatTimeAgo, ProjectBadge } from './MeetingListCard';
+import MeetingListCard, { formatType, formatTimeAgo, formatDuration, ProjectBadge } from './MeetingListCard';
 
 const POLL_INTERVAL = 2000;
 
@@ -30,7 +30,7 @@ export default function MeetingViewer() {
 
   const [chatInput, setChatInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [copied, setCopied] = useState<'summary' | 'all' | 'link' | null>(null);
+  const [copied, setCopied] = useState<'summary' | 'all' | 'link' | 'digest' | null>(null);
   const [linkPreview, setLinkPreview] = useState(false);
   const [outcomesOpen, setOutcomesOpen] = useState(false);
   const [addingFacilitator, setAddingFacilitator] = useState(false);
@@ -1356,6 +1356,67 @@ export default function MeetingViewer() {
                     title="Copy the summary section to clipboard"
                   >
                     {copied === 'summary' ? 'Copied!' : 'Copy summary'}
+                  </button>
+                )}
+                {detail.content?.includes('## Summary') && (
+                  <button
+                    onClick={async () => {
+                      if (!detail?.content) return;
+                      const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+                      const summarySection = detail.content.match(/## Summary[\s\S]*$/);
+                      const decisions: string[] = [];
+                      const open: string[] = [];
+                      const actions: string[] = [];
+                      if (summarySection) {
+                        for (const line of summarySection[0].split('\n')) {
+                          const m = line.match(OUTCOME_REGEX);
+                          if (m) {
+                            const tag = m[1].toUpperCase();
+                            const text = m[3].trim();
+                            if (tag === 'DECISION' || tag === 'RESOLVED') decisions.push(text);
+                            else if (tag === 'OPEN') open.push(text);
+                            else if (tag === 'ACTION') actions.push(text);
+                          }
+                        }
+                      }
+                      const wordCount = detail.wordCount ?? detail.content.split(/\s+/).filter(Boolean).length;
+                      const duration = detail.started && detail.modifiedAt
+                        ? formatDuration(detail.started, detail.modifiedAt)
+                        : null;
+                      const lines: string[] = [];
+                      lines.push(`\u{1F4CB} ${detail.title || formatType(detail.type)}`);
+                      const metaParts = [detail.date || 'No date', formatType(detail.type), `${detail.participants.length} agents`];
+                      lines.push(`\u{1F4C5} ${metaParts.join(' \u00B7 ')}`);
+                      const timeParts = [duration, `${wordCount.toLocaleString()} words`].filter(Boolean);
+                      lines.push(`\u23F1 ${timeParts.join(' \u00B7 ')}`);
+                      if (decisions.length > 0) {
+                        lines.push('');
+                        lines.push('\u{1F3AF} Decisions:');
+                        decisions.forEach(d => lines.push(`\u2022 ${d}`));
+                      }
+                      if (open.length > 0) {
+                        lines.push('');
+                        lines.push('\u2753 Open Questions:');
+                        open.forEach(q => lines.push(`\u2022 ${q}`));
+                      }
+                      if (actions.length > 0) {
+                        lines.push('');
+                        lines.push('\u2705 Actions:');
+                        actions.forEach(a => lines.push(`\u2022 ${a}`));
+                      }
+                      if (decisions.length === 0 && open.length === 0 && actions.length === 0) {
+                        lines.push('');
+                        lines.push('No tagged outcomes found in summary.');
+                      }
+                      await navigator.clipboard.writeText(lines.join('\n'));
+                      setCopied('digest');
+                      setTimeout(() => setCopied(null), 1500);
+                    }}
+                    className="text-xs px-2 py-0.5 rounded transition-colors"
+                    style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
+                    title="Copy a concise digest with decisions, actions, and open questions"
+                  >
+                    {copied === 'digest' ? 'Copied!' : 'Copy digest'}
                   </button>
                 )}
                 <button
