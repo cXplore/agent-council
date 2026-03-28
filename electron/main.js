@@ -274,7 +274,14 @@ function createSplashWindow() {
     <body>
       <div class="title"><span class="dot"></span>Agent Council</div>
       <div class="spinner"></div>
-      <div class="status">Starting server...</div>
+      <div class="status" id="status">Starting server...</div>
+      <script>
+        let s = 0;
+        setInterval(() => {
+          s++;
+          document.getElementById('status').textContent = 'Starting server... ' + s + 's';
+        }, 1000);
+      </script>
     </body>
     </html>
   `)}`);
@@ -293,6 +300,16 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error('Failed to start:', err);
     splash.close();
+
+    // Show error dialog instead of silently quitting
+    const { dialog } = require('electron');
+    dialog.showMessageBoxSync({
+      type: 'error',
+      title: 'Agent Council',
+      message: 'Failed to start the server',
+      detail: `${err.message}\n\nCheck that port ${PORT} is not in use and try again.`,
+      buttons: ['Quit'],
+    });
     app.quit();
   }
 });
