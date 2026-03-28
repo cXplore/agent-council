@@ -433,6 +433,29 @@ export default function MeetingViewer() {
     }
   };
 
+  const bulkDeleteCompleted = async () => {
+    const completed = meetings.filter(m => m.status === 'complete');
+    if (completed.length === 0) return;
+    if (!confirm(`Delete ${completed.length} completed meeting${completed.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    try {
+      const filenames = completed.map(m => m.filename).join(',');
+      const res = await fetch(`/api/meetings${projectParam(`files=${encodeURIComponent(filenames)}`)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Failed to delete meetings');
+        return;
+      }
+      const result = await res.json();
+      const deletedSet = new Set(result.deleted || []);
+      setMeetings(prev => prev.filter(m => !deletedSet.has(m.filename)));
+      if (result.skipped?.length > 0) {
+        setError(`Skipped ${result.skipped.length}: ${result.skipped.map((s: { filename: string; reason: string }) => s.filename).join(', ')}`);
+      }
+    } catch {
+      setError('Failed to delete meetings');
+    }
+  };
+
   const sendMessage = async () => {
     if (!chatInput.trim() || !selected || sending) return;
     setSending(true);
@@ -482,15 +505,26 @@ export default function MeetingViewer() {
                 </span>
               )}
             </div>
-            {hasProject && hasFacilitator && (
-              <button
-                onClick={() => setShowPlanForm(!showPlanForm)}
-                className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
-                style={{ background: 'var(--accent)', color: 'white' }}
-              >
-                + Plan meeting
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {meetings.some(m => m.status === 'complete') && (
+                <button
+                  onClick={bulkDeleteCompleted}
+                  className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                >
+                  Delete completed
+                </button>
+              )}
+              {hasProject && hasFacilitator && (
+                <button
+                  onClick={() => setShowPlanForm(!showPlanForm)}
+                  className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+                  style={{ background: 'var(--accent)', color: 'white' }}
+                >
+                  + Plan meeting
+                </button>
+              )}
+            </div>
           </div>
 
           {/* State-aware guidance — only show after project state is known */}

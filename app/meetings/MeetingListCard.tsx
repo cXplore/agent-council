@@ -68,6 +68,7 @@ interface MeetingListCardProps {
   taggedMeetings: Set<string>;
   hasMultipleProjects: boolean;
   focused?: boolean;
+  tagCounts?: { decisions: number; open: number; actions: number };
 }
 
 export default function MeetingListCard({
@@ -77,6 +78,7 @@ export default function MeetingListCard({
   taggedMeetings,
   hasMultipleProjects,
   focused,
+  tagCounts,
 }: MeetingListCardProps) {
   return (
     <div

@@ -80,3 +80,18 @@ export interface MeetingListItem {
 export interface MeetingDetail extends MeetingListItem {
   content: string;
 }
+
+/** Tag counts for a single meeting */
+export interface TagCounts {
+  decisions: number;
+  open: number;
+  actions: number;
+}
+
+/** Meeting event from the MCP bridge */
+export interface MeetingEvent {
+  event: string;
+  meeting: string;
+  detail?: string;
+  timestamp: string;
+}

@@ -244,13 +244,56 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const { dir: meetingsDir } = await getMeetingsDir(request);
   const filename = request.nextUrl.searchParams.get('file');
+  const filesParam = request.nextUrl.searchParams.get('files');
 
+  // Bulk delete: ?files=a.md,b.md,c.md
+  if (filesParam) {
+    const filenames = filesParam.split(',').map(f => f.trim()).filter(Boolean);
+    if (filenames.length === 0) {
+      return NextResponse.json({ error: 'files parameter must contain at least one filename' }, { status: 400 });
+    }
+
+    const deleted: string[] = [];
+    const skipped: { filename: string; reason: string }[] = [];
+
+    for (const name of filenames) {
+      const safeName = path.basename(name);
+      if (!safeName.endsWith('.md')) {
+        skipped.push({ filename: safeName, reason: 'Not a .md file' });
+        continue;
+      }
+      const filePath = path.join(meetingsDir, safeName);
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const metadata = parseMetadata(content);
+        if (metadata.status === 'in-progress') {
+          skipped.push({ filename: safeName, reason: 'Meeting is in-progress' });
+          continue;
+        }
+        await unlink(filePath);
+        deleted.push(safeName);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          skipped.push({ filename: safeName, reason: 'File not found' });
+        } else {
+          skipped.push({ filename: safeName, reason: 'Failed to delete' });
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true, deleted, skipped });
+  }
+
+  // Single delete: ?file=meeting.md
   if (!filename) {
-    return NextResponse.json({ error: 'file parameter required' }, { status: 400 });
+    return NextResponse.json({ error: 'file or files parameter required' }, { status: 400 });
   }
 
   try {
     const safeName = path.basename(filename);
+    if (!safeName.endsWith('.md')) {
+      return NextResponse.json({ error: 'Only .md files can be deleted' }, { status: 400 });
+    }
     const filePath = path.join(meetingsDir, safeName);
 
     const content = await readFile(filePath, 'utf-8');
@@ -261,7 +304,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await unlink(filePath);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deleted: [safeName], skipped: [] });
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
