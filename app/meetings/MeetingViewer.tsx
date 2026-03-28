@@ -48,6 +48,7 @@ export default function MeetingViewer() {
 
   // Round-by-round view: null = show all, number = show only that round
   const [viewRound, setViewRound] = useState<number | null>(null);
+  const [showContribDetails, setShowContribDetails] = useState(false);
 
   // Pinned meetings (persisted in localStorage)
   const [pinnedMeetings, setPinnedMeetings] = useState<Set<string>>(() => {
@@ -1578,16 +1579,22 @@ export default function MeetingViewer() {
         if (totalWords === 0) return null;
 
         return (
+          <>
           <div
             className="px-6 py-2 flex items-center gap-4 text-xs flex-wrap"
-            style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            style={{ borderBottom: showContribDetails ? 'none' : '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             <span>{totalWords.toLocaleString()} words (~{Math.ceil(totalWords / 250)} min read)</span>
             <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
             <span>{Object.keys(wordCounts).length} agents</span>
             <div className="flex-1" />
-            {/* Mini contribution bar */}
-            <div className="flex h-1.5 rounded-full overflow-hidden" style={{ width: 120 }}>
+            {/* Mini contribution bar (clickable) */}
+            <button
+              onClick={() => setShowContribDetails(!showContribDetails)}
+              className="flex h-2.5 rounded-full overflow-hidden cursor-pointer transition-opacity hover:opacity-80"
+              style={{ width: 120, border: 'none', padding: 0, background: 'transparent' }}
+              title="Click to show contribution details"
+            >
               {Object.entries(wordCounts)
                 .sort((a, b) => b[1] - a[1])
                 .map(([name, count]) => (
@@ -1597,10 +1604,9 @@ export default function MeetingViewer() {
                       width: `${(count / totalWords) * 100}%`,
                       background: getAgentColor(name),
                     }}
-                    title={`${name}: ${count} words (${Math.round((count / totalWords) * 100)}%)`}
                   />
                 ))}
-            </div>
+            </button>
             {/* Outcomes toggle */}
             {(() => {
               const count = detail?.content ? countOutcomes(detail.content) : 0;
@@ -1620,6 +1626,36 @@ export default function MeetingViewer() {
               );
             })()}
           </div>
+          {/* Expandable contribution details */}
+          {showContribDetails && (
+            <div
+              className="px-6 py-3 text-xs"
+              style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}
+            >
+              <div className="space-y-1.5" style={{ maxWidth: 420 }}>
+                {Object.entries(wordCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([name, count]) => {
+                    const pct = Math.round((count / totalWords) * 100);
+                    return (
+                      <div key={name} className="flex items-center gap-3">
+                        <span className="w-28 truncate font-medium" style={{ color: 'var(--text-secondary)' }}>{name}</span>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, background: getAgentColor(name) }}
+                          />
+                        </div>
+                        <span className="w-24 text-right tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                          {pct}% ({count.toLocaleString()})
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+          </>
         );
       })()}
 

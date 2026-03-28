@@ -274,6 +274,7 @@ function DashboardInner() {
   const [analytics, setAnalytics] = useState<MeetingAnalytics | null>(null);
   const [tags, setTags] = useState<TagSummary | null>(null);
   const [keyTerms, setKeyTerms] = useState<KeyTermsData | null>(null);
+  const [recentMeetings, setRecentMeetings] = useState<{ filename: string; title: string; date: string | null; status: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
@@ -295,11 +296,13 @@ function DashboardInner() {
           setTags(tagsData);
         }
 
-        // Fetch key terms for the most recent completed meeting
+        // Fetch meetings list for key terms and recent meetings
         try {
           const meetingsRes = await fetch('/api/meetings');
           if (meetingsRes.ok) {
-            const meetings: { filename: string; status: string; title: string }[] = await meetingsRes.json();
+            const meetings: { filename: string; status: string; title: string; date: string | null }[] = await meetingsRes.json();
+            // Store recent meetings for quick-access
+            setRecentMeetings(meetings.slice(0, 5).map(m => ({ filename: m.filename, title: m.title, date: m.date, status: m.status })));
             const completed = meetings.find(m => m.status === 'complete');
             if (completed) {
               const termsRes = await fetch(`/api/meetings/terms?file=${encodeURIComponent(completed.filename)}`);
@@ -440,6 +443,30 @@ function DashboardInner() {
             {/* Key terms from latest completed meeting */}
             {keyTerms && keyTerms.terms.length > 0 && (
               <KeyTermsBar data={keyTerms} />
+            )}
+
+            {/* Recent meetings quick-access */}
+            {recentMeetings.length > 0 && (
+              <div className="rounded-lg px-5 py-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Recent meetings</div>
+                <div className="space-y-1.5">
+                  {recentMeetings.slice(0, 5).map(m => (
+                    <a
+                      key={m.filename}
+                      href={`/meetings?file=${encodeURIComponent(m.filename)}`}
+                      className="flex items-center gap-2 text-xs px-2 py-1.5 rounded hover:brightness-110 transition-colors"
+                      style={{ background: 'var(--bg)', color: 'var(--text-secondary)' }}
+                    >
+                      <span
+                        className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${m.status === 'in-progress' ? 'animate-pulse' : ''}`}
+                        style={{ background: m.status === 'in-progress' ? 'var(--live-green)' : 'var(--text-muted)' }}
+                      />
+                      <span className="truncate flex-1">{m.title || m.filename}</span>
+                      <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{m.date}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Quick links */}
