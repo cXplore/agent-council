@@ -16,6 +16,14 @@ interface PlannedMeeting {
 
 const PLANNED_FILE = path.join(process.cwd(), '.council-planned.json');
 
+// Simple async mutex to prevent concurrent read-modify-write races
+let writeLock: Promise<void> = Promise.resolve();
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeLock.then(fn, fn);
+  writeLock = result.then(() => {}, () => {});
+  return result;
+}
+
 async function loadPlanned(): Promise<PlannedMeeting[]> {
   try {
     const data = await readFile(PLANNED_FILE, 'utf-8');
@@ -63,28 +71,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Field too long' }, { status: 400 });
     }
 
-    const planned = await loadPlanned();
+    const id = await withLock(async () => {
+      const planned = await loadPlanned();
 
-    const meeting: PlannedMeeting = {
-      id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      type: type || 'strategy',
-      topic,
-      trigger,
-      source,
-      participants: Array.isArray(participants) ? participants : undefined,
-      timestamp: new Date().toISOString(),
-      status: 'planned',
-    };
+      const meeting: PlannedMeeting = {
+        id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        type: type || 'strategy',
+        topic,
+        trigger,
+        source,
+        participants: Array.isArray(participants) ? participants : undefined,
+        timestamp: new Date().toISOString(),
+        status: 'planned',
+      };
 
-    planned.push(meeting);
+      planned.push(meeting);
 
-    // Keep last 30
-    if (planned.length > 30) {
-      planned.splice(0, planned.length - 30);
-    }
+      // Keep last 30
+      if (planned.length > 30) {
+        planned.splice(0, planned.length - 30);
+      }
 
-    await savePlanned(planned);
-    return NextResponse.json({ success: true, id: meeting.id });
+      await savePlanned(planned);
+      return meeting.id;
+    });
+
+    return NextResponse.json({ success: true, id });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
   }
@@ -105,14 +117,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    const planned = await loadPlanned();
-    const meeting = planned.find(m => m.id === id);
-    if (!meeting) {
+    const found = await withLock(async () => {
+      const planned = await loadPlanned();
+      const meeting = planned.find(m => m.id === id);
+      if (!meeting) return false;
+      meeting.status = status;
+      await savePlanned(planned);
+      return true;
+    });
+
+    if (!found) {
       return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
     }
 
-    meeting.status = status;
-    await savePlanned(planned);
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Invalid request' }, { status: 400 });

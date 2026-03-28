@@ -226,7 +226,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sanitizedMessage = message.replace(/\*\*[\w-]+:\*\*/g, (match) => match.replace(/\*/g, '\\*'));
+    // Sanitize: prevent fake agent names and HTML comment injection (could alter meeting metadata)
+    let sanitizedMessage = message.replace(/\*\*[\w-]+:\*\*/g, (match: string) => match.replace(/\*/g, '\\*'));
+    sanitizedMessage = sanitizedMessage.replace(/<!--/g, '&lt;!--').replace(/-->/g, '--&gt;');
     const formatted = `\n\n**human:** ${sanitizedMessage}\n`;
     await appendFile(filePath, formatted, 'utf-8');
 

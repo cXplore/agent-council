@@ -1502,11 +1502,18 @@ export default function MeetingViewer() {
                 const clean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const cleanSeen = seenContent.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const hasNew = clean.length > cleanSeen.length && cleanSeen.length > 0;
-                // Split at newline boundary to avoid breaking markdown mid-block
+                // Split at a double-newline (block boundary) to avoid breaking markdown mid-block
                 let splitIdx = cleanSeen.length;
                 if (hasNew) {
-                  const nlIdx = clean.lastIndexOf('\n', splitIdx);
-                  if (nlIdx > 0) splitIdx = nlIdx + 1;
+                  // Prefer splitting at a double-newline (paragraph/block boundary)
+                  const dblNlIdx = clean.lastIndexOf('\n\n', splitIdx);
+                  if (dblNlIdx > 0) {
+                    splitIdx = dblNlIdx + 2;
+                  } else {
+                    // Fallback to single newline
+                    const nlIdx = clean.lastIndexOf('\n', splitIdx);
+                    if (nlIdx > 0) splitIdx = nlIdx + 1;
+                  }
                 }
                 const seenPart = hasNew ? clean.slice(0, splitIdx) : clean;
                 const newPart = hasNew ? clean.slice(splitIdx) : null;

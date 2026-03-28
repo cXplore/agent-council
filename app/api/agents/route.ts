@@ -88,7 +88,21 @@ export async function PATCH(req: NextRequest) {
 
     const config = await getConfig();
     const active = getActiveProjectConfig(config);
-    const filePath = path.join(active.agentsDir, path.basename(filename));
+    const safeName = path.basename(filename);
+
+    // Validate: must be a .md file
+    if (!safeName.endsWith('.md')) {
+      return NextResponse.json({ error: 'Invalid filename: must be a .md file' }, { status: 400 });
+    }
+
+    const filePath = path.join(active.agentsDir, safeName);
+
+    // Validate: resolved path must stay within agents directory
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(active.agentsDir);
+    if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
 
     const content = await readFile(filePath, 'utf-8');
     const { frontmatter, body: mdBody } = parseFrontmatter(content);

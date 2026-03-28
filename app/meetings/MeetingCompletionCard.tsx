@@ -20,7 +20,7 @@ function extractFromSummary(content: string) {
   const start = summaryIdx >= 0 ? summaryIdx : 0;
 
   const decisions: string[] = [];
-  const open: string[] = [];
+  const open: { slug: string | null; text: string }[] = [];
   const resolvedSlugs = new Set<string>();
 
   for (let i = start; i < lines.length; i++) {
@@ -31,14 +31,13 @@ function extractFromSummary(content: string) {
     const text = m[3].trim();
     if (type === 'RESOLVED' && slug) resolvedSlugs.add(slug);
     if (type === 'DECISION') decisions.push(text);
-    if (type === 'OPEN') open.push(text);
+    if (type === 'OPEN') open.push({ slug, text });
   }
 
-  // Suppress open items that were resolved in the same meeting
-  const filteredOpen = open.filter((_, i) => {
-    const m = open[i].match(/^([a-z0-9-]+)\s/);
-    return !m || !resolvedSlugs.has(m[1]);
-  });
+  // Suppress open items that were resolved in the same meeting (match by slug)
+  const filteredOpen = open
+    .filter(item => !item.slug || !resolvedSlugs.has(item.slug))
+    .map(item => item.text);
 
   return { decisions: decisions.slice(0, 3), open: filteredOpen.slice(0, 2) };
 }

@@ -46,8 +46,14 @@ export async function POST(request: NextRequest) {
           const planned = data.meetings || [];
           const targetStatus = event === 'meeting_starting' ? 'running' : 'done';
           const matchStatus = event === 'meeting_starting' ? 'planned' : 'running';
+          // Extract topic from meeting filename for matching (e.g. "2026-03-28-design-review-api.md" -> "api")
+          const meetingLower = meeting.toLowerCase();
           for (const p of planned) {
-            if (p.status === matchStatus) {
+            if (p.status !== matchStatus) continue;
+            // Match by topic similarity: check if planned topic words appear in the meeting filename
+            const topicWords = (p.topic || '').toLowerCase().split(/[\s-]+/).filter((w: string) => w.length > 2);
+            const hasTopicMatch = topicWords.length > 0 && topicWords.some((w: string) => meetingLower.includes(w));
+            if (hasTopicMatch) {
               await fetch(`http://localhost:${process.env.PORT || 3003}/api/council/planned`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -79,7 +85,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (since) {
-    filtered = filtered.filter(e => e.timestamp > since);
+    // Validate ISO timestamp format before comparison
+    const sinceDate = new Date(since);
+    if (!isNaN(sinceDate.getTime())) {
+      const sinceISO = sinceDate.toISOString();
+      filtered = filtered.filter(e => e.timestamp > sinceISO);
+    }
   }
 
   return NextResponse.json({ events: filtered.slice(-20) }, {
