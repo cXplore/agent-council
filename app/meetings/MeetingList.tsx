@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { MeetingData } from './useMeetingData';
+import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType } from './MeetingListCard';
 
 export interface MeetingListProps extends MeetingData {
@@ -389,28 +391,7 @@ export default function MeetingList(props: MeetingListProps) {
             Could not load meetings. Check that the project directory exists and try refreshing.
           </div>
         ) : hasProject === false ? null : meetings.length === 0 ? (
-          <div className="space-y-3">
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              No meetings yet. Try one of these in Claude Code:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[
-                { type: 'Standup', prompt: 'what should we work on today?' },
-                { type: 'Strategy', prompt: 'let\'s discuss the roadmap' },
-                { type: 'Design Review', prompt: 'review the login flow design' },
-                { type: 'Architecture', prompt: 'review our API architecture' },
-              ].map(s => (
-                <div
-                  key={s.type}
-                  className="rounded-lg px-4 py-3 text-xs"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-                >
-                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.type}</span>
-                  <p className="mt-1 italic" style={{ color: 'var(--text-muted)' }}>&quot;{s.prompt}&quot;</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <EmptyStateWithDemo selectMeeting={selectMeeting} setUserExplicitlyBack={setUserExplicitlyBack} setFocusedIndex={setFocusedIndex} />
         ) : (
           <div className="space-y-3">
             {/* Cross-meeting tag summary -- expandable */}
@@ -703,6 +684,152 @@ export default function MeetingList(props: MeetingListProps) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Parse the bundled demo meeting markdown into a MeetingListItem for display */
+function parseDemoMeeting(content: string): MeetingListItem {
+  const get = (key: string) => {
+    const m = content.match(new RegExp(`<!--\\s*${key}:\\s*(.+?)\\s*-->`));
+    return m ? m[1].trim() : '';
+  };
+  const titleMatch = content.match(/^#\s+(.+)$/m);
+  const participants = get('participants').split(',').map(s => s.trim()).filter(Boolean);
+  return {
+    filename: '__demo__',
+    date: get('created').slice(0, 10) || '2026-01-15',
+    status: 'complete',
+    type: get('meeting-type') || 'design-review',
+    title: titleMatch ? titleMatch[1] : 'Example Meeting',
+    started: null,
+    participants,
+    modifiedAt: new Date().toISOString(),
+    preview: get('topic') || undefined,
+    wordCount: content.split(/\s+/).length,
+  };
+}
+
+/** Empty state that fetches and shows the bundled demo meeting */
+function EmptyStateWithDemo({
+  selectMeeting,
+  setUserExplicitlyBack,
+  setFocusedIndex,
+}: {
+  selectMeeting: (filename: string) => void;
+  setUserExplicitlyBack: (v: boolean) => void;
+  setFocusedIndex: (v: number | null) => void;
+}) {
+  const [demo, setDemo] = useState<{ item: MeetingListItem; content: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/demo-meeting.md')
+      .then(r => {
+        if (!r.ok) throw new Error('not found');
+        return r.text();
+      })
+      .then(text => {
+        setDemo({ item: parseDemoMeeting(text), content: text });
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        No meetings yet. Try one of these in Claude Code:
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {[
+          { type: 'Standup', prompt: 'what should we work on today?' },
+          { type: 'Strategy', prompt: 'let\'s discuss the roadmap' },
+          { type: 'Design Review', prompt: 'review the login flow design' },
+          { type: 'Architecture', prompt: 'review our API architecture' },
+        ].map(s => (
+          <div
+            key={s.type}
+            className="rounded-lg px-4 py-3 text-xs"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.type}</span>
+            <p className="mt-1 italic" style={{ color: 'var(--text-muted)' }}>&quot;{s.prompt}&quot;</p>
+          </div>
+        ))}
+      </div>
+
+      {demo && (
+        <>
+          <div className="mt-6 mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Example meeting
+              </h2>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+              >
+                EXAMPLE
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+              This is a demo — run your first meeting to see your own.
+            </p>
+          </div>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              selectMeeting('__demo__');
+              setUserExplicitlyBack(false);
+              setFocusedIndex(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectMeeting('__demo__');
+                setUserExplicitlyBack(false);
+                setFocusedIndex(null);
+              }
+            }}
+            className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 cursor-pointer"
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              opacity: 0.75,
+            }}
+          >
+            <div className="flex items-center gap-3 mb-1">
+              <span
+                className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                style={{ background: 'var(--text-muted)' }}
+              />
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {demo.item.title}
+              </span>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
+              >
+                EXAMPLE
+              </span>
+            </div>
+            <div className="flex items-center gap-2 ml-5 mb-1">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {formatType(demo.item.type)}
+              </span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {demo.item.participants.length} agents
+              </span>
+            </div>
+            {demo.item.preview && (
+              <div className="text-xs mt-1 ml-5" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                {demo.item.preview}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -316,6 +316,7 @@ function EmptySection({ message }: { message: string }) {
 function RoadmapInner() {
   const [data, setData] = useState<RoadmapResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [roadmapFilter, setRoadmapFilter] = useState<'all' | 'actions' | 'questions' | 'decisions'>('all');
   const [fetchError, setFetchError] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
 
@@ -471,7 +472,26 @@ function RoadmapInner() {
               />
             </div>
 
+            {/* Filter buttons */}
+            <div className="flex gap-2 flex-wrap">
+              {(['all', 'actions', 'questions', 'decisions'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setRoadmapFilter(f)}
+                  className="text-xs px-3 py-1 rounded-full transition-colors"
+                  style={{
+                    background: roadmapFilter === f ? 'var(--accent-muted)' : 'transparent',
+                    color: roadmapFilter === f ? 'var(--accent)' : 'var(--text-muted)',
+                    border: `1px solid ${roadmapFilter === f ? 'var(--accent)' : 'var(--border)'}`,
+                  }}
+                >
+                  {f === 'all' ? 'All' : f === 'actions' ? 'Actions' : f === 'questions' ? 'Open Questions' : 'Decisions'}
+                </button>
+              ))}
+            </div>
+
             {/* In Progress section */}
+            {(roadmapFilter === 'all' || roadmapFilter === 'actions') && (
             <div>
               <SectionHeader title="In Progress" count={activeActions.length} accent="var(--live-green)" />
               {activeActionGroups.length > 0 ? (
@@ -488,7 +508,10 @@ function RoadmapInner() {
               )}
             </div>
 
+            )}
+
             {/* Open Questions section */}
+            {(roadmapFilter === 'all' || roadmapFilter === 'questions') && (
             <div>
               <SectionHeader title="Open Questions" count={data.counts.openQuestions} accent="var(--warning)" />
               {activeOpenGroups.length > 0 ? (
@@ -505,7 +528,10 @@ function RoadmapInner() {
               )}
             </div>
 
+            )}
+
             {/* Done section */}
+            {(roadmapFilter === 'all' || roadmapFilter === 'decisions') && (
             <div>
               <SectionHeader title="Done" count={doneItems.length} accent="var(--accent)" />
               {doneGroups.length > 0 ? (
@@ -521,6 +547,8 @@ function RoadmapInner() {
                 <EmptySection message="No completed items yet." />
               )}
             </div>
+
+            )}
 
             {/* Archived / Stale section — collapsed by default */}
             {staleItems.length > 0 && (

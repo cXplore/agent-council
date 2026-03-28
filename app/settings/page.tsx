@@ -18,6 +18,21 @@ interface McpStatus {
   targets: Record<string, { exists: boolean; configured: boolean; path: string }>;
 }
 
+interface AgentCheck {
+  name: string;
+  filename: string;
+  templateMatch: boolean;
+  upToDate: boolean | null;
+  templateHash: string | null;
+  agentHash: string;
+}
+
+interface AgentCheckResponse {
+  agents: AgentCheck[];
+  project: string;
+  error?: string;
+}
+
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
@@ -29,15 +44,18 @@ function formatUptime(seconds: number): string {
 function SettingsInner() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [mcp, setMcp] = useState<McpStatus | null>(null);
+  const [templateCheck, setTemplateCheck] = useState<AgentCheckResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/health').then(r => r.ok ? r.json() : null),
       fetch('/api/setup/mcp').then(r => r.ok ? r.json() : null),
-    ]).then(([h, m]) => {
+      fetch('/api/agents/check').then(r => r.ok ? r.json() : null),
+    ]).then(([h, m, tc]) => {
       setHealth(h);
       setMcp(m);
+      setTemplateCheck(tc);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -142,6 +160,57 @@ function SettingsInner() {
               </div>
               {!Object.values(mcp.targets).every(t => t.configured) && (
                 <a href="/setup" className="text-xs mt-3 inline-block" style={{ color: 'var(--accent)' }}>Configure MCP</a>
+              )}
+            </div>
+          )}
+
+          {/* Template Status */}
+          {templateCheck && templateCheck.agents.length > 0 && (
+            <div className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <h2 className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Template Status</h2>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                Compares project agents against built-in templates
+                {templateCheck.project ? ` for ${templateCheck.project}` : ''}
+              </p>
+              <div className="space-y-2">
+                {templateCheck.agents.map((agent) => (
+                  <div
+                    key={agent.filename}
+                    className="flex items-center justify-between py-1.5 px-2 rounded text-xs"
+                    style={{ background: 'var(--bg)' }}
+                  >
+                    <div className="flex items-center gap-2">
+                      {agent.templateMatch ? (
+                        agent.upToDate ? (
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--live-green)' }} />
+                        ) : (
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--warning)' }} />
+                        )
+                      ) : (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--text-muted)' }} />
+                      )}
+                      <span style={{ color: 'var(--text-primary)' }}>{agent.name}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{agent.filename}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {agent.templateMatch ? (
+                        agent.upToDate ? (
+                          <span style={{ color: 'var(--live-green)' }}>Up to date</span>
+                        ) : (
+                          <span style={{ color: 'var(--warning)' }}>Template updated</span>
+                        )
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>Custom agent</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {templateCheck.agents.some(a => a.templateMatch && !a.upToDate) && (
+                <p className="text-xs mt-3 pt-3" style={{ color: 'var(--warning)', borderTop: '1px solid var(--border)' }}>
+                  Some agents were generated from templates that have since been updated.
+                  Consider regenerating them to get the latest instructions and lenses.
+                </p>
               )}
             </div>
           )}
