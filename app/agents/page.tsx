@@ -930,6 +930,87 @@ function AgentsPageInner() {
             </div>
           );
         })()}
+
+        {/* Comparison table — only shown with 3+ agents */}
+        {!loading && !fetchError && agents.length >= 3 && (() => {
+          const sorted = [...agents].sort((a, b) => {
+            const teamCmp = (a.team || 'zzz').localeCompare(b.team || 'zzz');
+            if (teamCmp !== 0) return teamCmp;
+            if (a.role === 'lead' && b.role !== 'lead') return -1;
+            if (b.role === 'lead' && a.role !== 'lead') return 1;
+            return a.name.localeCompare(b.name);
+          });
+
+          const cellStyle: React.CSSProperties = {
+            padding: '8px 12px',
+            borderBottom: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem',
+            whiteSpace: 'nowrap',
+          };
+          const headerStyle: React.CSSProperties = {
+            ...cellStyle,
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          };
+
+          return (
+            <details className="mt-8 rounded-lg overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <summary
+                className="px-5 py-3 cursor-pointer text-sm font-medium select-none hover:brightness-110"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Compare agents ({agents.length})
+              </summary>
+              <div className="overflow-x-auto">
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ ...headerStyle, textAlign: 'left' }}>Agent Name</th>
+                      <th style={{ ...headerStyle, textAlign: 'left' }}>Model</th>
+                      <th style={{ ...headerStyle, textAlign: 'left' }}>Team</th>
+                      <th style={{ ...headerStyle, textAlign: 'left' }}>Role</th>
+                      <th style={{ ...headerStyle, textAlign: 'center' }}>Required</th>
+                      <th style={{ ...headerStyle, textAlign: 'center' }}>Tools Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map(agent => (
+                      <tr key={agent.filename} className="hover:brightness-110" style={{ transition: 'filter 0.15s' }}>
+                        <td style={cellStyle}>
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: getAgentColor(agent.name) }} />
+                            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{agent.name}</span>
+                          </span>
+                        </td>
+                        <td style={cellStyle}>{agent.model || '-'}</td>
+                        <td style={cellStyle}>{agent.team || '-'}</td>
+                        <td style={cellStyle}>
+                          {agent.role === 'lead' ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--accent-muted)', color: 'var(--accent)', fontSize: '0.7rem' }}>lead</span>
+                          ) : (
+                            agent.role || 'member'
+                          )}
+                        </td>
+                        <td style={{ ...cellStyle, textAlign: 'center' }}>
+                          {agent.required ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--live-green-muted)', color: 'var(--live-green)', fontSize: '0.7rem' }}>yes</span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ ...cellStyle, textAlign: 'center' }}>{agent.tools.length}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          );
+        })()}
       </div>
     </div>
   );

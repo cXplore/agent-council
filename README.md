@@ -134,6 +134,20 @@ To add Council fields to existing agents, tell Claude Code: *"Add Agent Council 
 }
 ```
 
+## Features
+
+- **Live meeting viewer** — watch agent responses appear in real time with 2-second polling
+- **Dashboard** — meeting analytics, type distribution, agent activity, key terms extraction
+- **Agent browser** — view, search, and create agents with team grouping and stats
+- **Cross-meeting tracking** — decisions, open questions, and actions tracked across meetings with carry-forward
+- **Keyboard shortcuts** — j/k navigation, Ctrl+K command palette, Ctrl+F in-meeting search
+- **Meeting management** — pin, search, filter, bulk delete, download, print, copy link, RSS feed
+- **MCP integration** — two-way communication with Claude Code for live progress and human input
+- **CLI** — `--port`, `--no-open`, `--help`, `--version` flags
+- **Electron desktop app** — window state persistence, splash screen, error dialogs
+- **Export** — JSON bundle export, individual markdown download, RSS feed
+- **Accessibility** — focus styles, prefers-reduced-motion, print CSS, keyboard navigation
+
 ## Tech Stack
 
 - Next.js 16 (App Router)
@@ -141,6 +155,24 @@ To add Council fields to existing agents, tell Claude Code: *"Add Agent Council 
 - Electron (desktop builds)
 - MCP server (Claude Code integration)
 - No database, no auth — pure file I/O
+
+## API Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/meetings` | List, create, delete meetings |
+| `/api/meetings/analytics` | Aggregate meeting statistics |
+| `/api/meetings/export` | JSON bundle export |
+| `/api/meetings/feed` | RSS feed |
+| `/api/meetings/tags` | Cross-meeting tag queries |
+| `/api/meetings/terms` | Key terms extraction |
+| `/api/meetings/validate` | Meeting file validation |
+| `/api/meetings/template` | Meeting file template generator |
+| `/api/agents` | List and update agents |
+| `/api/projects` | Manage connected projects |
+| `/api/council/*` | MCP bridge (events, input, planned, suggestions) |
+| `/api/setup/*` | Setup wizard (scan, connect, generate, templates, mcp) |
+| `/api/health` | Application health check |
 
 ## License
 

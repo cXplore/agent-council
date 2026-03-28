@@ -478,20 +478,20 @@ export default function MeetingViewer() {
         setUserExplicitlyBack(true);
       }
       // j/k to navigate meetings in list view, Enter to select
-      if (!selected && filteredMeetings.length > 0) {
+      if (!selected && sortedMeetings.length > 0) {
         if (e.key === 'j') {
           e.preventDefault();
           setFocusedIndex(prev =>
-            prev === null ? 0 : (prev + 1) % filteredMeetings.length
+            prev === null ? 0 : (prev + 1) % sortedMeetings.length
           );
         } else if (e.key === 'k') {
           e.preventDefault();
           setFocusedIndex(prev =>
-            prev === null ? filteredMeetings.length - 1 : (prev - 1 + filteredMeetings.length) % filteredMeetings.length
+            prev === null ? sortedMeetings.length - 1 : (prev - 1 + sortedMeetings.length) % sortedMeetings.length
           );
         } else if (e.key === 'Enter' && focusedIndex !== null) {
           e.preventDefault();
-          selectMeeting(filteredMeetings[focusedIndex].filename);
+          selectMeeting(sortedMeetings[focusedIndex].filename);
           setUserExplicitlyBack(false);
           setFocusedIndex(null);
         }
@@ -499,7 +499,7 @@ export default function MeetingViewer() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [selected, filteredMeetings, focusedIndex, selectMeeting, meetingSearchOpen]);
+  }, [selected, sortedMeetings, focusedIndex, selectMeeting, meetingSearchOpen]);
 
   const scrollToBottom = () => {
     contentRef.current?.scrollTo({
@@ -1133,7 +1133,7 @@ export default function MeetingViewer() {
                   <button onClick={() => setError(null)} className="ml-2 text-white/80 hover:text-white" aria-label="Dismiss error">&#x2715;</button>
                 </div>
               )}
-              {filteredMeetings.map((m, i) => (
+              {sortedMeetings.map((m, i) => (
                 <MeetingListCard
                   key={m.filename}
                   meeting={m}
@@ -1143,6 +1143,8 @@ export default function MeetingViewer() {
                   hasMultipleProjects={hasMultipleProjects}
                   focused={focusedIndex === i}
                   tagCounts={tagCountsByMeeting[m.filename]}
+                  pinned={pinnedMeetings.has(m.filename)}
+                  onTogglePin={togglePin}
                 />
               ))}
             </div>
