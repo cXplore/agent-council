@@ -506,6 +506,85 @@ server.tool(
   }
 );
 
+// Tool: Get work items — the execution bridge
+server.tool(
+  'council_get_work_items',
+  'Get actionable work items from meeting decisions. Use at the start of a coding session to see what the team decided should be built. Returns action items, open questions, and recent decisions — prioritized by recency. This is how meeting decisions turn into code.',
+  {
+    filter: z.enum(['actions', 'open', 'decisions', 'all']).optional().describe('Filter by item type (default: all)'),
+    limit: z.number().optional().describe('Max items to return (default: 15)'),
+  },
+  async ({ filter, limit }) => {
+    try {
+      const maxItems = limit || 15;
+
+      // Fetch unresolved items (actions + open questions)
+      const unresolvedData = await councilRequest('/api/meetings/tags?mode=unresolved');
+      const actions = unresolvedData.actions || [];
+      const open = unresolvedData.open || [];
+
+      // Fetch recent decisions
+      const decisionsData = await councilRequest('/api/meetings/tags?type=decision');
+      const decisions = (decisionsData.results || []).slice(0, maxItems);
+
+      const sections = [];
+
+      if (!filter || filter === 'all' || filter === 'actions') {
+        if (actions.length > 0) {
+          sections.push(`ACTION ITEMS (${actions.length}):`);
+          for (const a of actions.slice(0, maxItems)) {
+            const status = a.meetingStatus === 'in-progress' ? ' [LIVE]' : '';
+            sections.push(`  → ${a.text}`);
+            sections.push(`    from: ${a.meetingTitle || a.meeting}${status} (${a.date || 'unknown'})`);
+          }
+          sections.push('');
+        }
+      }
+
+      if (!filter || filter === 'all' || filter === 'open') {
+        if (open.length > 0) {
+          sections.push(`OPEN QUESTIONS (${open.length}):`);
+          for (const o of open.slice(0, maxItems)) {
+            const slug = o.id ? ` [${o.id}]` : '';
+            sections.push(`  ? ${o.text}${slug}`);
+            sections.push(`    from: ${o.meetingTitle || o.meeting} (${o.date || 'unknown'})`);
+          }
+          sections.push('');
+        }
+      }
+
+      if (!filter || filter === 'all' || filter === 'decisions') {
+        if (decisions.length > 0) {
+          sections.push(`RECENT DECISIONS (${decisions.length}):`);
+          for (const d of decisions.slice(0, maxItems)) {
+            sections.push(`  ✓ ${d.text}`);
+            sections.push(`    from: ${d.meetingTitle || d.meeting} (${d.date || 'unknown'})`);
+          }
+        }
+      }
+
+      if (sections.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No work items found. Run a meeting to generate decisions and action items.' }],
+        };
+      }
+
+      const summary = `${actions.length} action${actions.length !== 1 ? 's' : ''}, ${open.length} open question${open.length !== 1 ? 's' : ''}, ${decisions.length} recent decision${decisions.length !== 1 ? 's' : ''}`;
+
+      return {
+        content: [{
+          type: 'text',
+          text: `Work items from Agent Council (${summary}):\n\n${sections.join('\n')}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not fetch work items: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
