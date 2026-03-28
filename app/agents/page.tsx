@@ -793,6 +793,33 @@ function AgentsPageInner() {
             >
               {showCreateForm ? 'Cancel' : '+ New Agent'}
             </button>
+            {agents.length > 1 && (
+              <select
+                className="text-xs px-2 py-1 rounded cursor-pointer"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                value=""
+                onChange={async (e) => {
+                  const newModel = e.target.value;
+                  if (!newModel) return;
+                  if (!confirm(`Set all ${agents.length} agents to model "${newModel}"?`)) return;
+                  for (const agent of agents) {
+                    try {
+                      await fetch('/api/agents', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
+                      });
+                    } catch { /* continue */ }
+                  }
+                  refreshAgents();
+                }}
+              >
+                <option value="">Set all models...</option>
+                <option value="opus">All → opus</option>
+                <option value="sonnet">All → sonnet</option>
+                <option value="haiku">All → haiku</option>
+              </select>
+            )}
           </div>
         )}
         {!project && !loading && (

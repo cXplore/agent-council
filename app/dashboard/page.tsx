@@ -151,10 +151,24 @@ function RecentActivity({ recentActivity }: { recentActivity: { last7Days: numbe
     border: '1px solid var(--border)',
   };
 
+  // Calculate trend: compare 7-day rate vs 30-day average weekly rate
+  const weeklyAvg30d = recentActivity.last30Days / 4.3; // ~4.3 weeks in 30 days
+  const trend = recentActivity.last7Days > 0 && weeklyAvg30d > 0
+    ? ((recentActivity.last7Days - weeklyAvg30d) / weeklyAvg30d) * 100
+    : 0;
+  const trendLabel = Math.abs(trend) < 5 ? 'steady' : trend > 0 ? 'trending up' : 'trending down';
+  const trendColor = Math.abs(trend) < 5 ? 'var(--text-muted)' : trend > 0 ? 'var(--live-green)' : 'var(--warning)';
+  const trendArrow = Math.abs(trend) < 5 ? '→' : trend > 0 ? '↑' : '↓';
+
   return (
     <div className="rounded-lg px-5 py-4" style={cardStyle}>
-      <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-        Recent activity
+      <div className="text-xs mb-3 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+        <span>Recent activity</span>
+        {recentActivity.last30Days > 0 && (
+          <span className="text-xs" style={{ color: trendColor }} title={`${Math.round(Math.abs(trend))}% vs monthly average`}>
+            {trendArrow} {trendLabel}
+          </span>
+        )}
       </div>
       <div className="flex gap-6">
         <div>

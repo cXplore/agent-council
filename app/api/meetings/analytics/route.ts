@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
+import { parseMetadata } from '@/lib/meeting-utils';
 
 interface MeetingAnalytics {
   totalMeetings: number;
@@ -12,46 +13,6 @@ interface MeetingAnalytics {
   mostActiveAgents: { name: string; meetingCount: number }[];
   recentActivity: { last7Days: number; last30Days: number };
   averageParticipants: number;
-}
-
-function parseMetadata(content: string) {
-  const statusMatch = content.match(/<!--\s*status:\s*(\S+)\s*-->/);
-  const typeMatchComment = content.match(/<!--\s*(?:meeting-)?type:\s*(.+?)\s*-->/);
-  const participantsMatchComment = content.match(/<!--\s*participants:\s*(.+?)\s*-->/);
-
-  const typeMatchBold = content.match(/\*\*Type:\*\*\s*(.+)/i);
-  const participantsMatchBold = content.match(/\*\*Participants:\*\*\s*(.+)/i);
-
-  const titleMatch = content.match(/^#\s+(.+)$/m);
-
-  let type = typeMatchComment?.[1] ?? typeMatchBold?.[1]?.trim() ?? null;
-  if (!type && titleMatch) {
-    const titleParts = titleMatch[1].split(/\s*[—–\-]{1,2}\s*/);
-    type = titleParts[0]?.trim() ?? null;
-  }
-
-  const participantsRaw = participantsMatchComment?.[1] ?? participantsMatchBold?.[1]?.trim() ?? '';
-  const participants = participantsRaw
-    ? participantsRaw.split(',').map(p => p.trim()).filter(Boolean)
-    : [];
-
-  if (participants.length === 0) {
-    const agentMatches = content.matchAll(/\*\*([a-z][\w-]+):\*\*/g);
-    const found = new Set<string>();
-    for (const m of agentMatches) {
-      const lower = m[1].toLowerCase();
-      if (lower !== 'type' && lower !== 'date' && lower !== 'participants' && lower !== 'facilitator') {
-        found.add(m[1]);
-      }
-    }
-    participants.push(...found);
-  }
-
-  return {
-    status: statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress'),
-    type: type?.toLowerCase().replace(/\s+/g, '-') ?? 'unknown',
-    participants,
-  };
 }
 
 export async function GET(request: NextRequest) {

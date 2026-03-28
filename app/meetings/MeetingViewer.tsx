@@ -1199,23 +1199,29 @@ export default function MeetingViewer() {
                 // Add date group headers between meetings
                 const now = new Date();
                 const todayStr = now.toISOString().slice(0, 10);
+                const yesterday = new Date(now.getTime() - 86400000);
+                const yesterdayStr = yesterday.toISOString().slice(0, 10);
                 const weekAgo = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
+                const monthAgo = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
                 let lastGroup = '';
+                const showGroups = !searchQuery && statusFilter === 'all' && sortedMeetings.length > 3;
 
                 return sortedMeetings.map((m, i) => {
                   const group = m.status === 'in-progress' ? 'live'
                     : pinnedMeetings.has(m.filename) ? 'pinned'
                     : m.date === todayStr ? 'today'
+                    : m.date === yesterdayStr ? 'yesterday'
                     : (m.date && m.date >= weekAgo) ? 'this-week'
+                    : (m.date && m.date >= monthAgo) ? 'this-month'
                     : 'older';
-                  const showHeader = group !== lastGroup && sortedMeetings.length > 3;
+                  const showHeader = showGroups && group !== lastGroup;
                   lastGroup = group;
-                  const groupLabels: Record<string, string> = { live: 'Live', pinned: 'Pinned', today: 'Today', 'this-week': 'This Week', older: 'Earlier' };
+                  const groupLabels: Record<string, string> = { live: 'Live', pinned: 'Pinned', today: 'Today', yesterday: 'Yesterday', 'this-week': 'This Week', 'this-month': 'This Month', older: 'Older' };
 
                   return (
                     <div key={m.filename}>
                       {showHeader && group !== 'live' && group !== 'pinned' && (
-                        <div className="text-xs font-medium uppercase tracking-wider mt-4 mb-2 px-1" style={{ color: 'var(--text-muted)' }}>
+                        <div className="text-xs font-medium uppercase tracking-wider px-1 pt-4 pb-1" style={{ color: 'var(--text-muted)' }}>
                           {groupLabels[group] || group}
                         </div>
                       )}
