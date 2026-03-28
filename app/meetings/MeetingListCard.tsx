@@ -179,6 +179,14 @@ export default function MeetingListCard({
             </>
           ) : null;
         })()}
+        {m.wordCount && m.wordCount > 100 && (
+          <>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {m.wordCount > 1000 ? `${(m.wordCount / 1000).toFixed(1)}k` : m.wordCount} words
+            </span>
+          </>
+        )}
       </div>
 
       {m.participants.length > 0 && (

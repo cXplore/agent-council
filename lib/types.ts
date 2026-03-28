@@ -75,6 +75,7 @@ export interface MeetingListItem {
   project?: string;
   preview?: string;
   recommendedMeetings?: SuggestedMeeting[];
+  wordCount?: number;
 }
 
 export interface MeetingDetail extends MeetingListItem {

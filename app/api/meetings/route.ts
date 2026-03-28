@@ -156,6 +156,10 @@ export async function GET(request: NextRequest) {
             if (text.length > 10) { preview = text; break; }
           }
 
+          // Word count (rough — strip metadata comments and count)
+          const cleanText = content.replace(/<!--[\s\S]*?-->/g, '').replace(/^---$/gm, '');
+          const wordCount = cleanText.split(/\s+/).filter(w => w.length > 0).length;
+
           return {
             filename: f,
             date: dateMatch?.[1] ?? null,
@@ -168,6 +172,7 @@ export async function GET(request: NextRequest) {
             project,
             preview: preview ? (preview.length >= 120 ? preview + '...' : preview) : undefined,
             recommendedMeetings: metadata.recommendedMeetings?.length ? metadata.recommendedMeetings : undefined,
+            wordCount,
           };
         } catch {
           return null; // Skip unreadable files

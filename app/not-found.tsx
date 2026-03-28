@@ -1,4 +1,9 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: '404 — Agent Council',
+};
 
 export default function NotFound() {
   return (
