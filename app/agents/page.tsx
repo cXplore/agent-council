@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
@@ -558,6 +558,7 @@ function AgentsPageInner() {
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const refreshAgents = () => setRefreshKey(k => k + 1);
 
@@ -607,6 +608,17 @@ function AgentsPageInner() {
     })();
     return () => { cancelled = true; };
   }, [selected]);
+
+  const filteredAgents = useMemo(() => {
+    if (!searchQuery) return agents;
+    const q = searchQuery.toLowerCase();
+    return agents.filter(a =>
+      a.name.toLowerCase().includes(q) ||
+      a.description.toLowerCase().includes(q) ||
+      a.team.toLowerCase().includes(q) ||
+      a.model.toLowerCase().includes(q)
+    );
+  }, [agents, searchQuery]);
 
   if (selected) {
     return (
@@ -795,6 +807,21 @@ function AgentsPageInner() {
 
         {!loading && !fetchError && agents.length > 0 && (
           <StatsBanner agents={agents} />
+        )}
+
+        {!loading && !fetchError && agents.length > 3 && (
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, description, team, or model..."
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-4"
+            style={{
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
+            }}
+          />
         )}
 
         {loading ? (

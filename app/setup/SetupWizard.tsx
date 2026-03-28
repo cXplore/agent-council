@@ -424,7 +424,19 @@ function SetupWizardInner() {
                 >
                   {connecting ? 'Connecting...' : 'Connect'}
                 </button>
+                <button
+                  onClick={() => { handleConnect().then(() => handleScan()); }}
+                  disabled={!projectPath.trim() || connecting}
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  Connect &amp; scan
+                </button>
               </div>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                <strong style={{ color: 'var(--text-secondary)' }}>Connect</strong> watches your meetings directory.{' '}
+                <strong style={{ color: 'var(--text-secondary)' }}>Connect &amp; scan</strong> also analyzes your codebase to suggest an agent team.
+              </p>
             </div>
 
             <a
