@@ -4,6 +4,19 @@ export function formatType(type: string): string {
   return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+/** Get a subtle HSL color for each meeting type */
+export function getTypeColor(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes('design')) return 'hsl(210, 60%, 60%)';
+  if (t.includes('strategy')) return 'hsl(270, 50%, 60%)';
+  if (t.includes('architecture')) return 'hsl(180, 50%, 50%)';
+  if (t.includes('sprint')) return 'hsl(30, 70%, 55%)';
+  if (t.includes('standup')) return 'hsl(150, 50%, 50%)';
+  if (t.includes('retrospective')) return 'hsl(330, 55%, 60%)';
+  if (t.includes('incident')) return 'hsl(0, 60%, 55%)';
+  return 'var(--text-muted)';
+}
+
 /** Get a subtle type indicator character for meeting types */
 export function getTypeIndicator(type: string): string {
   const t = type.toLowerCase();
@@ -142,7 +155,7 @@ export default function MeetingListCard({
       </div>
       <div className="flex items-center gap-2 ml-5 mb-1">
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          <span style={{ marginRight: 4, opacity: 0.6 }}>{getTypeIndicator(m.type)}</span>
+          <span style={{ marginRight: 4, opacity: 0.8, color: getTypeColor(m.type) }}>{getTypeIndicator(m.type)}</span>
           {formatType(m.type)}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
