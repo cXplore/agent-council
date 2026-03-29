@@ -195,7 +195,8 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
       const name = String(children).replace(/:$/, '');
       const color = getAgentColor(name);
       // Agent names (ending with :) get a colored badge-style header with link to profile
-      const isAgentName = String(children).endsWith(':');
+      // Must look like an agent slug: lowercase letters, digits, hyphens only (no spaces, no uppercase)
+      const isAgentName = String(children).endsWith(':') && /^[a-z][a-z0-9-]*$/.test(name);
       if (isAgentName) {
         return (
           <strong style={{
