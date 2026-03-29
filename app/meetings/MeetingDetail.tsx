@@ -808,7 +808,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             agentsByRound[roundNum].push(m[1]);
           }
           return (
-            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2">
+            <div className="fixed top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2" style={{ right: outcomesOpen ? '328px' : '16px', transition: 'right 0.2s ease' }}>
               {viewRound !== null && (
                 <button
                   onClick={() => setViewRound(null)}
