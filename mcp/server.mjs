@@ -817,6 +817,58 @@ server.tool(
   }
 );
 
+// Tool: Mark an action item as done
+server.tool(
+  'council_mark_done',
+  'Mark an action item as done after completing the work. Finds the best matching active item by text and updates its status. Use after implementing something from meeting decisions.',
+  {
+    text: z.string().describe('Text identifying the action item — partial match is fine'),
+    note: z.string().optional().describe('Brief note about how it was done (optional)'),
+  },
+  async ({ text, note }) => {
+    try {
+      const roadmapData = await councilRequest('/api/roadmap');
+      const items = roadmapData.items || [];
+
+      // Only look at active ACTION items
+      const active = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+
+      if (active.length === 0) {
+        return { content: [{ type: 'text', text: 'No active action items found. All work may already be complete.' }] };
+      }
+
+      // Find best match by text substring
+      const q = text.toLowerCase();
+      const match = active.find(i => i.text.toLowerCase().includes(q));
+
+      if (!match) {
+        const preview = active.slice(0, 5).map(i => `  • ${i.text.slice(0, 80)}`).join('\n');
+        return {
+          content: [{
+            type: 'text',
+            text: `No active action item matching "${text}" found.\n\nActive items:\n${preview}`,
+          }],
+        };
+      }
+
+      await councilRequest('/api/roadmap', 'POST', {
+        id: match.hash,
+        status: 'done',
+        ...(note ? { note } : {}),
+      });
+
+      return {
+        content: [{
+          type: 'text',
+          text: `✓ Marked done: ${match.text}${note ? `\n  Note: ${note}` : ''}`,
+        }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Could not mark item done: ${err.message}` }] };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
