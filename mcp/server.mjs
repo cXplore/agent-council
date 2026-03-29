@@ -122,24 +122,50 @@ server.tool(
   {},
   async () => {
     try {
-      const [projectData, meetingsData] = await Promise.all([
+      const [projectData, meetingsData, suggestionsData, plannedData] = await Promise.all([
         councilRequest('/api/projects'),
         councilRequest('/api/meetings').catch(() => []),
+        councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
+        councilRequest('/api/council/planned').catch(() => ({ meetings: [] })),
       ]);
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
       const liveMeetings = meetings.filter(m => m.status === 'in-progress');
+      const suggestions = suggestionsData.suggestions || [];
+      const workItems = suggestions.filter(s => s.type === 'work_on');
+      const otherSuggestions = suggestions.filter(s => s.type !== 'work_on');
+      const planned = plannedData.meetings || [];
+
+      const result = {
+        running: true,
+        activeProject: projectData.activeProject,
+        projectCount: projectData.projects?.length || 0,
+        totalMeetings: meetings.length,
+        liveMeetings: liveMeetings.length,
+        liveMeetingFiles: liveMeetings.map(m => m.filename),
+        viewerUrl: COUNCIL_URL + '/meetings',
+      };
+
+      // Build response text — include nudges inline so Claude sees them immediately
+      const parts = [JSON.stringify(result, null, 2)];
+
+      if (workItems.length > 0) {
+        parts.push(`\n🔨 The user wants you to work on:\n${workItems.map((s, i) =>
+          `${i + 1}. ${s.message}${s.value ? `\n   Context: ${s.value}` : ''}`
+        ).join('\n')}`);
+      }
+      if (otherSuggestions.length > 0) {
+        parts.push(`\n💡 ${otherSuggestions.length} suggestion(s) from the viewer`);
+      }
+      if (planned.length > 0) {
+        parts.push(`\n📋 ${planned.length} planned meeting(s):\n${planned.map((m, i) =>
+          `${i + 1}. [${m.type}] ${m.topic}`
+        ).join('\n')}`);
+      }
+
       return {
         content: [{
           type: 'text',
-          text: JSON.stringify({
-            running: true,
-            activeProject: projectData.activeProject,
-            projectCount: projectData.projects?.length || 0,
-            totalMeetings: meetings.length,
-            liveMeetings: liveMeetings.length,
-            liveMeetingFiles: liveMeetings.map(m => m.filename),
-            viewerUrl: COUNCIL_URL + '/meetings',
-          }, null, 2),
+          text: parts.join('\n'),
         }],
       };
     } catch (err) {
@@ -691,6 +717,30 @@ server.tool(
         sections.push('⚡ LIVE MEETINGS:');
         for (const m of live) {
           sections.push(`  ${m.title || m.filename}`);
+        }
+      }
+
+      // 5. Check for user nudges (work items + planned meetings)
+      const [suggestionsData, plannedData] = await Promise.all([
+        councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
+        councilRequest('/api/council/planned').catch(() => ({ meetings: [] })),
+      ]);
+      const suggestions = suggestionsData.suggestions || [];
+      const workItems = suggestions.filter(s => s.type === 'work_on');
+      const planned = plannedData.meetings || [];
+
+      if (workItems.length > 0) {
+        sections.push('');
+        sections.push('🔨 USER WANTS YOU TO WORK ON:');
+        for (const s of workItems) {
+          sections.push(`  → ${s.message}`);
+        }
+      }
+      if (planned.length > 0) {
+        sections.push('');
+        sections.push(`📋 PLANNED MEETINGS (${planned.length}):`);
+        for (const m of planned) {
+          sections.push(`  [${m.type}] ${m.topic}`);
         }
       }
 
