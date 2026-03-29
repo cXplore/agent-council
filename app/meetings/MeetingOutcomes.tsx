@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from 'react';
 
+function renderInline(text: string) {
+  const parts = text.split(/(`[^`]+`)/);
+  return parts.map((part, i) =>
+    part.startsWith('`') && part.endsWith('`') && part.length > 2
+      ? <code key={i} style={{ fontSize: '0.85em', padding: '0.1em 0.3em', borderRadius: '3px', background: 'var(--bg)', color: '#93c5fd' }}>{part.slice(1, -1)}</code>
+      : part
+  );
+}
+
 interface OutcomeItem {
   type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
   text: string;
@@ -195,7 +204,7 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
                       }}
                       title="Click to scroll to context"
                     >
-                      <span className={`line-clamp-2${type === 'RESOLVED' ? ' line-through' : ''}`}>{item.text}</span>
+                      <span className={`line-clamp-2${type === 'RESOLVED' ? ' line-through' : ''}`}>{renderInline(item.text)}</span>
                       {notFoundKey === `${item.type}-${item.lineIndex}` && (
                         <span className="block text-xs mt-1 transition-opacity" style={{ color: 'var(--text-muted)' }}>
                           not found in view

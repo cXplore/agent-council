@@ -101,8 +101,11 @@ function extractTags(content: string, filename: string): TagEntry[] {
   // For complete meetings, only index tags from the ## Summary section.
   // Round tags are working notes; summary tags are the curated final record.
   // For in-progress meetings, index all tags (no summary exists yet).
+  // Exception: IDEA tags are always scanned from the full document — they're casual
+  // proposals written inline by agents and never restated in the summary.
   const summaryIndex = lines.findIndex(l => l.trim() === '## Summary');
   const startLine = meetingStatus === 'complete' && summaryIndex >= 0 ? summaryIndex : 0;
+  const summaryStart = summaryIndex >= 0 ? summaryIndex : lines.length;
 
   for (let i = startLine; i < lines.length; i++) {
     const match = lines[i].match(TAG_REGEX);
@@ -118,6 +121,25 @@ function extractTags(content: string, filename: string): TagEntry[] {
         lineNumber: i,
         date,
       });
+    }
+  }
+
+  // Scan pre-summary body for IDEA tags (only for complete meetings — in-progress already scanned all)
+  if (meetingStatus === 'complete' && summaryStart > 0) {
+    for (let i = 0; i < summaryStart; i++) {
+      const match = lines[i].match(TAG_REGEX);
+      if (match && match[1].toUpperCase() === 'IDEA') {
+        entries.push({
+          type: 'IDEA',
+          id: match[2]?.toLowerCase() ?? null,
+          text: match[3].trim(),
+          meeting: filename,
+          meetingTitle,
+          meetingStatus,
+          lineNumber: i,
+          date,
+        });
+      }
     }
   }
 

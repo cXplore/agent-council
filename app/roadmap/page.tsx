@@ -10,7 +10,7 @@ const fadeUp = {
 };
 
 interface RoadmapItem {
-  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'IDEA';
   text: string;
   id: string | null;
   meeting: string;
@@ -59,6 +59,7 @@ function TypeBadge({ type }: { type: RoadmapItem['type'] }) {
     ACTION: { bg: 'rgba(34, 197, 94, 0.15)', color: 'var(--live-green)', label: 'Action' },
     OPEN: { bg: 'rgba(234, 179, 8, 0.15)', color: 'var(--warning)', label: 'Open' },
     RESOLVED: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Resolved' },
+    IDEA: { bg: 'var(--color-idea-bg)', color: 'var(--color-idea)', label: 'Idea' },
   };
   const c = config[type] ?? config.DECISION;
   return (
@@ -494,6 +495,9 @@ function RoadmapInner() {
   const activeActions = allItems.filter(i => i.type === 'ACTION' && (i.itemStatus === 'active' || i.itemStatus === 'working'));
   const activeOpen = allItems.filter(i => i.type === 'OPEN' && (i.itemStatus === 'active' || i.itemStatus === 'working'));
 
+  // Idea backlog — deferred proposals not yet rejected or scheduled
+  const ideaItems = allItems.filter(i => i.type === 'IDEA' && i.itemStatus !== 'stale');
+
   // Done items: explicitly marked done + decisions + resolved
   const doneItems = allItems.filter(i => i.itemStatus === 'done');
 
@@ -503,6 +507,7 @@ function RoadmapInner() {
   // Group each section by meeting
   const activeActionGroups = groupByMeeting(activeActions);
   const activeOpenGroups = groupByMeeting(activeOpen);
+  const ideaGroups = groupByMeeting(ideaItems);
   const doneGroups = groupByMeeting(doneItems);
   const staleGroups = groupByMeeting(staleItems);
 
@@ -618,6 +623,21 @@ function RoadmapInner() {
               )}
             </div>
 
+            )}
+
+            {/* Ideas backlog */}
+            {ideaItems.length > 0 && roadmapFilter === 'all' && (
+            <div>
+              <SectionHeader title="Ideas" count={ideaItems.length} accent="var(--color-idea)" />
+              <div
+                className="rounded-lg px-5 py-4 space-y-5"
+                style={{ background: 'var(--bg-card)', border: '1px solid rgba(168, 85, 247, 0.2)' }}
+              >
+                {ideaGroups.map(g => (
+                  <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
+                ))}
+              </div>
+            </div>
             )}
 
             {/* Done section */}

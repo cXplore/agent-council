@@ -3,6 +3,15 @@
 import { useMemo, useState } from 'react';
 import type { SuggestedMeeting } from '@/lib/types';
 
+function renderInline(text: string) {
+  const parts = text.split(/(`[^`]+`)/);
+  return parts.map((part, i) =>
+    part.startsWith('`') && part.endsWith('`') && part.length > 2
+      ? <code key={i} style={{ fontSize: '0.85em', padding: '0.1em 0.3em', borderRadius: '3px', background: 'var(--bg)', color: '#93c5fd' }}>{part.slice(1, -1)}</code>
+      : part
+  );
+}
+
 interface Props {
   content: string;
   recommendedMeetings?: SuggestedMeeting[];
@@ -78,7 +87,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
               {decisions.map((d, i) => (
                 <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   <span style={{ color: '#60a5fa', flexShrink: 0 }}>·</span>
-                  <span>{d}</span>
+                  <span>{renderInline(d)}</span>
                 </li>
               ))}
             </ul>
@@ -93,7 +102,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
               {open.map((q, i) => (
                 <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   <span style={{ color: '#fbbf24', flexShrink: 0 }}>·</span>
-                  <span>{q}</span>
+                  <span>{renderInline(q)}</span>
                 </li>
               ))}
             </ul>

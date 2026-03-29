@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     );
 
     // Enrich all items with hash and status
-    const allTags = [...index.decisions, ...index.open, ...index.actions, ...index.resolved];
+    const allTags = [...index.decisions, ...index.open, ...index.actions, ...index.resolved, ...index.ideas];
     const items: RoadmapItem[] = allTags.map(tag => {
       const hash = hashItem(tag.text, tag.meeting);
       const stored = statusStore.statuses[hash];
