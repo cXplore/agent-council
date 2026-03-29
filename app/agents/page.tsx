@@ -1041,8 +1041,8 @@ function AgentsPageInner() {
             No agents match &ldquo;{searchQuery}&rdquo;
           </div>
         ) : (() => {
-          // Group by team if any agents have teams
-          const hasTeams = filteredAgents.some(a => a.team);
+          // Group by team if any agents have teams OR custom teams exist in edit mode
+          const hasTeams = filteredAgents.some(a => a.team) || (editMode && customTeams.length > 0);
           const groups: Record<string, AgentInfo[]> = {};
           if (hasTeams) {
             for (const agent of filteredAgents) {
@@ -1102,17 +1102,27 @@ function AgentsPageInner() {
                   .filter(t => !teamOrder.includes(t))
                   .map(team => (
                     <div key={team}>
-                      <h2
-                        className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {team} (0)
-                      </h2>
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <h2
+                          className="text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {team} (0)
+                        </h2>
+                        <button
+                          onClick={() => setCustomTeams(prev => prev.filter(t => t !== team))}
+                          className="text-xs px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 transition-opacity"
+                          style={{ color: 'var(--text-muted)' }}
+                          title="Remove empty team"
+                        >
+                          ✕
+                        </button>
+                      </div>
                       <div
                         className="rounded-lg px-4 py-6 text-center text-xs"
                         style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
                       >
-                        Empty team — assign agents here using the team dropdown
+                        Empty team — assign agents using the team dropdown above
                       </div>
                     </div>
                   ))}
