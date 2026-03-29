@@ -42,6 +42,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     noteText,
     latestEvent,
     contextCards,
+    paceMode,
     meetingSearchOpen,
     meetingSearch,
     meetingSearchIndex,
@@ -63,6 +64,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     setShowTerms,
     setMeetingTerms,
     setNotesOpen,
+    setPaceMode,
     setPollPaused,
     setPlannedMeetings,
     setMeetingSearchOpen,
@@ -1065,23 +1067,39 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           <div className="max-w-3xl mx-auto flex items-center gap-2 mb-2">
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Pacing:</span>
             <button
-              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-auto' }) })}
-              className="text-xs px-2 py-0.5 rounded transition-colors"
-              style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              onClick={() => {
+                fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-auto' }) });
+                setPaceMode('auto');
+              }}
+              className="text-xs px-2.5 py-1 rounded transition-colors"
+              style={{
+                background: paceMode === 'auto' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: paceMode === 'auto' ? 'var(--accent)' : 'var(--text-muted)',
+                border: paceMode === 'auto' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              }}
               title="Facilitator proceeds automatically between rounds"
             >
               Auto
             </button>
             <button
-              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-guided' }) })}
-              className="text-xs px-2 py-0.5 rounded transition-colors"
-              style={{ background: 'transparent', color: 'var(--accent)', border: '1px solid var(--accent)' }}
+              onClick={() => {
+                fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'set-guided' }) });
+                setPaceMode('guided');
+              }}
+              className="text-xs px-2.5 py-1 rounded transition-colors"
+              style={{
+                background: paceMode === 'guided' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                color: paceMode === 'guided' ? 'var(--accent)' : 'var(--text-muted)',
+                border: paceMode === 'guided' ? '1px solid var(--accent)' : '1px solid var(--border)',
+              }}
               title="Facilitator waits for your approval before each round"
             >
               Guided
             </button>
             <button
-              onClick={() => fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'proceed' }) })}
+              onClick={() => {
+                fetch('/api/council/pace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ meeting: selected, action: 'proceed' }) });
+              }}
               className="text-xs px-3 py-1 rounded-lg font-medium transition-colors"
               style={{ background: 'var(--live-green)', color: '#0a0a0b' }}
               title="Signal the facilitator to proceed to the next round"

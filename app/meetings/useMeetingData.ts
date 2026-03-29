@@ -61,6 +61,7 @@ export interface MeetingData {
   noteText: string;
   latestEvent: string | null;
   contextCards: { id: string; context: string; source?: string; timestamp: string }[];
+  paceMode: 'auto' | 'guided';
   showPlanForm: boolean;
   planTopic: string;
   planType: string;
@@ -109,6 +110,7 @@ export interface MeetingData {
   setTagExpanded: (v: boolean) => void;
   setTagDetails: (v: MeetingData['tagDetails']) => void;
   setPlannedMeetings: React.Dispatch<React.SetStateAction<MeetingData['plannedMeetings']>>;
+  setPaceMode: (v: 'auto' | 'guided') => void;
   setPollPaused: (v: boolean) => void;
   setConnectionLost: (v: boolean) => void;
   setShowPlanForm: (v: boolean) => void;
@@ -200,6 +202,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
 
   const [seenContent, setSeenContent] = useState<string>('');
   const [latestEvent, setLatestEvent] = useState<string | null>(null);
+  const [paceMode, setPaceMode] = useState<'auto' | 'guided'>('auto');
   const [contextCards, setContextCards] = useState<{ id: string; context: string; source?: string; timestamp: string }[]>([]);
 
   const [plannedMeetings, setPlannedMeetings] = useState<{
@@ -228,6 +231,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   const seenContentTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const selectedRef = useRef<string | null>(searchParams.get('file'));
   const userExplicitlyBackRef = useRef(false);
+  const backedFromRef = useRef<string | null>(null);
   const userScrolledUpRef = useRef(false);
 
   // Pause polling when tab is backgrounded, refresh on return
@@ -255,7 +259,10 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
 
   // Keep refs in sync
   useEffect(() => { selectedRef.current = selected; }, [selected]);
-  useEffect(() => { userExplicitlyBackRef.current = userExplicitlyBack; }, [userExplicitlyBack]);
+  useEffect(() => {
+    userExplicitlyBackRef.current = userExplicitlyBack;
+    if (userExplicitlyBack) backedFromRef.current = selectedRef.current;
+  }, [userExplicitlyBack]);
   useEffect(() => { userScrolledUpRef.current = userScrolledUp; }, [userScrolledUp]);
   useEffect(() => { connectionLostRef.current = connectionLost; }, [connectionLost]);
   useEffect(() => { pollPausedRef.current = pollPaused; }, [pollPaused]);
@@ -281,11 +288,17 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
       setFetchError(false);
       setMeetings(Array.isArray(data) ? data : []);
 
-      // Auto-select if exactly one is in-progress (but not if user explicitly went back)
-      if (!selectedRef.current && !userExplicitlyBackRef.current) {
+      // Auto-select live meetings — navigate to them automatically unless the user
+      // explicitly backed out of THIS specific meeting. A new live meeting (different
+      // filename) always takes over, even if userExplicitlyBack is set.
+      if (!selectedRef.current) {
         const inProgress = data.filter((m: MeetingListItem) => m.status === 'in-progress');
         if (inProgress.length === 1) {
-          selectMeeting(inProgress[0].filename);
+          const liveFile = inProgress[0].filename;
+          if (!userExplicitlyBackRef.current || liveFile !== backedFromRef.current) {
+            selectMeeting(liveFile);
+            setUserExplicitlyBack(false);
+          }
         }
       }
     } catch {
@@ -826,6 +839,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
     noteText,
     latestEvent,
     contextCards,
+    paceMode,
     showPlanForm,
     planTopic,
     planType,
@@ -866,6 +880,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
     setTagExpanded,
     setTagDetails,
     setPlannedMeetings,
+    setPaceMode,
     setPollPaused,
     setConnectionLost,
     setShowPlanForm,
