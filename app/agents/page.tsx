@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import { motion } from 'motion/react';
 import { getAgentColor } from '@/lib/utils';
 import { docComponents } from '@/lib/md-components';
 import { formatType } from '../meetings/MeetingListCard';
@@ -263,7 +264,12 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
   };
 
   return (
-    <div className="flex gap-3 mb-6 flex-wrap">
+    <motion.div
+      className="flex gap-3 mb-6 flex-wrap"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       {/* Composition */}
       <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
         <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Composition</div>
@@ -311,7 +317,7 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -635,7 +641,13 @@ function AgentsPageInner() {
             &larr; All agents
           </button>
         </div>
-        <div className="max-w-3xl mx-auto px-6 py-8 w-full">
+        <motion.div
+          className="max-w-3xl mx-auto px-6 py-8 w-full"
+          key={selected.filename}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2 }}
+        >
           <div className="flex items-center gap-3 mb-2">
             <span
               className="w-3 h-3 rounded-full"
@@ -765,7 +777,7 @@ function AgentsPageInner() {
               ));
             })()}
           </div>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -928,31 +940,52 @@ function AgentsPageInner() {
                 return a.name.localeCompare(b.name);
               });
             }
+            let globalIndex = 0;
             return (
               <div className="space-y-6">
-                {teamOrder.map(team => (
-                  <div key={team}>
-                    <h2
-                      className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      {team} ({groups[team].length})
-                    </h2>
-                    <div className="space-y-2">
-                      {groups[team].map(agent => (
-                        <AgentCard key={agent.filename} agent={agent} onSelect={setSelected} />
-                      ))}
+                {teamOrder.map(team => {
+                  const teamAgents = groups[team];
+                  return (
+                    <div key={team}>
+                      <h2
+                        className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {team} ({teamAgents.length})
+                      </h2>
+                      <div className="space-y-2">
+                        {teamAgents.map(agent => {
+                          const idx = globalIndex++;
+                          return (
+                            <motion.div
+                              key={agent.filename}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2, delay: idx < 10 ? idx * 0.04 : 0 }}
+                            >
+                              <AgentCard agent={agent} onSelect={setSelected} />
+                            </motion.div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           }
 
           return (
             <div className="space-y-2">
-              {filteredAgents.map(agent => (
-                <AgentCard key={agent.filename} agent={agent} onSelect={setSelected} />
+              {filteredAgents.map((agent, i) => (
+                <motion.div
+                  key={agent.filename}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: i < 10 ? i * 0.04 : 0 }}
+                >
+                  <AgentCard agent={agent} onSelect={setSelected} />
+                </motion.div>
               ))}
             </div>
           );

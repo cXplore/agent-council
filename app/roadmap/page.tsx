@@ -269,7 +269,7 @@ function ItemRow({
         {item.text}
       </span>
       <ActionButtons item={item} onStatusChange={onStatusChange} />
-    </div>
+    </MotionOrDiv>
   );
 }
 
@@ -308,6 +308,7 @@ function MeetingGroup({
             key={`${item.meeting}-${item.lineNumber}-${i}`}
             item={item}
             onStatusChange={onStatusChange}
+            index={i}
           />
         ))}
       </div>
@@ -364,6 +365,7 @@ function RoadmapInner() {
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const prevCountsRef = useRef<{ done: number; active: number } | null>(null);
+  const isInitialRender = useRef(true);
 
   const loadData = useCallback(async () => {
     try {
@@ -381,6 +383,10 @@ function RoadmapInner() {
 
       setData(roadmapData);
       setFetchError(false);
+      // After first successful load, disable entrance animations
+      if (isInitialRender.current) {
+        setTimeout(() => { isInitialRender.current = false; }, 400);
+      }
     } catch {
       setFetchError(true);
     }
@@ -514,9 +520,10 @@ function RoadmapInner() {
         ) : (
           <div className="space-y-8">
             {/* Progress summary */}
-            <div
+            <motion.div
               className="rounded-lg px-5 py-4"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              {...fadeUp}
             >
               <div className="text-xs mb-3 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
                 <span>Overall progress</span>
@@ -531,8 +538,9 @@ function RoadmapInner() {
                 active={activeActions.length}
                 open={data.counts.openQuestions}
                 stale={staleItems.length}
+                animate={isInitialRender.current}
               />
-            </div>
+            </motion.div>
 
             {/* Filter buttons */}
             <div className="flex gap-2 flex-wrap">
