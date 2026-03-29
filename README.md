@@ -1,34 +1,31 @@
 # Agent Council
 
-Run structured meetings between your Claude Code agents. Watch them deliberate in real time.
+Your Claude Code agents can have meetings. You watch them argue.
 
-A meeting companion for Claude Code — a facilitator orchestrates rounds, mandatory roles prevent groupthink, and a live viewer shows it all as it happens.
+Tell Claude Code *"let's review the dark mode design"* and a facilitator spins up a design review with a project manager, designer, critic, and developer. They deliberate in rounds — first independently (no groupthink), then building on each other's points. A mandatory critic catches what everyone else missed. You watch it live and jump in between rounds.
 
-## Get Started
+No database. No auth. Pure file I/O — the meeting file IS the conversation.
 
-### Desktop App
-Download from [Releases](https://github.com/cXplore/agent-council/releases) and run. No terminal needed.
+<!-- TODO: Add screenshot or GIF of live meeting viewer here -->
 
-### From Source
+## Quick Start
+
 ```bash
 git clone https://github.com/cXplore/agent-council
 cd agent-council
 npm install
 npm run dev
-# Opens at http://localhost:3003
+# Opens at http://localhost:3003 → connect your project → ask Claude for a meeting
 ```
 
-### CLI
-```bash
-node bin/cli.js
-# Starts server at http://localhost:3003 and opens browser
-```
+Or download the [desktop app](https://github.com/cXplore/agent-council/releases) (no terminal needed).
 
 ## How It Works
 
-1. **Connect** — point Agent Council at your project via the Setup page (`/setup`)
-2. **Meet** — in Claude Code, ask for a meeting: *"run a meeting about the API design"*, *"let's review the auth flow"*
-3. **Watch** — agent responses appear live at `/meetings`. Type to add your own voice.
+1. **Connect** — point Agent Council at your project. It scans your stack and generates a team of specialized agents.
+2. **Meet** — in Claude Code, just ask: *"run a design review on the auth flow"*, *"what should we work on today?"*
+3. **Watch** — agent responses stream live at `/meetings`. Type between rounds to steer the conversation.
+4. **Track** — decisions, actions, and open questions are tagged and tracked across meetings on the roadmap.
 
 ## The Meeting System
 
@@ -134,32 +131,21 @@ To add Council fields to existing agents, tell Claude Code: *"Add Agent Council 
 }
 ```
 
-## Features
+## What You Get
 
-- **Live meeting viewer** — watch agent responses appear in real time with 2-second polling
-- **Meeting pacing** — Auto/Guided/Proceed modes let you control flow between rounds
-- **Roadmap** — track decisions, actions, and open questions across meetings with status (done/active/stale)
-- **Dashboard** — meeting analytics, type distribution, agent activity, key terms, 30-day timeline
-- **Agent browser** — view, search, create, and compare agents with team grouping and stats
-- **Cross-meeting tracking** — decisions, open questions, and actions with carry-forward context
-- **MCP integration** — 15 tools for read-write collaboration between Claude sessions and viewer
-- **Session brief** — Claude gets a synthesized overview at session start via `council_session_brief`
-- **Keyboard shortcuts** — j/k navigation, Ctrl+K command palette, Ctrl+F in-meeting search
-- **Meeting management** — pin, search, filter, bulk delete, download, print, copy link, RSS feed
-- **Inline tagging** — `[DECISION]` `[OPEN:slug]` `[ACTION]` `[RESOLVED:slug]` `[IDEA]` tracked automatically
-- **JSON appendix** — structured meeting outcomes in machine-readable format alongside markdown
-- **Export** — JSON bundle, individual markdown, standalone HTML, RSS feed, clipboard digest
-- **CLI** — `--port`, `--no-open`, `--help`, `--version` flags
-- **Electron desktop app** — window state persistence, splash screen, error dialogs
-- **Accessibility** — focus styles, prefers-reduced-motion, print CSS, keyboard navigation
+**Live viewer** — agent responses stream in real time. Control pacing: auto, guided (click to proceed), or manual. Join the conversation between rounds.
+
+**Roadmap** — every `[DECISION]`, `[ACTION]`, and `[OPEN]` tag across all meetings is tracked. Mark items done, stale, or working. Staleness detection flags planned meetings overtaken by completed work.
+
+**Agent browser** — view, create, and configure agents with team grouping. Smart template merge keeps agents updated without losing your model and team settings.
+
+**MCP integration** — 15 tools for two-way communication. Claude gets a session brief at startup, sees your roadmap nudges, and picks up planned meetings automatically.
+
+**Everything else** — keyboard shortcuts (j/k, Ctrl+K, Ctrl+F), export (HTML/JSON/markdown/RSS), dashboard analytics, CLI flags, Electron desktop app, print CSS, accessibility.
 
 ## Tech Stack
 
-- Next.js 16 (App Router)
-- TypeScript, TailwindCSS v4
-- Electron (desktop builds)
-- MCP server (Claude Code integration)
-- No database, no auth — pure file I/O
+Next.js 16 (App Router), TypeScript, TailwindCSS v4, Electron, MCP server. No database, no auth — pure file I/O.
 
 ## API Endpoints
 
