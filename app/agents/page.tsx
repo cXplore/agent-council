@@ -196,15 +196,13 @@ function MeetingHistory({ agentName, meetings }: { agentName: string; meetings: 
 const TEAM_OPTIONS = ['core', 'engineering', 'design', 'security', 'content', 'domain', 'other'];
 const MODEL_OPTIONS = ['opus', 'sonnet', 'haiku'];
 
-function AgentCard({ agent, onSelect, editMode, onRefresh, teamOptions }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void; editMode?: boolean; onRefresh?: () => void; teamOptions?: string[] }) {
-  const patchAgent = async (field: string, value: string) => {
-    await fetch('/api/agents', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: agent.filename, field, value }),
-    });
-    onRefresh?.();
-  };
+function AgentCard({ agent, onSelect, editMode, teamOptions, onEditField }: {
+  agent: AgentInfo;
+  onSelect: (a: AgentInfo) => void;
+  editMode?: boolean;
+  teamOptions?: string[];
+  onEditField?: (filename: string, field: string, value: string) => void;
+}) {
 
   return (
     <div
@@ -257,7 +255,7 @@ function AgentCard({ agent, onSelect, editMode, onRefresh, teamOptions }: { agen
             className="text-xs px-2 py-1 rounded cursor-pointer"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
             value={agent.team || ''}
-            onChange={(e) => patchAgent('team', e.target.value)}
+            onChange={(e) => onEditField?.(agent.filename, 'team', e.target.value)}
             onClick={(e) => e.stopPropagation()}
           >
             <option value="">No team</option>
@@ -269,7 +267,7 @@ function AgentCard({ agent, onSelect, editMode, onRefresh, teamOptions }: { agen
             className="text-xs px-2 py-1 rounded cursor-pointer"
             style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
             value={agent.model || 'sonnet'}
-            onChange={(e) => patchAgent('model', e.target.value)}
+            onChange={(e) => onEditField?.(agent.filename, 'model', e.target.value)}
             onClick={(e) => e.stopPropagation()}
           >
             {MODEL_OPTIONS.map(m => (
@@ -622,22 +620,57 @@ function AgentsPageInner() {
   const [customTeams, setCustomTeams] = useState<string[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
   const [dragOverTeam, setDragOverTeam] = useState<string | null>(null);
+  // Buffered edits: filename -> { field: value } — applied on "Save", discarded on "Cancel"
+  const [pendingEdits, setPendingEdits] = useState<Record<string, Record<string, string>>>({});
 
   const refreshAgents = () => setRefreshKey(k => k + 1);
 
-  const handleDropOnTeam = async (team: string, e: React.DragEvent) => {
+  const handleEditField = (filename: string, field: string, value: string) => {
+    setPendingEdits(prev => ({
+      ...prev,
+      [filename]: { ...prev[filename], [field]: value },
+    }));
+  };
+
+  const saveEdits = async () => {
+    for (const [filename, fields] of Object.entries(pendingEdits)) {
+      for (const [field, value] of Object.entries(fields)) {
+        try {
+          await fetch('/api/agents', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename, field, value }),
+          });
+        } catch { /* continue */ }
+      }
+    }
+    setPendingEdits({});
+    setEditMode(false);
+    setCustomTeams([]);
+    setNewTeamName('');
+    refreshAgents();
+  };
+
+  const cancelEdits = () => {
+    setPendingEdits({});
+    setEditMode(false);
+    setCustomTeams([]);
+    setNewTeamName('');
+  };
+
+  // Apply pending edits to agents for display (so changes are visible before saving)
+  const displayAgents = agents.map(agent => {
+    const edits = pendingEdits[agent.filename];
+    if (!edits) return agent;
+    return { ...agent, ...edits };
+  });
+
+  const handleDropOnTeam = (team: string, e: React.DragEvent) => {
     e.preventDefault();
     setDragOverTeam(null);
     const filename = e.dataTransfer.getData('agent-filename');
     if (!filename) return;
-    try {
-      await fetch('/api/agents', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, field: 'team', value: team }),
-      });
-      refreshAgents();
-    } catch { /* silent */ }
+    handleEditField(filename, 'team', team);
   };
 
   useEffect(() => {
@@ -688,15 +721,16 @@ function AgentsPageInner() {
   }, [selected]);
 
   const filteredAgents = useMemo(() => {
-    if (!searchQuery) return agents;
+    const source = displayAgents;
+    if (!searchQuery) return source;
     const q = searchQuery.toLowerCase();
-    return agents.filter(a =>
+    return source.filter(a =>
       a.name.toLowerCase().includes(q) ||
       a.description.toLowerCase().includes(q) ||
       a.team.toLowerCase().includes(q) ||
       a.model.toLowerCase().includes(q)
     );
-  }, [agents, searchQuery]);
+  }, [displayAgents, searchQuery]);
 
   if (selected) {
     return (
@@ -877,18 +911,36 @@ function AgentsPageInner() {
             >
               {showCreateForm ? 'Cancel' : '+ New Agent'}
             </button>
-            {agents.length > 0 && (
+            {agents.length > 0 && !editMode && (
               <button
-                onClick={() => setEditMode(v => !v)}
+                onClick={() => setEditMode(true)}
                 className="text-xs px-2.5 py-1 rounded transition-colors"
-                style={{
-                  background: editMode ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                  color: editMode ? 'var(--accent)' : 'var(--text-muted)',
-                  border: editMode ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border)',
-                }}
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
               >
-                {editMode ? 'Done editing' : 'Edit'}
+                Edit
               </button>
+            )}
+            {editMode && (
+              <>
+                <button
+                  onClick={cancelEdits}
+                  className="text-xs px-2.5 py-1 rounded transition-colors"
+                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEdits}
+                  className="text-xs px-2.5 py-1 rounded transition-colors"
+                  style={{
+                    background: Object.keys(pendingEdits).length > 0 ? 'var(--accent)' : 'rgba(59, 130, 246, 0.15)',
+                    color: Object.keys(pendingEdits).length > 0 ? 'white' : 'var(--accent)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                  }}
+                >
+                  {Object.keys(pendingEdits).length > 0 ? `Save (${Object.keys(pendingEdits).length} changes)` : 'Save'}
+                </button>
+              </>
             )}
           </div>
         )}
@@ -917,19 +969,12 @@ function AgentsPageInner() {
               className="text-xs px-2 py-1 rounded cursor-pointer"
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
               value=""
-              onChange={async (e) => {
+              onChange={(e) => {
                 const newModel = e.target.value;
                 if (!newModel) return;
                 for (const agent of agents) {
-                  try {
-                    await fetch('/api/agents', {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
-                    });
-                  } catch { /* continue */ }
+                  handleEditField(agent.filename, 'model', newModel);
                 }
-                refreshAgents();
               }}
             >
               <option value="">Set all models...</option>
@@ -938,7 +983,7 @@ function AgentsPageInner() {
               <option value="haiku">All → haiku</option>
             </select>
             <button
-              onClick={async () => {
+              onClick={() => {
                 const teamMap: Record<string, string> = {
                   'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
                   'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
@@ -948,15 +993,8 @@ function AgentsPageInner() {
                 };
                 for (const agent of agents) {
                   const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
-                  try {
-                    await fetch('/api/agents', {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ filename: agent.filename, field: 'team', value: team }),
-                    });
-                  } catch { /* continue */ }
+                  handleEditField(agent.filename, 'team', team);
                 }
-                refreshAgents();
               }}
               className="text-xs px-2.5 py-1 rounded"
               style={{ background: 'rgba(124, 109, 216, 0.15)', color: '#a78bfa', border: '1px solid rgba(124, 109, 216, 0.3)' }}
@@ -1121,7 +1159,7 @@ function AgentsPageInner() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2, delay: idx < 10 ? idx * 0.04 : 0 }}
                             >
-                              <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
+                              <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onEditField={handleEditField} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
                             </motion.div>
                           );
                         })}
@@ -1184,7 +1222,7 @@ function AgentsPageInner() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: i < 10 ? i * 0.04 : 0 }}
                 >
-                  <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
+                  <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onEditField={handleEditField} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
                 </motion.div>
               ))}
             </div>
