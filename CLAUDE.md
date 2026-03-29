@@ -105,6 +105,7 @@ docs/                   # GitHub Pages static site
 | AI project scan | `app/api/setup/ai-scan/route.ts` |
 | Agent template merge | `app/api/agents/merge/route.ts` |
 | AI team suggestions | `app/api/agents/suggest-teams/route.ts` |
+| AI council context | `app/api/council/ai-context/route.ts` |
 | Project status (tabs) | `app/api/projects/status/route.ts` |
 | Staleness detection | `lib/staleness.ts` |
 | Meeting type inference | `lib/meeting-type-inference.ts` |
