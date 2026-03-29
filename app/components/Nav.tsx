@@ -11,17 +11,6 @@ const NAV_ITEMS = [
   { href: '/agents', label: 'Agents' },
 ];
 
-interface ProjectInfo {
-  name: string;
-  path: string;
-}
-
-interface ProjectsResponse {
-  projects: ProjectInfo[];
-  activeProject: string;
-  hasWorkspace: boolean;
-}
-
 type ConnectionHealth = 'online' | 'slow' | 'offline';
 
 function ConnectionDot({ health }: { health: ConnectionHealth }) {
@@ -57,280 +46,90 @@ function ConnectionDot({ health }: { health: ConnectionHealth }) {
   );
 }
 
-function ProjectSwitcher({ inline, connectionHealth }: { inline?: boolean; connectionHealth: ConnectionHealth }) {
-  // router removed — we use window.location.reload() instead
-  const [open, setOpen] = useState(false);
-  const [data, setData] = useState<ProjectsResponse | null>(null);
-  const [switching, setSwitching] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+interface ProjectStatusItem {
+  name: string;
+  path: string;
+  active: boolean;
+  liveMeetings: number;
+  totalMeetings: number;
+  status: 'meeting' | 'working' | 'idle';
+  latestMeetingTitle?: string;
+}
 
-  useEffect(() => {
-    fetch('/api/projects')
-      .then(r => r.ok ? r.json() : null)
-      .then(d => setData(d))
-      .catch(() => {});
-  }, []);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', keyHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', keyHandler);
-    };
-  }, [open]);
-
-  const handleSwitch = useCallback(async (name: string) => {
-    if (!data || name === data.activeProject) {
-      setOpen(false);
-      return;
-    }
-    setSwitching(true);
-    try {
-      await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'switch', name }),
-      });
-      setOpen(false);
-      window.location.reload();
-    } catch {
-      setSwitching(false);
-    }
-  }, [data]);
-
-  const handleRemove = useCallback(async (name: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm(`Remove "${name}" from Agent Council? You'll need to reconnect it from Setup.`)) return;
-    setSwitching(true);
-    try {
-      await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove', name }),
-      });
-      setOpen(false);
-      window.location.reload();
-    } catch {
-      setSwitching(false);
-    }
-  }, []);
-
-  if (!data) {
+function StatusIndicator({ status }: { status: ProjectStatusItem['status'] }) {
+  if (status === 'meeting') {
     return (
-      <div className={inline ? 'w-full' : ''}>
-        <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--border)', flexShrink: 0 }} />
-          <span>&nbsp;</span>
-        </span>
-      </div>
+      <span
+        className="inline-block w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+        style={{ background: 'var(--live-green, #22c55e)' }}
+        title="Live meeting"
+      />
     );
   }
-
-  const hasProjects = data.projects.length > 0;
-  const isOnWorkspace = data.activeProject === 'workspace';
-  const activeProject = data.projects.find(p => p.name === data.activeProject);
-  const activeLabel = isOnWorkspace
-    ? (hasProjects ? 'No project' : null)
-    : activeProject?.name ?? data.activeProject;
-
-  // No project connected and on workspace — show link to setup
-  if (!hasProjects && isOnWorkspace) {
+  if (status === 'working') {
     return (
-      <div className={inline ? 'w-full' : ''}>
-        <a
-          href="/setup"
-          className="flex items-center gap-1.5 text-sm transition-colors"
-          style={{
-            color: 'var(--text-muted)',
-            width: inline ? '100%' : undefined,
-            padding: inline ? '8px 12px' : undefined,
-            borderRadius: inline ? '8px' : undefined,
-            background: inline ? 'var(--bg-elevated)' : undefined,
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-block',
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              border: '1.5px solid var(--text-muted)',
-              flexShrink: 0,
-            }}
-          />
-          <span>Connect a project</span>
-        </a>
-      </div>
+      <span className="flex-shrink-0" style={{ color: 'var(--accent)', fontSize: 10, lineHeight: 1 }} title="Active work">
+        ⚡
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+      style={{ background: 'var(--border)' }}
+      title="Idle"
+    />
+  );
+}
+
+function ProjectTabs({ projects, onSwitch }: { projects: ProjectStatusItem[]; onSwitch: (name: string) => void }) {
+  if (projects.length === 0) {
+    return (
+      <a
+        href="/setup"
+        className="flex items-center gap-1.5 text-sm transition-colors"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', border: '1.5px solid var(--text-muted)', flexShrink: 0 }} />
+        <span>Connect a project</span>
+      </a>
     );
   }
 
   return (
-    <div ref={ref} className={inline ? 'w-full' : 'relative'}>
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={switching}
-        className="flex items-center gap-1.5 text-sm transition-colors"
+    <div className="flex items-center gap-1">
+      {projects.map(project => (
+        <button
+          key={project.name}
+          onClick={() => onSwitch(project.name)}
+          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
+          style={{
+            background: project.active ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            color: project.active ? 'var(--accent)' : 'var(--text-muted)',
+            border: project.active ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
+            fontWeight: project.active ? 600 : 400,
+          }}
+          title={`${project.name} — ${project.totalMeetings} meetings${project.status === 'meeting' ? ' (live)' : ''}`}
+        >
+          <StatusIndicator status={project.status} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+            {project.name}
+          </span>
+        </button>
+      ))}
+      <a
+        href="/setup"
+        className="flex items-center justify-center text-xs rounded-md transition-colors"
         style={{
-          color: 'var(--text-secondary)',
-          opacity: switching ? 0.5 : 1,
-          width: inline ? '100%' : undefined,
-          padding: inline ? '8px 12px' : undefined,
-          borderRadius: inline ? '8px' : undefined,
-          background: inline ? 'var(--bg-elevated)' : undefined,
+          color: 'var(--text-muted)',
+          width: 24,
+          height: 24,
+          fontSize: 14,
         }}
+        title="Connect project"
       >
-        <ConnectionDot health={isOnWorkspace ? 'online' : connectionHealth} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {activeLabel}
-        </span>
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          style={{
-            flexShrink: 0,
-            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 150ms',
-          }}
-        >
-          <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          style={{
-            position: inline ? 'relative' : 'absolute',
-            top: inline ? 4 : '100%',
-            left: 0,
-            marginTop: inline ? 0 : 8,
-            width: inline ? '100%' : 280,
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 10,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-            padding: 4,
-            zIndex: 100,
-            overflow: 'hidden',
-          }}
-        >
-          {/* Connected projects */}
-          {data.projects.map(project => (
-            <div
-              key={project.name}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleSwitch(project.name)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSwitch(project.name); } }}
-              className="w-full text-left transition-colors group cursor-pointer"
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: data.activeProject === project.name ? 'var(--accent-muted)' : 'transparent',
-              }}
-            >
-              <span
-                style={{
-                  width: 4,
-                  height: 28,
-                  borderRadius: 2,
-                  background: data.activeProject === project.name ? 'var(--accent)' : 'transparent',
-                  flexShrink: 0,
-                }}
-              />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div
-                  className="text-sm"
-                  style={{
-                    color: data.activeProject === project.name ? 'var(--accent)' : 'var(--text-primary)',
-                    fontWeight: data.activeProject === project.name ? 600 : 400,
-                  }}
-                >
-                  {project.name}
-                </div>
-                <div
-                  className="text-xs"
-                  style={{
-                    color: 'var(--text-muted)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {project.path}
-                </div>
-              </div>
-              <button
-                onClick={(e) => handleRemove(project.name, e)}
-                onKeyDown={(e) => e.stopPropagation()}
-                className="text-xs rounded-full opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                style={{ color: 'var(--text-muted)', flexShrink: 0, padding: '2px 6px' }}
-                title="Remove project"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-
-          {/* Deselect + actions */}
-          <div
-            style={{
-              height: 1,
-              background: 'var(--border)',
-              margin: '4px 10px',
-            }}
-          />
-          {!isOnWorkspace && (
-            <button
-              onClick={() => handleSwitch('workspace')}
-              className="w-full text-left transition-colors"
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: 'var(--text-muted)',
-                fontSize: 13,
-              }}
-            >
-              Deselect project
-            </button>
-          )}
-          <a
-            href="/setup"
-            onClick={() => setOpen(false)}
-            className="text-left transition-colors block"
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              color: 'var(--text-muted)',
-              fontSize: 13,
-            }}
-          >
-            <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
-            Connect project
-          </a>
-        </div>
-      )}
+        +
+      </a>
     </div>
   );
 }
@@ -338,29 +137,47 @@ function ProjectSwitcher({ inline, connectionHealth }: { inline?: boolean; conne
 export default function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [hasLiveMeeting, setHasLiveMeeting] = useState(false);
-  const [meetingCount, setMeetingCount] = useState(0);
+  const [projects, setProjects] = useState<ProjectStatusItem[]>([]);
   const [connectionHealth, setConnectionHealth] = useState<ConnectionHealth>('online');
   const consecutiveFailures = useRef(0);
 
   // Close mobile menu on route change
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  // Poll for live meetings to show indicator + track connection health
+  // Derive meeting info from active project status
+  const activeProject = projects.find(p => p.active);
+  const hasLiveMeeting = activeProject?.liveMeetings ? activeProject.liveMeetings > 0 : false;
+  const meetingCount = activeProject?.totalMeetings ?? 0;
+
+  const handleSwitch = useCallback(async (name: string) => {
+    const current = projects.find(p => p.active);
+    if (current?.name === name) return;
+    try {
+      await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'switch', name }),
+      });
+      window.location.reload();
+    } catch {
+      // silent
+    }
+  }, [projects]);
+
+  // Poll project status every 10s — replaces the old /api/meetings poll
   useEffect(() => {
     const check = async () => {
       const start = Date.now();
       try {
-        const res = await fetch('/api/meetings');
+        const res = await fetch('/api/projects/status');
         const elapsed = Date.now() - start;
         if (!res.ok) {
           consecutiveFailures.current++;
         } else {
           consecutiveFailures.current = 0;
           const data = await res.json();
-          if (Array.isArray(data)) {
-            setHasLiveMeeting(data.some((m: { status: string }) => m.status === 'in-progress'));
-            setMeetingCount(data.length);
+          if (data.projects) {
+            setProjects(data.projects);
           }
         }
 
@@ -400,9 +217,10 @@ export default function Nav() {
           Agent Council
         </Link>
 
-        {/* Desktop project switcher */}
-        <div className="hidden sm:block">
-          <ProjectSwitcher connectionHealth={connectionHealth} />
+        {/* Desktop project tabs */}
+        <div className="hidden sm:flex items-center gap-1">
+          <ConnectionDot health={connectionHealth} />
+          <ProjectTabs projects={projects} onSwitch={handleSwitch} />
         </div>
 
         <div className="flex-1" />
@@ -498,9 +316,9 @@ export default function Nav() {
       {/* Mobile dropdown */}
       {open && (
         <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
-          {/* Mobile project switcher — above nav items */}
-          <div style={{ marginBottom: 8 }}>
-            <ProjectSwitcher inline connectionHealth={connectionHealth} />
+          {/* Mobile project tabs — above nav items */}
+          <div style={{ marginBottom: 8, padding: '4px 8px' }}>
+            <ProjectTabs projects={projects} onSwitch={handleSwitch} />
           </div>
 
           {NAV_ITEMS.map(item => {
