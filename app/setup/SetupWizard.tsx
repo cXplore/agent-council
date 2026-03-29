@@ -125,12 +125,15 @@ function SetupWizardInner() {
     setConnecting(true);
     setConnectError('');
 
+    // Strip surrounding quotes — users often paste paths with quotes from terminals
+    const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
+
     try {
       // Try to update the config with this project's meetings dir
       const res = await fetch('/api/setup/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: projectPath.trim() }),
+        body: JSON.stringify({ path: cleanPath }),
       });
 
       if (!res.ok) {
@@ -151,7 +154,7 @@ function SetupWizardInner() {
           const checkRes = await fetch('/api/setup/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: `${projectPath.trim()}/${dir}` }),
+            body: JSON.stringify({ path: `${cleanPath}/${dir}` }),
           });
           if (checkRes.ok) {
             foundMeetingsDir = dir;
@@ -172,7 +175,7 @@ function SetupWizardInner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectPath: projectPath.trim(),
+          projectPath: cleanPath,
           meetingsDir: foundMeetingsDir,
         }),
       });
@@ -250,11 +253,13 @@ function SetupWizardInner() {
     setScanning(true);
     setScanError('');
 
+    const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
+
     try {
       const res = await fetch('/api/setup/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: projectPath.trim() }),
+        body: JSON.stringify({ path: cleanPath }),
       });
 
       if (!res.ok) {
@@ -309,7 +314,7 @@ function SetupWizardInner() {
     setGenerating(true);
     try {
       const enabledAgents = agents.filter(a => a.enabled);
-      const targetDir = projectPath.trim() || '.';
+      const targetDir = (projectPath.trim().replace(/^["']+|["']+$/g, '')) || '.';
 
       const res = await fetch('/api/setup/generate', {
         method: 'POST',
