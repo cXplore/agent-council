@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
-import { buildTagIndex } from '@/lib/tag-index';
+import { buildTagIndex, getUnresolved } from '@/lib/tag-index';
 import { extractSummary, parseMetadata, titleFromFilename } from '@/lib/meeting-utils';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
@@ -31,8 +31,11 @@ export async function POST(req: NextRequest) {
     const active = getActiveProjectConfig(config);
     const meetingsDir = active.meetingsDir;
 
-    // Load tag index for decisions/actions/open questions
-    const index = await buildTagIndex(meetingsDir);
+    // Load tag index for decisions; use getUnresolved for actions/open (filters done/stale)
+    const [index, unresolved] = await Promise.all([
+      buildTagIndex(meetingsDir),
+      getUnresolved(meetingsDir),
+    ]);
 
     // Load recent meeting summaries
     let files: string[] = [];
@@ -90,10 +93,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Build active work items summary
-    const activeActions = index.actions.slice(0, 5).map(a => `• ${a.text}`).join('\n');
-    const activeOpen = index.open.slice(0, 3).map(o => `? ${o.text}`).join('\n');
-    const recentDecisions = index.decisions.slice(0, 5).map(d => `✓ ${d.text}`).join('\n');
+    // Build active work items summary — use unresolved for actions/open, sort decisions by recency
+    const sortByDate = (a: { date?: string | null }, b: { date?: string | null }) =>
+      (b.date ?? '').localeCompare(a.date ?? '');
+    const activeActions = unresolved.actions.slice(0, 5).map(a => `• ${a.text}`).join('\n');
+    const activeOpen = unresolved.open.slice(0, 3).map(o => `? ${o.text}`).join('\n');
+    const recentDecisions = [...index.decisions].sort(sortByDate).slice(0, 5).map(d => `✓ ${d.text}`).join('\n');
 
     const workContext = [
       activeActions && `Active actions:\n${activeActions}`,
