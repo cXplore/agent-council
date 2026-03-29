@@ -120,8 +120,8 @@ export default function MeetingList(props: MeetingListProps) {
       setPlanTopic('');
       setPlanType('auto');
       setShowPlanForm(false);
-      fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
-    });
+      fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
+    }).catch(() => {});
   };
 
   return (
