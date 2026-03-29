@@ -28,7 +28,10 @@ export interface MeetingData {
 
   // Pinned / planned / suggestions
   pinnedMeetings: Set<string>;
-  plannedMeetings: { id: string; type: string; topic: string; trigger?: string; source?: string }[];
+  plannedMeetings: {
+    id: string; type: string; topic: string; trigger?: string; source?: string; timestamp?: string;
+    staleness?: { isStale: boolean; reason: 'keyword_match' | 'age' | null; matchedItems: { text: string; score: number }[]; ageDays: number };
+  }[];
   dismissedSuggestions: Set<string>;
   queuedSuggestions: Set<string>;
 
@@ -199,7 +202,10 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   const [latestEvent, setLatestEvent] = useState<string | null>(null);
   const [contextCards, setContextCards] = useState<{ id: string; context: string; source?: string; timestamp: string }[]>([]);
 
-  const [plannedMeetings, setPlannedMeetings] = useState<{ id: string; type: string; topic: string; trigger?: string; source?: string }[]>([]);
+  const [plannedMeetings, setPlannedMeetings] = useState<{
+    id: string; type: string; topic: string; trigger?: string; source?: string; timestamp?: string;
+    staleness?: { isStale: boolean; reason: 'keyword_match' | 'age' | null; matchedItems: { text: string; score: number }[]; ageDays: number };
+  }[]>([]);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planTopic, setPlanTopic] = useState('');
   const [planType, setPlanType] = useState('auto');
@@ -413,7 +419,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   useEffect(() => {
     const fetchPlanned = async () => {
       try {
-        const res = await fetch('/api/council/planned');
+        const res = await fetch('/api/council/planned?enrich=staleness');
         if (res.ok) {
           const data = await res.json();
           setPlannedMeetings(data.meetings || []);

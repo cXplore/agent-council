@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { getConfig, getActiveProjectConfig } from '@/lib/config';
+import { buildTagIndex } from '@/lib/tag-index';
+import { checkStaleness, getDoneItems } from '@/lib/staleness';
 
 // Planned meetings — persisted to .council-planned.json in the app directory
 interface PlannedMeeting {
@@ -37,22 +40,53 @@ async function savePlanned(meetings: PlannedMeeting[]): Promise<void> {
   await writeFile(PLANNED_FILE, JSON.stringify(meetings, null, 2), 'utf-8');
 }
 
-// Called by Claude (via MCP) to get planned meetings
-export async function GET() {
+// Load roadmap status store for staleness detection
+async function loadStatusStore(meetingsDir: string): Promise<Record<string, { status: string }>> {
+  try {
+    const content = await readFile(path.join(meetingsDir, '.council-action-status.json'), 'utf-8');
+    const parsed = JSON.parse(content);
+    return parsed?.statuses ?? {};
+  } catch {
+    return {};
+  }
+}
+
+// Called by Claude (via MCP) and the viewer to get planned meetings
+export async function GET(request: NextRequest) {
   const planned = await loadPlanned();
   const active = planned.filter(m => m.status === 'planned');
+  const enrich = request.nextUrl.searchParams.get('enrich');
 
-  return NextResponse.json({
-    meetings: active.map(m => ({
-      id: m.id,
-      type: m.type,
-      topic: m.topic,
-      trigger: m.trigger,
-      source: m.source,
-      participants: m.participants,
-      timestamp: m.timestamp,
-    })),
-  }, {
+  const meetings = active.map(m => ({
+    id: m.id,
+    type: m.type,
+    topic: m.topic,
+    trigger: m.trigger,
+    source: m.source,
+    participants: m.participants,
+    timestamp: m.timestamp,
+  }));
+
+  // Optionally enrich with staleness detection
+  if (enrich === 'staleness' && meetings.length > 0) {
+    try {
+      const config = await getConfig();
+      const activeProject = getActiveProjectConfig(config);
+      const [index, statuses] = await Promise.all([
+        buildTagIndex(activeProject.meetingsDir),
+        loadStatusStore(activeProject.meetingsDir),
+      ]);
+      const doneItems = getDoneItems(index, statuses);
+      const enriched = checkStaleness(meetings, doneItems);
+      return NextResponse.json({ meetings: enriched }, {
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
+    } catch {
+      // Staleness enrichment failed — return unenriched data
+    }
+  }
+
+  return NextResponse.json({ meetings }, {
     headers: { 'Cache-Control': 'no-cache, no-store' },
   });
 }

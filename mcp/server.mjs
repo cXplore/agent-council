@@ -126,7 +126,7 @@ server.tool(
         councilRequest('/api/projects'),
         councilRequest('/api/meetings').catch(() => []),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
-        councilRequest('/api/council/planned').catch(() => ({ meetings: [] })),
+        councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
       ]);
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
       const liveMeetings = meetings.filter(m => m.status === 'in-progress');
@@ -134,6 +134,7 @@ server.tool(
       const workItems = suggestions.filter(s => s.type === 'work_on');
       const otherSuggestions = suggestions.filter(s => s.type !== 'work_on');
       const planned = plannedData.meetings || [];
+      const stalePlanned = planned.filter(m => m.staleness?.isStale);
 
       const result = {
         running: true,
@@ -157,9 +158,16 @@ server.tool(
         parts.push(`\n💡 ${otherSuggestions.length} suggestion(s) from the viewer`);
       }
       if (planned.length > 0) {
-        parts.push(`\n📋 ${planned.length} planned meeting(s):\n${planned.map((m, i) =>
-          `${i + 1}. [${m.type}] ${m.topic}`
-        ).join('\n')}`);
+        const staleNote = stalePlanned.length > 0 ? ` (${stalePlanned.length} possibly stale)` : '';
+        parts.push(`\n📋 ${planned.length} planned meeting(s)${staleNote}:\n${planned.map((m, i) => {
+          let line = `${i + 1}. [${m.type}] ${m.topic}`;
+          if (m.staleness?.isStale) {
+            line += m.staleness.reason === 'keyword_match'
+              ? ` ⚠️ likely resolved`
+              : ` ⚠️ ${m.staleness.ageDays}d old`;
+          }
+          return line;
+        }).join('\n')}`);
       }
 
       return {
@@ -328,7 +336,7 @@ server.tool(
   {},
   async () => {
     try {
-      const data = await councilRequest('/api/council/planned');
+      const data = await councilRequest('/api/council/planned?enrich=staleness');
       const meetings = data.meetings || [];
       if (meetings.length === 0) {
         return {
@@ -338,9 +346,21 @@ server.tool(
       return {
         content: [{
           type: 'text',
-          text: `${meetings.length} planned meeting(s):\n\n${meetings.map((m, i) =>
-            `${i + 1}. **${m.type}**: ${m.topic}${m.trigger ? `\n   When: ${m.trigger}` : ''}${m.source ? `\n   Source: ${m.source}` : ''}${m.participants?.length ? `\n   Suggested: ${m.participants.join(', ')}` : ''}`
-          ).join('\n\n')}`,
+          text: `${meetings.length} planned meeting(s):\n\n${meetings.map((m, i) => {
+            let line = `${i + 1}. **${m.type}**: ${m.topic}`;
+            if (m.trigger) line += `\n   When: ${m.trigger}`;
+            if (m.source) line += `\n   Source: ${m.source}`;
+            if (m.participants?.length) line += `\n   Suggested: ${m.participants.join(', ')}`;
+            if (m.staleness?.isStale) {
+              if (m.staleness.reason === 'keyword_match') {
+                const matches = m.staleness.matchedItems.slice(0, 2).map(i => i.text.slice(0, 60)).join(', ');
+                line += `\n   ⚠️ Likely stale — matches done work: ${matches}`;
+              } else if (m.staleness.reason === 'age') {
+                line += `\n   ⚠️ ${m.staleness.ageDays} days old — may be outdated`;
+              }
+            }
+            return line;
+          }).join('\n\n')}`,
         }],
       };
     } catch (err) {
@@ -723,7 +743,7 @@ server.tool(
       // 5. Check for user nudges (work items + planned meetings)
       const [suggestionsData, plannedData] = await Promise.all([
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
-        councilRequest('/api/council/planned').catch(() => ({ meetings: [] })),
+        councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
       ]);
       const suggestions = suggestionsData.suggestions || [];
       const workItems = suggestions.filter(s => s.type === 'work_on');
@@ -737,10 +757,21 @@ server.tool(
         }
       }
       if (planned.length > 0) {
+        const stalePlanned = planned.filter(m => m.staleness?.isStale);
+        const staleNote = stalePlanned.length > 0 ? ` — ${stalePlanned.length} possibly stale` : '';
         sections.push('');
-        sections.push(`📋 PLANNED MEETINGS (${planned.length}):`);
+        sections.push(`📋 PLANNED MEETINGS (${planned.length}${staleNote}):`);
         for (const m of planned) {
-          sections.push(`  [${m.type}] ${m.topic}`);
+          let line = `  [${m.type}] ${m.topic}`;
+          if (m.staleness?.isStale) {
+            if (m.staleness.reason === 'keyword_match') {
+              const match = m.staleness.matchedItems[0]?.text.slice(0, 50);
+              line += ` ⚠️ likely resolved (matches: ${match})`;
+            } else {
+              line += ` ⚠️ ${m.staleness.ageDays}d old`;
+            }
+          }
+          sections.push(line);
         }
       }
 

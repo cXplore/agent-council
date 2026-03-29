@@ -294,38 +294,58 @@ export default function MeetingList(props: MeetingListProps) {
               Planned ({plannedMeetings.length})
             </h2>
             <div className="space-y-2">
-              {plannedMeetings.map(m => (
-                <div
-                  key={m.id}
-                  className="rounded-lg px-4 py-3 text-sm flex items-center justify-between"
-                  style={{ background: 'var(--bg-card)', border: '1px dashed var(--accent)', borderStyle: 'dashed' }}
-                >
-                  <div>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {m.type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                    </span>
-                    <span className="mx-2" style={{ color: 'var(--text-muted)' }}>—</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{m.topic}</span>
-                    {m.trigger && (
-                      <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>({m.trigger})</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={async () => {
-                      await fetch('/api/council/planned', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: m.id, status: 'dismissed' }),
-                      });
-                      setPlannedMeetings(prev => prev.filter(p => p.id !== m.id));
+              {plannedMeetings.map(m => {
+                const stale = m.staleness?.isStale;
+                const stalenessNote = stale && m.staleness?.reason === 'keyword_match'
+                  ? `Likely resolved — matches: ${m.staleness.matchedItems.slice(0, 2).map(item => item.text.slice(0, 60)).join(', ')}`
+                  : stale && m.staleness?.reason === 'age'
+                    ? `Planned ${m.staleness.ageDays} days ago — may be outdated`
+                    : null;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-lg px-4 py-3 text-sm flex items-start justify-between gap-3"
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: `1px dashed ${stale ? 'var(--warning, #eab308)' : 'var(--accent)'}`,
+                      opacity: stale ? 0.75 : 1,
                     }}
-                    className="text-xs px-2 py-0.5 rounded"
-                    style={{ color: 'var(--text-muted)' }}
                   >
-                    Dismiss
-                  </button>
-                </div>
-              ))}
+                    <div className="min-w-0">
+                      <div>
+                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {m.type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                        </span>
+                        <span className="mx-2" style={{ color: 'var(--text-muted)' }}>—</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>{m.topic}</span>
+                        {m.trigger && (
+                          <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>({m.trigger})</span>
+                        )}
+                      </div>
+                      {stalenessNote && (
+                        <div className="text-xs mt-1" style={{ color: 'var(--warning, #eab308)' }}>
+                          {stalenessNote}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await fetch('/api/council/planned', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: m.id, status: 'dismissed' }),
+                        });
+                        setPlannedMeetings(prev => prev.filter(p => p.id !== m.id));
+                      }}
+                      className="text-xs px-2 py-0.5 rounded flex-shrink-0"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

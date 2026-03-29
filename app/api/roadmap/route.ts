@@ -4,21 +4,7 @@ import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
 import { buildTagIndex } from '@/lib/tag-index';
 import type { TagEntry } from '@/lib/tag-index';
-
-// --- Hash function ---
-
-/** Simple string hash for generating stable item IDs from text + meeting filename */
-export function hashItem(text: string, meeting: string): string {
-  const input = `${text}::${meeting}`;
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash |= 0; // Convert to 32-bit integer
-  }
-  // Convert to positive hex string
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
+import { hashItem } from '@/lib/utils';
 
 // --- Status store types ---
 

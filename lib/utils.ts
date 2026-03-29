@@ -23,6 +23,18 @@ export function truncate(str: string, maxLen: number): string {
   return str.slice(0, maxLen - 1) + '\u2026';
 }
 
+/** Simple string hash for generating stable item IDs from text + meeting filename */
+export function hashItem(text: string, meeting: string): string {
+  const input = `${text}::${meeting}`;
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 /** Generate a slug from a string */
 export function slugify(str: string): string {
   return str
