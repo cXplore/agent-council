@@ -504,6 +504,34 @@ server.tool(
   }
 );
 
+// Tool: Append learnings to agent context files (with rolling window)
+server.tool(
+  'council_update_context',
+  'Append meeting learnings to an agent\'s context file. Auto-trims to 50-line rolling window to prevent unbounded growth. Use after meetings to record what each agent learned.',
+  {
+    agent: z.string().describe('Agent name (e.g., "developer", "architect")'),
+    entries: z.array(z.string()).describe('Array of learning entries to append (e.g., ["[2026-03-29 strategy] Key decision about X"])'),
+  },
+  async ({ agent, entries }) => {
+    try {
+      const data = await councilRequest('/api/agents/context', 'POST', {
+        agent,
+        entries,
+      });
+      return {
+        content: [{
+          type: 'text',
+          text: `Added ${entries.length} entries to ${agent}'s context file (rolling window: 50 lines max).`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not update context: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Tool: Push context to the meeting viewer
 server.tool(
   'council_add_context',

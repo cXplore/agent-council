@@ -104,6 +104,8 @@ docs/                   # GitHub Pages static site
 | Meeting template API | `app/api/meetings/template/route.ts` |
 | AI project scan | `app/api/setup/ai-scan/route.ts` |
 | Agent template merge | `app/api/agents/merge/route.ts` |
+| Agent context files | `app/api/agents/context/route.ts` |
+| Context file utility | `lib/context-files.ts` |
 | AI team suggestions | `app/api/agents/suggest-teams/route.ts` |
 | AI council context | `app/api/council/ai-context/route.ts` |
 | Quick consult (single agent) | `app/api/council/quick-consult/route.ts` |

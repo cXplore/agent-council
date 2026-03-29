@@ -245,7 +245,7 @@ function MeetingTimeline({ meetings }: { meetings: { filename: string; title: st
   if (mapped.length === 0) return null;
 
   const midDate = new Date(thirtyDaysAgo.getTime() + (now.getTime() - thirtyDaysAgo.getTime()) / 2);
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return (
     <div className="rounded-lg px-5 py-4" style={CARD_STYLE}>
