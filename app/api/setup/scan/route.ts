@@ -23,14 +23,15 @@ export async function POST(req: NextRequest) {
           { status: 400 },
         );
       }
-    } catch (err: any) {
-      if (err.code === 'ENOENT') {
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
         return NextResponse.json(
           { error: 'Directory not found' },
           { status: 404 },
         );
       }
-      if (err.code === 'EACCES') {
+      if (code === 'EACCES') {
         return NextResponse.json(
           { error: `Permission denied: ${dirPath}` },
           { status: 403 },

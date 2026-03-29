@@ -28,8 +28,8 @@ export async function GET() {
     try {
       const entries = await readdir(agentsDir);
       agentFiles = entries.filter(f => f.endsWith('.md') && !f.endsWith('.context.md'));
-    } catch (err: any) {
-      if (err.code === 'ENOENT') {
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         return NextResponse.json({ agents: [], project: active.name, error: 'Agents directory not found' });
       }
       throw err;
@@ -76,7 +76,7 @@ export async function GET() {
     );
 
     return NextResponse.json({ agents, project: active.name });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Agent check error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
