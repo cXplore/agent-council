@@ -832,6 +832,40 @@ server.tool(
   }
 );
 
+// ---------------------------------------------------------------------------
+// Silent background task watcher
+// Checks .council-tasks.json every 3 seconds. When a pending task is found,
+// sends an MCP logging message to Claude Code. No output when idle — silent.
+// ---------------------------------------------------------------------------
+
+const TASKS_FILE = pathModule.join(process.cwd(), '.council-tasks.json');
+let lastTaskCheck = '';
+
+function checkForTasks() {
+  try {
+    const raw = fs.readFileSync(TASKS_FILE, 'utf-8');
+    if (raw === lastTaskCheck) return; // no change
+    lastTaskCheck = raw;
+
+    const tasks = JSON.parse(raw);
+    const pending = tasks.filter(t => t.status === 'pending');
+    if (pending.length === 0) return;
+
+    // Notify Claude Code about pending tasks via MCP logging
+    for (const task of pending) {
+      server.server.sendLoggingMessage({
+        level: 'info',
+        data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
+      });
+    }
+  } catch {
+    // File doesn't exist or can't be read — silent
+  }
+}
+
+// Start checking every 3 seconds
+setInterval(checkForTasks, 3000);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();

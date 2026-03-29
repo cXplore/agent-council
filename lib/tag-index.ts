@@ -62,10 +62,10 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
       entries.push({ type: 'ACTION', id: null, text: a.text + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const o of data.open_questions ?? []) {
-      entries.push({ type: 'OPEN', id: o.id ?? o.slug ?? null, text: o.text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      entries.push({ type: 'OPEN', id: o.slug ?? null, text: o.text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const r of data.resolved ?? []) {
-      entries.push({ type: 'RESOLVED', id: r.id ?? r.slug ?? null, text: r.text ?? r.resolution ?? '', meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      entries.push({ type: 'RESOLVED', id: r.slug, text: r.resolution, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
 
     return entries;
