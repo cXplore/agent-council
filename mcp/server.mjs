@@ -869,6 +869,34 @@ server.tool(
   }
 );
 
+// Tool: Quick consult — ask a single agent one question, get one answer
+server.tool(
+  'council_quick_consult',
+  'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting.',
+  {
+    question: z.string().describe('The question to ask'),
+    agent: z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'])
+      .optional()
+      .describe('Which agent to consult (default: critic)'),
+  },
+  async ({ question, agent = 'critic' }) => {
+    try {
+      const result = await councilRequest('/api/council/quick-consult', 'POST', { question, agent });
+      if (result.error) {
+        return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }] };
+      }
+      return {
+        content: [{
+          type: 'text',
+          text: `[${result.agent}]\n\n${result.answer}`,
+        }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Quick consult error: ${err.message}` }] };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
