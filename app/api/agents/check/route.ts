@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
-import { parseFrontmatter } from '@/lib/agent-templates';
+import { parseFrontmatter, fillTemplate } from '@/lib/agent-templates';
+import { scanProject } from '@/lib/scanner';
 
 const TEMPLATES_DIR = path.join(process.cwd(), 'templates', 'agents');
 
@@ -44,11 +45,39 @@ export async function GET() {
       return NextResponse.json({ agents: [], project: active.name, error: 'Templates directory not found' });
     }
 
-    // Build template hash map
+    // Build placeholder values from project profile
+    const projectPath = active.projectPath ?? process.cwd();
+    let placeholders: Record<string, string> = {};
+    try {
+      const profile = await scanProject(projectPath);
+      const libs = profile.libraries;
+      const libSections: string[] = [];
+      for (const [category, names] of Object.entries(libs)) {
+        if (names.length > 0) libSections.push(`${category}: ${names.join(', ')}`);
+      }
+      placeholders = {
+        PROJECT_NAME: path.basename(projectPath),
+        FRAMEWORK: profile.frameworks.map(f => f.name).join(', ') || 'Unknown',
+        LANGUAGES: profile.languages.map(l => l.name).join(', ') || 'Unknown',
+        PACKAGE_MANAGER: profile.packageManager,
+        MEETINGS_DIR: 'meetings',
+        LIBRARIES: libSections.length > 0 ? libSections.join('\n') : 'None detected',
+        ANIMATION_LIBS: (libs.animation ?? []).join(', ') || 'None installed',
+        TESTING_LIBS: (libs.testing ?? []).join(', ') || 'None installed',
+        DB_LIBS: (libs.database ?? []).join(', ') || 'None installed',
+        UI_LIBS: (libs.ui ?? []).join(', ') || 'None installed',
+        THREE_D_LIBS: (libs['3d'] ?? []).join(', ') || 'None installed',
+      };
+    } catch {
+      // If scan fails, compare with raw placeholders (will show as outdated — safe fallback)
+    }
+
+    // Build template hash map — fill placeholders before hashing so we compare apples to apples
     const templateHashes: Record<string, string> = {};
     for (const tf of templateFiles) {
       const content = await readFile(path.join(TEMPLATES_DIR, tf), 'utf-8');
-      const { body } = parseFrontmatter(content);
+      const filled = Object.keys(placeholders).length > 0 ? fillTemplate(content, placeholders) : content;
+      const { body } = parseFrontmatter(filled);
       templateHashes[tf] = simpleHash(body.trim());
     }
 
