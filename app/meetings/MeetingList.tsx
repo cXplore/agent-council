@@ -68,7 +68,6 @@ export default function MeetingList(props: MeetingListProps) {
     pinnedMeetings,
     plannedMeetings,
     dismissedSuggestions,
-    queuedSuggestions,
     error,
     statusFilter,
     searchQuery,

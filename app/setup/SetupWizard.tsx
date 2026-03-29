@@ -293,23 +293,6 @@ function SetupWizardInner() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSkipToDefaults = () => {
-    const selections: AgentSelection[] = [];
-    for (const [template, info] of Object.entries(ALL_AGENTS)) {
-      selections.push({
-        template,
-        name: template,
-        description: info.description,
-        model: info.defaultModel,
-        tools: [...DEFAULT_TOOLS],
-        enabled: ['facilitator', 'project-manager', 'critic', 'north-star', 'developer'].includes(template),
-      });
-    }
-    setAgents(selections);
-    setStep('customize');
-  };
-
   const toggleAgent = (index: number) => {
     setAgents(prev => prev.map((a, i) =>
       i === index ? { ...a, enabled: !a.enabled } : a
