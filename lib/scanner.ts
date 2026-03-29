@@ -141,7 +141,7 @@ async function readJson(filePath: string): Promise<Record<string, unknown> | nul
 // Language detection
 // ---------------------------------------------------------------------------
 
-function detectLanguages(files: string[]): ProjectProfile['languages'] {
+export function detectLanguages(files: string[]): ProjectProfile['languages'] {
   const counts: Record<string, number> = {};
 
   for (const f of files) {
@@ -327,7 +327,7 @@ async function detectFrameworks(
 // Structure detection
 // ---------------------------------------------------------------------------
 
-function detectStructure(files: string[], dirs: Set<string>): ProjectProfile['structure'] {
+export function detectStructure(files: string[], dirs: Set<string>): ProjectProfile['structure'] {
   // API detection
   const hasApi =
     hasDirExact(dirs, 'app/api') ||
@@ -398,7 +398,7 @@ function detectStructure(files: string[], dirs: Set<string>): ProjectProfile['st
 // Package manager detection
 // ---------------------------------------------------------------------------
 
-function detectPackageManager(files: string[]): ProjectProfile['packageManager'] {
+export function detectPackageManager(files: string[]): ProjectProfile['packageManager'] {
   if (hasFile(files, 'pnpm-lock.yaml')) return 'pnpm';
   if (hasFile(files, 'bun.lockb') || hasFile(files, 'bun.lock')) return 'bun';
   if (hasFile(files, 'yarn.lock')) return 'yarn';
@@ -514,7 +514,7 @@ function detectLibraries(allDeps: Record<string, string>): Record<string, string
 // Preset suggestion
 // ---------------------------------------------------------------------------
 
-function suggestPreset(structure: ProjectProfile['structure'], languages: ProjectProfile['languages']): string {
+export function suggestPreset(structure: ProjectProfile['structure'], languages: ProjectProfile['languages']): string {
   const { hasApi, hasFrontend, hasTests } = structure;
 
   if (hasApi && hasFrontend && hasTests) return 'full-stack';
@@ -532,7 +532,7 @@ function suggestPreset(structure: ProjectProfile['structure'], languages: Projec
 // Agent suggestion based on project shape
 // ---------------------------------------------------------------------------
 
-function suggestAgents(
+export function suggestAgents(
   structure: ProjectProfile['structure'],
   frameworks: ProjectProfile['frameworks'],
 ): string[] {
