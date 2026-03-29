@@ -196,7 +196,7 @@ function MeetingHistory({ agentName, meetings }: { agentName: string; meetings: 
 const TEAM_OPTIONS = ['core', 'engineering', 'design', 'security', 'content', 'domain', 'other'];
 const MODEL_OPTIONS = ['opus', 'sonnet', 'haiku'];
 
-function AgentCard({ agent, onSelect, editMode, onRefresh }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void; editMode?: boolean; onRefresh?: () => void }) {
+function AgentCard({ agent, onSelect, editMode, onRefresh, teamOptions }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void; editMode?: boolean; onRefresh?: () => void; teamOptions?: string[] }) {
   const patchAgent = async (field: string, value: string) => {
     await fetch('/api/agents', {
       method: 'PATCH',
@@ -252,7 +252,7 @@ function AgentCard({ agent, onSelect, editMode, onRefresh }: { agent: AgentInfo;
             onClick={(e) => e.stopPropagation()}
           >
             <option value="">No team</option>
-            {TEAM_OPTIONS.map(t => (
+            {(teamOptions ?? TEAM_OPTIONS).map(t => (
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
@@ -610,6 +610,8 @@ function AgentsPageInner() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [editMode, setEditMode] = useState(false);
+  const [customTeams, setCustomTeams] = useState<string[]>([]);
+  const [newTeamName, setNewTeamName] = useState('');
 
   const refreshAgents = () => setRefreshKey(k => k + 1);
 
@@ -936,6 +938,39 @@ function AgentsPageInner() {
             >
               ✨ AI suggest teams
             </button>
+            <span style={{ width: 1, height: 16, background: 'var(--border)', flexShrink: 0 }} />
+            <input
+              type="text"
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTeamName.trim()) {
+                  const name = newTeamName.trim().toLowerCase().replace(/\s+/g, '-');
+                  if (!customTeams.includes(name)) {
+                    setCustomTeams(prev => [...prev, name]);
+                  }
+                  setNewTeamName('');
+                }
+              }}
+              placeholder="New team name..."
+              className="text-xs px-2 py-1 rounded outline-none"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)', width: 130 }}
+            />
+            <button
+              onClick={() => {
+                if (newTeamName.trim()) {
+                  const name = newTeamName.trim().toLowerCase().replace(/\s+/g, '-');
+                  if (!customTeams.includes(name)) {
+                    setCustomTeams(prev => [...prev, name]);
+                  }
+                  setNewTeamName('');
+                }
+              }}
+              className="text-xs px-2 py-1 rounded"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            >
+              + Team
+            </button>
           </div>
         )}
 
@@ -1054,7 +1089,7 @@ function AgentsPageInner() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2, delay: idx < 10 ? idx * 0.04 : 0 }}
                             >
-                              <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} />
+                              <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
                             </motion.div>
                           );
                         })}
@@ -1062,6 +1097,25 @@ function AgentsPageInner() {
                     </div>
                   );
                 })}
+                {/* Empty custom teams — shown in edit mode as drop targets */}
+                {editMode && customTeams
+                  .filter(t => !teamOrder.includes(t))
+                  .map(team => (
+                    <div key={team}>
+                      <h2
+                        className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {team} (0)
+                      </h2>
+                      <div
+                        className="rounded-lg px-4 py-6 text-center text-xs"
+                        style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
+                      >
+                        Empty team — assign agents here using the team dropdown
+                      </div>
+                    </div>
+                  ))}
               </div>
             );
           }
@@ -1075,7 +1129,7 @@ function AgentsPageInner() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: i < 10 ? i * 0.04 : 0 }}
                 >
-                  <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} />
+                  <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} teamOptions={[...new Set([...TEAM_OPTIONS, ...customTeams])]} />
                 </motion.div>
               ))}
             </div>
