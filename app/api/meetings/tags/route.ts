@@ -62,6 +62,9 @@ export async function GET(req: NextRequest) {
       results = results.filter(r => r.text?.toLowerCase().includes(q));
     }
 
+    // Sort by date descending (newest first) — better for recall use case
+    results.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+
     return NextResponse.json({
       results,
       total: results.length,
