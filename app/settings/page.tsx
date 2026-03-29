@@ -60,6 +60,7 @@ function SettingsInner() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [mcp, setMcp] = useState<McpStatus | null>(null);
   const [templateCheck, setTemplateCheck] = useState<AgentCheckResponse | null>(null);
+  const [mergeStatus, setMergeStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -270,10 +271,44 @@ function SettingsInner() {
               </div>
               {staleAgents.length > 0 && (
                 <div className="mt-3 pt-3 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                  {staleAgents.length} agent{staleAgents.length !== 1 ? 's' : ''} were generated from templates that have since been updated.
-                  {' '}Regenerate them from the{' '}
-                  <a href="/agents" style={{ color: 'var(--accent)' }}>agents page</a>
-                  {' '}to get the latest instructions.
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {staleAgents.length} agent{staleAgents.length !== 1 ? 's' : ''} have newer template content available.
+                      Your model and team settings will be preserved.
+                    </span>
+                    <button
+                      onClick={async () => {
+                        setMergeStatus('merging');
+                        try {
+                          const res = await fetch('/api/agents/merge', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ agents: staleAgents.map(a => a.filename) }),
+                          });
+                          const data = await res.json();
+                          if (data.merged?.length > 0) {
+                            setMergeStatus(`Updated ${data.merged.length} agent${data.merged.length !== 1 ? 's' : ''}`);
+                            // Refresh template check
+                            fetch('/api/agents/check').then(r => r.json()).then(setTemplateCheck).catch(() => {});
+                          } else {
+                            setMergeStatus('No changes needed');
+                          }
+                        } catch {
+                          setMergeStatus('Update failed');
+                        }
+                        setTimeout(() => setMergeStatus(null), 3000);
+                      }}
+                      className="text-xs px-3 py-1 rounded flex-shrink-0 ml-3"
+                      style={{
+                        background: mergeStatus === 'merging' ? 'var(--bg)' : 'rgba(59, 130, 246, 0.15)',
+                        color: mergeStatus && mergeStatus !== 'merging' ? 'var(--live-green)' : 'var(--accent)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                      }}
+                      disabled={mergeStatus === 'merging'}
+                    >
+                      {mergeStatus === 'merging' ? 'Updating...' : mergeStatus ?? 'Update all'}
+                    </button>
+                  </div>
                 </div>
               )}
             </motion.div>
