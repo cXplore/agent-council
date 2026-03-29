@@ -85,6 +85,8 @@ export function formatTimeAgo(isoDate: string): string {
 
 /** Format duration between two ISO timestamps into a human-readable string */
 export function formatDuration(started: string, ended: string): string {
+  // If started is just a date (no time component), we can't calculate meaningful duration
+  if (/^\d{4}-\d{2}-\d{2}$/.test(started.trim())) return '';
   const ms = new Date(ended).getTime() - new Date(started).getTime();
   if (ms < 0) return '';
   const totalMins = Math.round(ms / 60000);
