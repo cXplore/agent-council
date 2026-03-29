@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { getConfig, getActiveProjectConfig } from '@/lib/config';
-import { OPERATOR_SYSTEM_PROMPT, loadSubagents } from '@/lib/sdk/operator';
+import { buildOperatorPrompt, loadSubagentsWithContext } from '@/lib/sdk/operator';
 
 /**
  * POST /api/setup/ai-scan — Deep project scan using Claude Agent SDK.
@@ -81,12 +80,11 @@ Return ONLY the JSON. No markdown fences, no explanation.`;
 
         send('status', { message: 'Starting project scan...' });
 
-        // Load subagents from the active project's agent team
+        // Load subagents from the TARGET project (not active project)
+        const targetAgentsDir = projectPath + '/.claude/agents';
         let agents: Record<string, { description: string; prompt: string; tools: string[] }> = {};
         try {
-          const config = await getConfig();
-          const active = getActiveProjectConfig(config);
-          agents = await loadSubagents(active.agentsDir);
+          agents = await loadSubagentsWithContext(targetAgentsDir);
           if (Object.keys(agents).length > 0) {
             send('status', { message: `Loaded ${Object.keys(agents).length} agents as subagents` });
           }
@@ -94,15 +92,18 @@ Return ONLY the JSON. No markdown fences, no explanation.`;
           // No agents available — operator works alone
         }
 
+        const agentNames = Object.keys(agents);
+        const systemPrompt = buildOperatorPrompt(agentNames);
+
         for await (const message of query({
           prompt,
           options: {
-            systemPrompt: OPERATOR_SYSTEM_PROMPT,
-            allowedTools: ['Read', 'Glob', 'Grep', 'Agent'],
+            systemPrompt,
+            allowedTools: agentNames.length > 0 ? ['Read', 'Glob', 'Grep', 'Agent'] : ['Read', 'Glob', 'Grep'],
             permissionMode: 'acceptEdits',
             cwd: projectPath,
             maxTurns: 30,
-            ...(Object.keys(agents).length > 0 ? { agents } : {}),
+            ...(agentNames.length > 0 ? { agents } : {}),
           },
         })) {
           if (message.type === 'assistant' && message.message?.content) {

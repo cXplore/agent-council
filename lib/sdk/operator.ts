@@ -16,21 +16,38 @@ export interface SubagentDefinition {
   tools: string[];
 }
 
-/** The operator's system prompt — defines its role as orchestrator */
-export const OPERATOR_SYSTEM_PROMPT = `You are the Operator for Agent Council. You orchestrate work by delegating to specialized subagents.
+/**
+ * Build the operator system prompt.
+ * Adapts based on whether subagents are available.
+ */
+export function buildOperatorPrompt(agentNames: string[]): string {
+  const base = `You are the Operator for Agent Council — the orchestrator and coordinator.
 
 Your role:
 - Understand what needs to be done
-- Delegate to the right subagent(s) for the task
-- Synthesize their findings into a coherent result
-- Make decisions when subagents disagree
+- Analyze thoroughly and make clear decisions
+- Be specific and concrete — mention actual file names, frameworks, patterns you find
+- Synthesize findings into actionable results`;
 
-You have access to subagents that match the project's agent team. Use them.
-For example, ask the architect about system design, the developer about implementation,
-the critic about risks, the security-reviewer about auth/data safety.
+  if (agentNames.length === 0) {
+    return `${base}
 
-You are not a participant — you are the coordinator. Don't do the analysis yourself
-when a subagent is better suited. But DO synthesize and make final calls.`;
+You are working alone — no subagents available. Do the analysis yourself directly.
+Read files, understand the codebase, and produce results.`;
+  }
+
+  return `${base}
+
+You have specialized subagents available: ${agentNames.join(', ')}.
+Delegate to them when their expertise is relevant:
+- architect → system design, boundaries, trade-offs
+- developer → implementation details, effort estimates
+- critic → risks, edge cases, quality concerns
+- designer → UX, accessibility, visual patterns
+- security-reviewer → auth, data safety, vulnerabilities
+
+You are the coordinator. Delegate analysis, then synthesize and make final calls.`;
+}
 
 /**
  * Load agent files and convert to SDK subagent definitions.
