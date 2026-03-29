@@ -705,20 +705,21 @@ server.tool(
 
       if (activeActions.length > 0) {
         sections.push(`ACTIVE WORK (${activeActions.length} items):`);
-        for (const a of activeActions.slice(0, 7)) {
-          sections.push(`  → ${a.text.slice(0, 120)}`);
+        for (const a of activeActions) {
+          sections.push(`  → ${a.text}`);
           sections.push(`    from: ${a.meetingTitle || a.meeting}`);
         }
-        if (activeActions.length > 7) sections.push(`  ... and ${activeActions.length - 7} more`);
+        sections.push('');
+      } else {
+        sections.push('ACTIVE WORK: None — all actions are done or archived.');
         sections.push('');
       }
 
       if (activeOpen.length > 0) {
         sections.push(`OPEN QUESTIONS (${activeOpen.length}):`);
-        for (const o of activeOpen.slice(0, 5)) {
-          sections.push(`  ? ${o.text.slice(0, 120)}`);
+        for (const o of activeOpen) {
+          sections.push(`  ? ${o.text}`);
         }
-        if (activeOpen.length > 5) sections.push(`  ... and ${activeOpen.length - 5} more`);
         sections.push('');
       }
 
