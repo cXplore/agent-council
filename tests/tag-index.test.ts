@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { hashItem } from '@/lib/utils';
 
 // Test the tag extraction logic directly
 // These are the 4 targeted integration tests from the sprint planning meeting
@@ -119,16 +120,6 @@ Some context here.`;
 
 describe('Roadmap item hashing', () => {
   it('produces consistent hashes for same input', () => {
-    function hashItem(text: string, meeting: string): string {
-      const input = `${text}::${meeting}`;
-      let hash = 0;
-      for (let i = 0; i < input.length; i++) {
-        const char = input.charCodeAt(i);
-        hash = ((hash << 5) - hash + char) | 0;
-      }
-      return (hash >>> 0).toString(16).padStart(8, '0');
-    }
-
     const hash1 = hashItem('Build login endpoint', 'meeting-1.md');
     const hash2 = hashItem('Build login endpoint', 'meeting-1.md');
     const hash3 = hashItem('Build login endpoint', 'meeting-2.md');

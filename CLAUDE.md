@@ -73,7 +73,7 @@ docs/                   # GitHub Pages static site
 | Agents page | `app/agents/page.tsx` |
 | Agents API | `app/api/agents/route.ts` |
 | Projects API | `app/api/projects/route.ts` |
-| Nav + project switcher | `app/components/Nav.tsx` |
+| Nav + project tabs | `app/components/Nav.tsx` |
 | Setup wizard | `app/setup/SetupWizard.tsx` |
 | Config loader | `lib/config.ts` |
 | Codebase scanner | `lib/scanner.ts` |
@@ -102,6 +102,12 @@ docs/                   # GitHub Pages static site
 | RSS feed API | `app/api/meetings/feed/route.ts` |
 | Key terms API | `app/api/meetings/terms/route.ts` |
 | Meeting template API | `app/api/meetings/template/route.ts` |
+| AI project scan | `app/api/setup/ai-scan/route.ts` |
+| Agent template merge | `app/api/agents/merge/route.ts` |
+| AI team suggestions | `app/api/agents/suggest-teams/route.ts` |
+| Project status (tabs) | `app/api/projects/status/route.ts` |
+| Staleness detection | `lib/staleness.ts` |
+| Meeting type inference | `lib/meeting-type-inference.ts` |
 | Agent templates | `templates/agents/*.md` |
 | Team presets | `templates/presets/*.json` |
 | GitHub Pages | `docs/index.html` |

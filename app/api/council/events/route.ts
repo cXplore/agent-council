@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-// In-memory event store — viewers poll this
-interface MeetingEvent {
-  event: string;
-  meeting: string;
-  detail?: string;
-  timestamp: string;
-}
+import type { MeetingEvent } from '@/lib/types';
 
 // Simple in-memory store (resets on server restart, which is fine)
 const events: MeetingEvent[] = [];

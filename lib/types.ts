@@ -17,21 +17,6 @@ export interface ProjectProfile {
   suggestedAgents: string[];
 }
 
-export interface AgentTemplate {
-  name: string;
-  description: string;
-  model: string;
-  tools: string[];
-  content: string;
-}
-
-export interface AgentConfig {
-  name: string;
-  description: string;
-  model: string;
-  tools: string[];
-}
-
 export interface Preset {
   name: string;
   description: string;
@@ -82,13 +67,6 @@ export interface MeetingListItem {
 
 export interface MeetingDetail extends MeetingListItem {
   content: string;
-}
-
-/** Tag counts for a single meeting */
-export interface TagCounts {
-  decisions: number;
-  open: number;
-  actions: number;
 }
 
 /** Meeting event from the MCP bridge */
