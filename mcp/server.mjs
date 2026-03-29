@@ -152,6 +152,12 @@ server.tool(
         }).join('\n')}`);
       }
 
+      if (pendingTasks.length > 0) {
+        parts.push(`\n🔧 TASKS PENDING (${pendingTasks.length}):\n${pendingTasks.map(t =>
+          `  [${t.type}] ${JSON.stringify(t.params)} (id: ${t.id})`
+        ).join('\n')}`);
+      }
+
       return {
         content: [{
           type: 'text',
