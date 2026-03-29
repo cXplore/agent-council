@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       hasFacilitator,
     });
   } catch (err) {
+    console.error('Connect project error:', err);
     return NextResponse.json({ error: 'Failed to connect project' }, { status: 500 });
   }
 }
