@@ -237,7 +237,7 @@ function ActionButtons({
         onClick={handleWorkOn}
         className="text-xs px-1.5 py-0.5 rounded"
         style={{ color: copied ? 'var(--live-green)' : 'var(--text-muted)', background: 'var(--bg)' }}
-        title="Send to Claude via MCP"
+        title="Nudge Claude Code to work on this"
       >
         {copied ? 'Sent ✓' : 'Work on this'}
       </button>
