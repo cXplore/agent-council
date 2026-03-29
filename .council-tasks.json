@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "task_1774796122928_ld3hvi",
+    "type": "scan_project",
+    "status": "complete",
+    "params": {
+      "path": "C:/Projects/AI-platform",
+      "name": "AI-platform"
+    },
+    "createdAt": "2026-03-29T14:55:22.928Z",
+    "result": {
+      "test": true
+    },
+    "completedAt": "2026-03-29T14:55:50.495Z"
+  }
+]

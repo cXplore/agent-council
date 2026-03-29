@@ -661,7 +661,7 @@ server.tool(
 // Tool: Session brief — opinionated 5-line brief for starting a coding session
 server.tool(
   'council_session_brief',
-  'Get an opinionated brief for starting a coding session: top 3 priorities, 1 blocker, 1 open question. Call this at the START of any session.',
+  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2). Call this at the START of any session.',
   {},
   async () => {
     try {
@@ -677,35 +677,39 @@ server.tool(
 
       const live = meetings.filter(m => m.status === 'in-progress');
       const workItems = suggestions.filter(s => s.type === 'work_on');
-      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 3);
-      const recentFiles = new Set(recentCompleted.map(m => m.filename));
+      const completed = meetings.filter(m => m.status === 'complete');
 
-      // Active actions — prefer from recent meetings, else any active
-      const allActive = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
-      const recentActive = allActive.filter(i => recentFiles.has(i.meeting));
-      const priorityActions = recentActive.length > 0 ? recentActive : allActive;
+      // Recency windows
+      const recent2Files = new Set(completed.slice(0, 2).map(m => m.filename));
+      const recent3Files = new Set(completed.slice(0, 3).map(m => m.filename));
 
-      // Top 3 priorities: user nudges first, then active actions
-      const priorities = [];
-      for (const w of workItems.slice(0, 3)) {
-        priorities.push(`[user] ${w.message}`);
+      // Decisions: last 2 meetings only, max 5
+      const recentDecisions = items
+        .filter(i => i.type === 'DECISION' && recent2Files.has(i.meeting))
+        .slice(0, 5);
+
+      // Actions: active only, prefer last 2 meetings, max 3
+      const allActiveActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+      const recentActions = allActiveActions.filter(i => recent2Files.has(i.meeting));
+      const priorityActions = (recentActions.length > 0 ? recentActions : allActiveActions).slice(0, 3);
+
+      // Open questions: last 3 meetings, active only, max 2
+      const allActiveOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
+      const recentOpen = allActiveOpen.filter(i => recent3Files.has(i.meeting)).slice(0, 2);
+
+      // Focus: user nudge > recent action > recent decision > fallback
+      let focusText;
+      if (workItems.length > 0) {
+        focusText = workItems[0].message;
+      } else if (priorityActions.length > 0) {
+        focusText = priorityActions[0].text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
+      } else if (recentDecisions.length > 0) {
+        const d = recentDecisions[0].text.split(' — ')[0].trim();
+        focusText = d.length > 100 ? d.slice(0, 97) + '...' : d;
+      } else {
+        focusText = 'No active direction. Run a meeting.';
       }
-      for (const a of priorityActions) {
-        if (priorities.length >= 3) break;
-        const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
-        priorities.push(text);
-      }
 
-      // Blocker: OPEN items that mention blocking/waiting language
-      const allOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
-      const blockers = allOpen.filter(i => /block|wait|depend|need.*before|stuck/i.test(i.text));
-      const blocker = blockers[0]?.text || null;
-
-      // Top open question: most recent from recent meetings, else any
-      const recentOpen = allOpen.filter(i => recentFiles.has(i.meeting));
-      const topOpen = (recentOpen[0] || allOpen[0])?.text || null;
-
-      const lastMeeting = recentCompleted[0];
       const lines = [];
 
       if (live.length > 0) {
@@ -713,33 +717,46 @@ server.tool(
         lines.push('');
       }
 
-      if (workItems.length > 0) {
-        lines.push(`🔨 USER NUDGE: ${workItems[0].message}`);
-        lines.push('');
-      }
-
-      lines.push('PRIORITIES:');
-      if (priorities.length > 0) {
-        priorities.slice(0, 3).forEach((p, i) => lines.push(`  ${i + 1}. ${p}`));
-      } else {
-        lines.push('  Nothing active — check roadmap or run a meeting.');
-      }
-
+      lines.push(`FOCUS: ${focusText}`);
       lines.push('');
-      lines.push(blocker ? `BLOCKER: ${blocker}` : 'BLOCKER: None.');
-      lines.push(topOpen ? `OPEN: ${topOpen}` : 'OPEN: No active questions.');
 
-      if (lastMeeting) {
+      if (recentDecisions.length > 0) {
+        lines.push('RECENT DECISIONS:');
+        recentDecisions.forEach(d => {
+          const text = d.text.length > 120 ? d.text.slice(0, 117) + '...' : d.text;
+          lines.push(`  • ${text}`);
+        });
         lines.push('');
-        lines.push(`Last meeting: ${lastMeeting.title || lastMeeting.filename} (${lastMeeting.date})`);
+      }
+
+      lines.push('ACTIONS:');
+      if (workItems.length > 0 || priorityActions.length > 0) {
+        for (const w of workItems.slice(0, 2)) {
+          lines.push(`  [user] ${w.message}`);
+        }
+        for (const a of priorityActions) {
+          const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
+          lines.push(`  • ${text}`);
+        }
+      } else {
+        lines.push('  None active.');
+      }
+
+      if (recentOpen.length > 0) {
+        lines.push('');
+        lines.push('OPEN:');
+        recentOpen.forEach(o => lines.push(`  ? ${o.text}`));
+      }
+
+      if (completed[0]) {
+        lines.push('');
+        lines.push(`Last meeting: ${completed[0].title || completed[0].filename} (${completed[0].date})`);
       }
 
       return {
         content: [{
           type: 'text',
-          text: lines.length > 0
-            ? `Agent Council — Session Brief\n\n${lines.join('\n')}`
-            : 'No meeting data yet. Run your first meeting to generate context.',
+          text: `Agent Council — Session Brief\n\n${lines.join('\n')}`,
         }],
       };
     } catch (err) {

@@ -291,6 +291,34 @@ function SetupWizardInner() {
 
       setAgents(selections);
       setStep('scan');
+
+      // Post a task for AI-enhanced scanning via MCP
+      try {
+        const taskRes = await fetch('/api/council/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'scan_project',
+            params: {
+              path: cleanPath,
+              name: cleanPath.split(/[\\/]/).pop() || 'project',
+              basicProfile: {
+                languages: data.languages.map(l => l.name),
+                frameworks: data.frameworks.map(f => f.name),
+                structure: data.structure,
+                packageManager: data.packageManager,
+                libraries: data.libraries,
+              },
+            },
+          }),
+        });
+        if (taskRes.ok) {
+          const taskData = await taskRes.json();
+          setAiTaskId(taskData.id);
+        }
+      } catch {
+        // AI enhancement is optional — basic scan still works
+      }
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Scan failed');
     } finally {

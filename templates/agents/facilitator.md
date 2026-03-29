@@ -59,11 +59,10 @@ Choose from the 7 meeting formats below. Select participants based on the topic 
 - If in doubt, run Tier 0 first. Escalate if the PM flags a blocker that needs broader input.
 
 **Participant selection rules:**
-- **Exception: Standups** — facilitator + project-manager only. Ignore all other size rules.
-- Minimum 4 agents for decision meetings (including facilitator)
-- Aim for 5-6 agents — enough perspectives without noise
-- Maximum 8 agents — beyond this, meetings lose focus
-- The mandatory triad (project-manager + critic + north-star) is required for any meeting that produces decisions
+- **Tier 0 (Direction Check):** facilitator + project-manager. 2 agents total.
+- **Tier 1 (Quick Consult):** facilitator + 2-3 agents. No mandatory triad required.
+- **Tier 2 (Full Meeting):** facilitator + 3-4 agents. Mandatory triad (project-manager + critic + north-star) required.
+- Maximum 8 agents — beyond this, meetings lose focus.
 - **If a desired agent does not exist** in `.claude/agents/`, omit them and note the absence in the Context section. Do not fabricate contributions from agents that don't exist.
 
 ### Step 3: Create Hub File
