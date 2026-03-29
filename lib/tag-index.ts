@@ -1,5 +1,6 @@
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { hashItem } from '@/lib/utils';
 
 export interface TagEntry {
   type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'IDEA';
@@ -249,7 +250,8 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
 
 /**
  * Get unresolved items for carry-forward prompts.
- * Returns OPEN and ACTION items that haven't been resolved in later meetings.
+ * Returns OPEN and ACTION items that haven't been resolved in later meetings,
+ * and aren't marked done/stale in the roadmap status store.
  */
 export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEntry[]; actions: TagEntry[] }> {
   const index = await buildTagIndex(meetingsDir);
@@ -259,10 +261,31 @@ export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEnt
     index.resolved.map(r => r.id).filter((id): id is string => id !== null)
   );
 
+  // Load roadmap status store to filter out done/stale items
+  const statusFilePath = path.join(meetingsDir, '.council-action-status.json');
+  let doneOrStale = new Set<string>();
+  try {
+    const raw = await readFile(statusFilePath, 'utf-8');
+    const store = JSON.parse(raw) as { statuses: Record<string, { status: string }> };
+    doneOrStale = new Set(
+      Object.entries(store.statuses)
+        .filter(([, v]) => v.status === 'done' || v.status === 'stale')
+        .map(([k]) => k)
+    );
+  } catch {
+    // File doesn't exist yet — no status overrides
+  }
+
+  const isActive = (tag: TagEntry) => !doneOrStale.has(hashItem(tag.text, tag.meeting));
   const sortByDate = (a: TagEntry, b: TagEntry) => (b.date ?? '').localeCompare(a.date ?? '');
 
   return {
-    open: index.open.filter(o => !o.id || !resolvedSlugs.has(o.id)).sort(sortByDate),
-    actions: index.actions.sort(sortByDate),
+    open: index.open
+      .filter(o => !o.id || !resolvedSlugs.has(o.id))
+      .filter(isActive)
+      .sort(sortByDate),
+    actions: index.actions
+      .filter(isActive)
+      .sort(sortByDate),
   };
 }
