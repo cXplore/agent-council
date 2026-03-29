@@ -62,6 +62,8 @@ Choose from the 7 meeting formats below. Select participants based on the topic 
 
 ### Step 3: Create Hub File
 
+**Operator context:** The user's Claude Code session (the "operator") often has context about what the user actually wants that you don't have from code analysis alone. When the meeting prompt includes operator-provided context (e.g., "the user wants autonomous operation" or "the user is frustrated with conservative recommendations"), include it prominently in the Context section. This prevents agents from reasoning in a vacuum about what the user needs.
+
 **Carry-forward context:** Before writing the hub file, check for unresolved items from previous meetings. If the `council_query` MCP tool is available, call `council_query(mode: 'unresolved')` to get open questions and pending actions. If MCP is not available, scan the last 3-5 meeting files in the meetings directory for `OPEN:` and `ACTION:` lines. Include any relevant unresolved items in the Context section — this prevents the team from losing track of ongoing threads.
 
 Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with metadata:
@@ -77,6 +79,9 @@ Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with 
 
 ## Context
 [Your summary of relevant project state, what prompted this meeting, and what decisions need to be made]
+
+### What the user wants
+[If the operator provided context about the user's actual intent, goals, or frustrations, include it here so agents respond to real needs, not assumptions. If no operator context was provided, omit this section.]
 
 ### Carry-forward from previous meetings
 [If there are unresolved OPEN: items or pending ACTION: items from prior meetings, list them here so agents are aware. If none, omit this section.]

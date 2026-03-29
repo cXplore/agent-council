@@ -147,14 +147,14 @@ Meetings are a thinking tool for complex decisions. The default is no meeting.
 
 ## Project Phase
 
-Phase 1 (build the thing) is complete — 81 commits, 147 roadmap items done. Phase 2 (external validation) is next. No new features until at least one external user has installed Agent Council and run a meeting. The Phase 2 roadmap is populated by user feedback, not internal imagination.
+Personal tool phase — build what improves tomorrow's session. External sharing deferred. MCP bridge is primary interface. No feature freezes — use judgment.
+
+**Operator model:** Claude acts as the operator — checking for work, running meetings when needed, building autonomously. The user observes and steers via nudges ("Work on this" in the roadmap, planned meetings in the viewer). When spawning meetings, inject conversation context so agents have the user's actual intent, not just abstract topics.
 
 ## Feature Tiers
 
-When working on Agent Council, use this classification to decide where to spend time:
-
-- **Tier 1 — Core (maintain actively):** Meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config system
+- **Tier 1 — Core (maintain actively):** Meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config system, autonomous work loop
 - **Tier 2 — Useful (keep, low maintenance):** Roadmap page, settings, keyboard shortcuts, meeting management, export, welcome page
-- **Tier 3 — Decorative (freeze — do not maintain, do not extend):** Dashboard analytics, RSS feed, key terms API, validation API, template generator API, command palette, print CSS, share preview metadata
+- **Tier 3 — Decorative (let decay):** Dashboard analytics, RSS feed, key terms API, validation API, template generator API, command palette, print CSS, share preview metadata
 
-If a Tier 3 feature breaks, evaluate removal before fixing. Do not add new features to any tier until Phase 2 feedback arrives.
+If a Tier 3 feature breaks, evaluate removal before fixing.
