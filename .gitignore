@@ -65,5 +65,4 @@ page-*.png
 
 # claude
 .claude/
-.council-tasks.json
 .env.local

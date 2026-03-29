@@ -102,12 +102,11 @@ server.tool(
   {},
   async () => {
     try {
-      const [projectData, meetingsData, suggestionsData, plannedData, tasksResponse] = await Promise.all([
+      const [projectData, meetingsData, suggestionsData, plannedData] = await Promise.all([
         councilRequest('/api/projects'),
         councilRequest('/api/meetings').catch(() => []),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
         councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
-        councilRequest('/api/council/tasks').catch(() => ({ tasks: [] })),
       ]);
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
       const liveMeetings = meetings.filter(m => m.status === 'in-progress');
@@ -115,7 +114,6 @@ server.tool(
       const workItems = suggestions.filter(s => s.type === 'work_on');
       const otherSuggestions = suggestions.filter(s => s.type !== 'work_on');
       const planned = plannedData.meetings || [];
-      const pendingTasks = (tasksResponse?.tasks || []).filter(t => t.status === 'pending' || t.status === 'processing');
       const stalePlanned = planned.filter(m => m.staleness?.isStale);
 
       const result = {
@@ -150,12 +148,6 @@ server.tool(
           }
           return line;
         }).join('\n')}`);
-      }
-
-      if (pendingTasks.length > 0) {
-        parts.push(`\n🔧 TASKS PENDING (${pendingTasks.length}):\n${pendingTasks.map(t =>
-          `  [${t.type}] ${JSON.stringify(t.params)} (id: ${t.id})`
-        ).join('\n')}`);
       }
 
       return {
@@ -799,57 +791,10 @@ server.tool(
   }
 );
 
-// ---------------------------------------------------------------------------
-// Silent background task watcher
-// Checks .council-tasks.json every 3 seconds. When a pending task is found,
-// sends an MCP logging message to Claude Code. No output when idle — silent.
-// ---------------------------------------------------------------------------
-
-let lastTaskIds = '';
-let serverConnected = false;
-
-function checkForTasks() {
-  if (!serverConnected) return;
-
-  // Use HTTP to check for tasks (filesystem path may differ from server)
-  councilRequest('/api/council/tasks')
-    .then(data => {
-      const tasks = data.tasks || [];
-      if (tasks.length === 0) return;
-
-      // Deduplicate — only notify for tasks we haven't seen
-      const ids = tasks.map(t => t.id).join(',');
-      if (ids === lastTaskIds) return;
-      lastTaskIds = ids;
-
-      for (const task of tasks) {
-        // Mark as processing via API
-        councilRequest('/api/council/tasks', 'PATCH', { id: task.id, status: 'processing' }).catch(() => {});
-
-        // Notify Claude Code via MCP logging message
-        try {
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
-          });
-        } catch {
-          // silent
-        }
-      }
-    })
-    .catch(() => {
-      // Server not reachable — silent
-    });
-}
-
-// Start the server, then begin task watching
+// Start the server
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  serverConnected = true;
-
-  // Start checking for tasks every 3 seconds (only after server is connected)
-  setInterval(checkForTasks, 3000);
 }
 
 main().catch(console.error);
