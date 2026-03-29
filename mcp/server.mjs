@@ -652,145 +652,87 @@ server.tool(
   }
 );
 
-// Tool: Session brief — synthesized context for starting a coding session
+// Tool: Session brief — opinionated 5-line brief for starting a coding session
 server.tool(
   'council_session_brief',
-  'Get a synthesized brief for starting a coding session. Combines: recent meeting summaries, active work items, open questions, and project context into a single actionable overview. Call this at the START of any session to know what the team decided and what needs doing.',
+  'Get an opinionated brief for starting a coding session: top 3 priorities, 1 blocker, 1 open question. Call this at the START of any session.',
   {},
   async () => {
     try {
-      const sections = [];
-
-      // 1. Get recent meetings + roadmap in parallel
-      const [meetingsData, roadmapData] = await Promise.all([
+      const [meetingsData, roadmapData, suggestionsData] = await Promise.all([
         councilRequest('/api/meetings').catch(() => []),
-        councilRequest('/api/roadmap').catch(() => ({ items: [], counts: {} })),
-      ]);
-      const meetings = Array.isArray(meetingsData) ? meetingsData : [];
-      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 2);
-      const items = roadmapData.items || [];
-      const counts = roadmapData.counts || {};
-
-      const activeActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
-      const activeOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
-
-      // One-line synthesis at top
-      const lastMeeting = recentCompleted[0];
-      const lastMeetingLabel = lastMeeting
-        ? `last meeting: ${lastMeeting.title || lastMeeting.filename} (${lastMeeting.date || 'unknown'})`
-        : 'no completed meetings yet';
-      const moreActionsNote = activeActions.length > 3 ? ` (+${activeActions.length - 3} more)` : '';
-      sections.push(`${activeActions.length} action${activeActions.length !== 1 ? 's' : ''} pending · ${activeOpen.length} open question${activeOpen.length !== 1 ? 's' : ''} · ${lastMeetingLabel}`);
-      sections.push('');
-
-      // 2. Recent meetings (last 2)
-      if (recentCompleted.length > 0) {
-        sections.push('RECENT MEETINGS:');
-        for (const m of recentCompleted) {
-          sections.push(`  ${m.title || m.filename} (${m.date || 'unknown'}) — ${m.participants?.length || 0} agents`);
-        }
-        sections.push('');
-      }
-
-      // 3. Key decisions from last 2 meetings (max 5)
-      const last2MeetingFiles = new Set(recentCompleted.map(m => m.filename));
-      const recentDecisions = items
-        .filter(i => i.type === 'DECISION' && last2MeetingFiles.has(i.meeting))
-        .slice(0, 5);
-      if (recentDecisions.length > 0) {
-        sections.push('KEY DECISIONS (last 2 meetings):');
-        for (const d of recentDecisions) {
-          sections.push(`  ✓ ${d.text}`);
-        }
-        sections.push('');
-      }
-
-      // 4. Active actions (cap at 3)
-      if (activeActions.length > 0) {
-        sections.push(`ACTIVE WORK (${activeActions.length} items${moreActionsNote}):`);
-        for (const a of activeActions.slice(0, 3)) {
-          sections.push(`  → ${a.text}`);
-          sections.push(`    from: ${a.meetingTitle || a.meeting}`);
-        }
-        sections.push('');
-      } else {
-        sections.push('ACTIVE WORK: None — all actions are done or archived.');
-        sections.push('');
-      }
-
-      // 5. Open questions (cap at 2, recent meetings only)
-      const recentMeetingFiles = new Set(
-        meetings.filter(m => m.status === 'complete').slice(0, 3).map(m => m.filename)
-      );
-      const recentOpen = activeOpen.filter(o => !o.meeting || recentMeetingFiles.has(o.meeting));
-      const displayOpen = recentOpen.length > 0 ? recentOpen : activeOpen;
-      if (displayOpen.length > 0) {
-        const extraNote = displayOpen.length > 2 ? ` (+${displayOpen.length - 2} more)` : '';
-        sections.push(`OPEN QUESTIONS (${displayOpen.length}${extraNote}):`);
-        for (const o of displayOpen.slice(0, 2)) {
-          sections.push(`  ? ${o.text}`);
-        }
-        sections.push('');
-      }
-
-      // 6. Progress summary
-      const done = counts.done || 0;
-      const active = counts.active || 0;
-      const open = counts.open || 0;
-      const total = done + active + open;
-      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      sections.push(`PROGRESS: ${done} done, ${active} active, ${open} open (${pct}% complete)`);
-
-      // 7. Live meetings
-      const live = meetings.filter(m => m.status === 'in-progress');
-      if (live.length > 0) {
-        sections.push('');
-        sections.push('⚡ LIVE MEETINGS:');
-        for (const m of live) {
-          sections.push(`  ${m.title || m.filename}`);
-        }
-      }
-
-      // 8. Check for user nudges (work items + planned meetings)
-      const [suggestionsData, plannedData] = await Promise.all([
+        councilRequest('/api/roadmap').catch(() => ({ items: [] })),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
-        councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
       ]);
+
+      const meetings = Array.isArray(meetingsData) ? meetingsData : [];
+      const items = roadmapData.items || [];
       const suggestions = suggestionsData.suggestions || [];
+
+      const live = meetings.filter(m => m.status === 'in-progress');
       const workItems = suggestions.filter(s => s.type === 'work_on');
-      const planned = plannedData.meetings || [];
+      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 3);
+      const recentFiles = new Set(recentCompleted.map(m => m.filename));
+
+      // Active actions — prefer from recent meetings, else any active
+      const allActive = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+      const recentActive = allActive.filter(i => recentFiles.has(i.meeting));
+      const priorityActions = recentActive.length > 0 ? recentActive : allActive;
+
+      // Top 3 priorities: user nudges first, then active actions
+      const priorities = [];
+      for (const w of workItems.slice(0, 3)) {
+        priorities.push(`[user] ${w.message}`);
+      }
+      for (const a of priorityActions) {
+        if (priorities.length >= 3) break;
+        const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
+        priorities.push(text);
+      }
+
+      // Blocker: OPEN items that mention blocking/waiting language
+      const allOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
+      const blockers = allOpen.filter(i => /block|wait|depend|need.*before|stuck/i.test(i.text));
+      const blocker = blockers[0]?.text || null;
+
+      // Top open question: most recent from recent meetings, else any
+      const recentOpen = allOpen.filter(i => recentFiles.has(i.meeting));
+      const topOpen = (recentOpen[0] || allOpen[0])?.text || null;
+
+      const lastMeeting = recentCompleted[0];
+      const lines = [];
+
+      if (live.length > 0) {
+        lines.push(`⚡ LIVE: ${live.map(m => m.title || m.filename).join(', ')}`);
+        lines.push('');
+      }
 
       if (workItems.length > 0) {
-        sections.push('');
-        sections.push('🔨 USER WANTS YOU TO WORK ON:');
-        for (const s of workItems) {
-          sections.push(`  → ${s.message}`);
-        }
+        lines.push(`🔨 USER NUDGE: ${workItems[0].message}`);
+        lines.push('');
       }
-      if (planned.length > 0) {
-        const stalePlanned = planned.filter(m => m.staleness?.isStale);
-        const staleNote = stalePlanned.length > 0 ? ` — ${stalePlanned.length} possibly stale` : '';
-        sections.push('');
-        sections.push(`📋 PLANNED MEETINGS (${planned.length}${staleNote}):`);
-        for (const m of planned) {
-          let line = `  [${m.type}] ${m.topic}`;
-          if (m.staleness?.isStale) {
-            if (m.staleness.reason === 'keyword_match') {
-              const match = m.staleness.matchedItems[0]?.text.slice(0, 50);
-              line += ` ⚠️ likely resolved (matches: ${match})`;
-            } else {
-              line += ` ⚠️ ${m.staleness.ageDays}d old`;
-            }
-          }
-          sections.push(line);
-        }
+
+      lines.push('PRIORITIES:');
+      if (priorities.length > 0) {
+        priorities.slice(0, 3).forEach((p, i) => lines.push(`  ${i + 1}. ${p}`));
+      } else {
+        lines.push('  Nothing active — check roadmap or run a meeting.');
+      }
+
+      lines.push('');
+      lines.push(blocker ? `BLOCKER: ${blocker}` : 'BLOCKER: None.');
+      lines.push(topOpen ? `OPEN: ${topOpen}` : 'OPEN: No active questions.');
+
+      if (lastMeeting) {
+        lines.push('');
+        lines.push(`Last meeting: ${lastMeeting.title || lastMeeting.filename} (${lastMeeting.date})`);
       }
 
       return {
         content: [{
           type: 'text',
-          text: sections.length > 0
-            ? `Agent Council Session Brief:\n\n${sections.join('\n')}`
+          text: lines.length > 0
+            ? `Agent Council — Session Brief\n\n${lines.join('\n')}`
             : 'No meeting data yet. Run your first meeting to generate context.',
         }],
       };
@@ -862,9 +804,17 @@ function checkForTasks() {
     }
     fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf-8');
 
-    // Log to activity file so council_status picks it up on next call
+    // Notify Claude Code directly via MCP logging message
     for (const task of pending) {
-      logActivity('task_detected', { type: task.type, id: task.id }, task.params);
+      try {
+        server.sendLoggingMessage({
+          level: 'info',
+          data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
+        });
+      } catch {
+        // Fallback: log to activity file
+        logActivity('task_detected', { type: task.type, id: task.id }, task.params);
+      }
     }
   } catch {
     // File doesn't exist or can't be read — silent
