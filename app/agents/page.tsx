@@ -212,7 +212,16 @@ function AgentCard({ agent, onSelect, editMode, onRefresh, teamOptions }: { agen
       tabIndex={editMode ? undefined : 0}
       onClick={editMode ? undefined : () => onSelect(agent)}
       onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') onSelect(agent); }}
-      className={`w-full text-left rounded-lg p-4 transition-colors ${editMode ? '' : 'hover:brightness-110 cursor-pointer'}`}
+      draggable={editMode}
+      onDragStart={editMode ? (e) => {
+        e.dataTransfer.setData('agent-filename', agent.filename);
+        e.dataTransfer.effectAllowed = 'move';
+        (e.currentTarget as HTMLElement).style.opacity = '0.5';
+      } : undefined}
+      onDragEnd={editMode ? (e) => {
+        (e.currentTarget as HTMLElement).style.opacity = '1';
+      } : undefined}
+      className={`w-full text-left rounded-lg p-4 transition-colors ${editMode ? 'cursor-grab active:cursor-grabbing' : 'hover:brightness-110 cursor-pointer'}`}
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <div className="flex items-center gap-3">
@@ -612,8 +621,24 @@ function AgentsPageInner() {
   const [editMode, setEditMode] = useState(false);
   const [customTeams, setCustomTeams] = useState<string[]>([]);
   const [newTeamName, setNewTeamName] = useState('');
+  const [dragOverTeam, setDragOverTeam] = useState<string | null>(null);
 
   const refreshAgents = () => setRefreshKey(k => k + 1);
+
+  const handleDropOnTeam = async (team: string, e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverTeam(null);
+    const filename = e.dataTransfer.getData('agent-filename');
+    if (!filename) return;
+    try {
+      await fetch('/api/agents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, field: 'team', value: team }),
+      });
+      refreshAgents();
+    } catch { /* silent */ }
+  };
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -1071,11 +1096,18 @@ function AgentsPageInner() {
               <div className="space-y-6">
                 {teamOrder.map(team => {
                   const teamAgents = groups[team];
+                  const isDragOver = dragOverTeam === team;
                   return (
-                    <div key={team}>
+                    <div
+                      key={team}
+                      onDragOver={editMode ? (e) => { e.preventDefault(); setDragOverTeam(team); } : undefined}
+                      onDragLeave={editMode ? () => setDragOverTeam(null) : undefined}
+                      onDrop={editMode ? (e) => handleDropOnTeam(team, e) : undefined}
+                      style={isDragOver ? { outline: '2px dashed var(--accent)', outlineOffset: 4, borderRadius: 8 } : undefined}
+                    >
                       <h2
                         className="text-xs font-semibold uppercase tracking-wider mb-2 px-1"
-                        style={{ color: 'var(--text-muted)' }}
+                        style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}
                       >
                         {team} ({teamAgents.length})
                       </h2>
@@ -1100,32 +1132,45 @@ function AgentsPageInner() {
                 {/* Empty custom teams — shown in edit mode as drop targets */}
                 {editMode && customTeams
                   .filter(t => !teamOrder.includes(t))
-                  .map(team => (
-                    <div key={team}>
-                      <div className="flex items-center justify-between mb-2 px-1">
-                        <h2
-                          className="text-xs font-semibold uppercase tracking-wider"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {team} (0)
-                        </h2>
-                        <button
-                          onClick={() => setCustomTeams(prev => prev.filter(t => t !== team))}
-                          className="text-xs px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 transition-opacity"
-                          style={{ color: 'var(--text-muted)' }}
-                          title="Remove empty team"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                  .map(team => {
+                    const isDragOver = dragOverTeam === team;
+                    return (
                       <div
-                        className="rounded-lg px-4 py-6 text-center text-xs"
-                        style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
+                        key={team}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverTeam(team); }}
+                        onDragLeave={() => setDragOverTeam(null)}
+                        onDrop={(e) => handleDropOnTeam(team, e)}
+                        style={isDragOver ? { outline: '2px dashed var(--accent)', outlineOffset: 4, borderRadius: 8 } : undefined}
                       >
-                        Empty team — assign agents using the team dropdown above
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <h2
+                            className="text-xs font-semibold uppercase tracking-wider"
+                            style={{ color: isDragOver ? 'var(--accent)' : 'var(--text-muted)' }}
+                          >
+                            {team} (0)
+                          </h2>
+                          <button
+                            onClick={() => setCustomTeams(prev => prev.filter(t => t !== team))}
+                            className="text-xs px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 transition-opacity"
+                            style={{ color: 'var(--text-muted)' }}
+                            title="Remove empty team"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div
+                          className="rounded-lg px-4 py-6 text-center text-xs transition-colors"
+                          style={{
+                            border: isDragOver ? '2px dashed var(--accent)' : '1px dashed var(--border)',
+                            color: isDragOver ? 'var(--accent)' : 'var(--text-muted)',
+                            background: isDragOver ? 'rgba(59, 130, 246, 0.05)' : undefined,
+                          }}
+                        >
+                          {isDragOver ? 'Drop here to assign' : 'Drag agents here or use the team dropdown'}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             );
           }
