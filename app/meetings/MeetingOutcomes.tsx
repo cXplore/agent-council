@@ -20,7 +20,15 @@ const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]
 
 function extractOutcomes(content: string): OutcomeItem[] {
   const items: OutcomeItem[] = [];
-  const lines = content.split('\n');
+
+  // If a Summary section exists, use only that to avoid duplicating inline tags
+  // that get restated in the canonical summary.
+  const summaryIdx = content.search(/^##\s+Summary\s*$/m);
+  const allLines = content.split('\n');
+  const startLine = summaryIdx > 0
+    ? content.slice(0, summaryIdx).split('\n').length - 1
+    : 0;
+  const lines = summaryIdx > 0 ? content.slice(summaryIdx).split('\n') : allLines;
 
   for (let i = 0; i < lines.length; i++) {
     const match = lines[i].match(OUTCOME_REGEX);
@@ -30,7 +38,7 @@ function extractOutcomes(content: string): OutcomeItem[] {
         type,
         id: match[2]?.toLowerCase() ?? null,
         text: match[3].trim(),
-        lineIndex: i,
+        lineIndex: startLine + i,
       });
     }
   }

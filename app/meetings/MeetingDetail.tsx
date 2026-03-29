@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
 import { createMeetingComponents } from '@/lib/md-components';
@@ -79,12 +80,24 @@ export default function MeetingDetail(props: MeetingDetailProps) {
   } = props;
 
   const isLive = detail?.status === 'in-progress';
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [exportMenuOpen]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
       {/* Sticky header */}
       <div
-        className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4"
+        className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4 min-w-0"
         style={{
           background: 'var(--bg-elevated)',
           borderBottom: '1px solid var(--border)',
@@ -92,13 +105,11 @@ export default function MeetingDetail(props: MeetingDetailProps) {
       >
         <button
           onClick={onBack}
-          className="text-sm hover:underline"
+          className="text-sm hover:underline shrink-0"
           style={{ color: 'var(--accent)' }}
         >
           &larr; All meetings
         </button>
-
-        <div className="flex-1" />
 
         {detail && (
           <>
@@ -106,7 +117,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
               <ProjectBadge project={detail.project} />
             )}
 
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
               {detail.title || formatType(detail.type)}
             </span>
 
@@ -184,114 +195,131 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                     {copied === 'summary' ? 'Copied!' : 'Copy summary'}
                   </button>
                 )}
-                {detail.content?.includes('## Summary') && (
+                {/* Export / secondary actions dropdown */}
+                <div ref={exportMenuRef} className="relative">
                   <button
-                    onClick={async () => {
-                      if (!detail?.content) return;
-                      const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
-                      const summarySection = detail.content.match(/## Summary[\s\S]*$/);
-                      const decisions: string[] = [];
-                      const open: string[] = [];
-                      const actions: string[] = [];
-                      if (summarySection) {
-                        for (const line of summarySection[0].split('\n')) {
-                          const m = line.match(OUTCOME_REGEX);
-                          if (m) {
-                            const tag = m[1].toUpperCase();
-                            const text = m[3].trim();
-                            if (tag === 'DECISION' || tag === 'RESOLVED') decisions.push(text);
-                            else if (tag === 'OPEN') open.push(text);
-                            else if (tag === 'ACTION') actions.push(text);
-                          }
-                        }
-                      }
-                      const wordCount = detail.wordCount ?? detail.content.split(/\s+/).filter(Boolean).length;
-                      const duration = detail.started && detail.modifiedAt
-                        ? formatDuration(detail.started, detail.modifiedAt)
-                        : null;
-                      const lines: string[] = [];
-                      lines.push(`\u{1F4CB} ${detail.title || formatType(detail.type)}`);
-                      const metaParts = [detail.date || 'No date', formatType(detail.type), `${detail.participants.length} agents`];
-                      lines.push(`\u{1F4C5} ${metaParts.join(' \u00B7 ')}`);
-                      const timeParts = [duration, `${wordCount.toLocaleString()} words`].filter(Boolean);
-                      lines.push(`\u23F1 ${timeParts.join(' \u00B7 ')}`);
-                      if (decisions.length > 0) {
-                        lines.push('');
-                        lines.push('\u{1F3AF} Decisions:');
-                        decisions.forEach(d => lines.push(`\u2022 ${d}`));
-                      }
-                      if (open.length > 0) {
-                        lines.push('');
-                        lines.push('\u2753 Open Questions:');
-                        open.forEach(q => lines.push(`\u2022 ${q}`));
-                      }
-                      if (actions.length > 0) {
-                        lines.push('');
-                        lines.push('\u2705 Actions:');
-                        actions.forEach(a => lines.push(`\u2022 ${a}`));
-                      }
-                      if (decisions.length === 0 && open.length === 0 && actions.length === 0) {
-                        lines.push('');
-                        lines.push('No tagged outcomes found in summary.');
-                      }
-                      await navigator.clipboard.writeText(lines.join('\n'));
-                      setCopied('digest');
-                      setTimeout(() => setCopied(null), 1500);
-                    }}
+                    onClick={() => setExportMenuOpen(v => !v)}
                     className="text-xs px-2 py-0.5 rounded transition-colors"
-                    style={{ color: 'var(--accent)', border: '1px solid var(--border)' }}
-                    title="Copy a concise digest with decisions, actions, and open questions"
+                    style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    title="Export and more actions"
                   >
-                    {copied === 'digest' ? 'Copied!' : 'Copy digest'}
+                    ···
                   </button>
-                )}
-                <button
-                  onClick={async () => {
-                    if (!detail?.content) return;
-                    await navigator.clipboard.writeText(detail.content);
-                    setCopied('all');
-                    setTimeout(() => setCopied(null), 1500);
-                  }}
-                  className="text-xs px-2 py-0.5 rounded transition-colors"
-                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                  title="Copy full meeting to clipboard"
-                >
-                  {copied === 'all' ? 'Copied!' : 'Copy all'}
-                </button>
-                <button
-                  onClick={() => {
-                    if (!detail?.content) return;
-                    const blob = new Blob([detail.content], { type: 'text/markdown' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = detail.filename || 'meeting.md';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                  className="text-xs px-2 py-0.5 rounded transition-colors"
-                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                  title="Download meeting as markdown file"
-                >
-                  Download
-                </button>
-                <a
-                  href={`/api/meetings/export/html?file=${encodeURIComponent(detail.filename)}${activeProject ? `&project=${encodeURIComponent(activeProject)}` : ''}`}
-                  className="text-xs px-2 py-0.5 rounded transition-colors inline-block"
-                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', textDecoration: 'none' }}
-                  title="Export as standalone HTML file"
-                  download
-                >
-                  HTML
-                </a>
-                <button
-                  onClick={() => window.print()}
-                  className="text-xs px-2 py-0.5 rounded transition-colors"
-                  style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                  title="Print meeting transcript"
-                >
-                  Print
-                </button>
+                  {exportMenuOpen && (
+                    <div
+                      className="absolute right-0 top-full mt-1 z-50 rounded-lg py-1 min-w-[160px]"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}
+                    >
+                      {detail.content?.includes('## Summary') && (
+                        <button
+                          onClick={async () => {
+                            if (!detail?.content) return;
+                            const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+                            const summarySection = detail.content.match(/## Summary[\s\S]*$/);
+                            const decisions: string[] = [];
+                            const open: string[] = [];
+                            const actions: string[] = [];
+                            if (summarySection) {
+                              for (const line of summarySection[0].split('\n')) {
+                                const m = line.match(OUTCOME_REGEX);
+                                if (m) {
+                                  const tag = m[1].toUpperCase();
+                                  const text = m[3].trim();
+                                  if (tag === 'DECISION' || tag === 'RESOLVED') decisions.push(text);
+                                  else if (tag === 'OPEN') open.push(text);
+                                  else if (tag === 'ACTION') actions.push(text);
+                                }
+                              }
+                            }
+                            const wordCount = detail.wordCount ?? detail.content.split(/\s+/).filter(Boolean).length;
+                            const duration = detail.started && detail.modifiedAt
+                              ? formatDuration(detail.started, detail.modifiedAt)
+                              : null;
+                            const lines: string[] = [];
+                            lines.push(`\u{1F4CB} ${detail.title || formatType(detail.type)}`);
+                            const metaParts = [detail.date || 'No date', formatType(detail.type), `${detail.participants.length} agents`];
+                            lines.push(`\u{1F4C5} ${metaParts.join(' \u00B7 ')}`);
+                            const timeParts = [duration, `${wordCount.toLocaleString()} words`].filter(Boolean);
+                            lines.push(`\u23F1 ${timeParts.join(' \u00B7 ')}`);
+                            if (decisions.length > 0) {
+                              lines.push('');
+                              lines.push('\u{1F3AF} Decisions:');
+                              decisions.forEach(d => lines.push(`\u2022 ${d}`));
+                            }
+                            if (open.length > 0) {
+                              lines.push('');
+                              lines.push('\u2753 Open Questions:');
+                              open.forEach(q => lines.push(`\u2022 ${q}`));
+                            }
+                            if (actions.length > 0) {
+                              lines.push('');
+                              lines.push('\u2705 Actions:');
+                              actions.forEach(a => lines.push(`\u2022 ${a}`));
+                            }
+                            if (decisions.length === 0 && open.length === 0 && actions.length === 0) {
+                              lines.push('');
+                              lines.push('No tagged outcomes found in summary.');
+                            }
+                            await navigator.clipboard.writeText(lines.join('\n'));
+                            setCopied('digest');
+                            setTimeout(() => setCopied(null), 1500);
+                            setExportMenuOpen(false);
+                          }}
+                          className="w-full text-left text-xs px-3 py-1.5 hover:brightness-125 transition-colors"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          {copied === 'digest' ? 'Copied!' : 'Copy digest'}
+                        </button>
+                      )}
+                      <button
+                        onClick={async () => {
+                          if (!detail?.content) return;
+                          await navigator.clipboard.writeText(detail.content);
+                          setCopied('all');
+                          setTimeout(() => setCopied(null), 1500);
+                          setExportMenuOpen(false);
+                        }}
+                        className="w-full text-left text-xs px-3 py-1.5 hover:brightness-125 transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        {copied === 'all' ? 'Copied!' : 'Copy all'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (!detail?.content) return;
+                          const blob = new Blob([detail.content], { type: 'text/markdown' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = detail.filename || 'meeting.md';
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          setExportMenuOpen(false);
+                        }}
+                        className="w-full text-left text-xs px-3 py-1.5 hover:brightness-125 transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Download .md
+                      </button>
+                      <a
+                        href={`/api/meetings/export/html?file=${encodeURIComponent(detail.filename)}${activeProject ? `&project=${encodeURIComponent(activeProject)}` : ''}`}
+                        className="block text-xs px-3 py-1.5 hover:brightness-125 transition-colors"
+                        style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
+                        download
+                        onClick={() => setExportMenuOpen(false)}
+                      >
+                        Export HTML
+                      </a>
+                      <button
+                        onClick={() => { window.print(); setExportMenuOpen(false); }}
+                        className="w-full text-left text-xs px-3 py-1.5 hover:brightness-125 transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        Print
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
