@@ -9,13 +9,17 @@ import { inferMeetingType } from '@/lib/meeting-type-inference';
 
 /** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
 function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
-  const [counts, setCounts] = useState<{ active: number; open: number; done: number } | null>(null);
+  const [counts, setCounts] = useState<{ actions: number; open: number; done: number } | null>(null);
 
   useEffect(() => {
     fetch('/api/roadmap')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.counts) setCounts({ active: data.counts.active ?? 0, open: data.counts.open ?? 0, done: data.counts.done ?? 0 });
+        if (data?.counts) {
+          const openQ = data.counts.openQuestions ?? 0;
+          const totalActive = data.counts.active ?? 0;
+          setCounts({ actions: totalActive - openQ, open: openQ, done: data.counts.done ?? 0 });
+        }
       })
       .catch(() => {});
   }, []);
@@ -31,13 +35,13 @@ function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
           <span style={{ color: 'var(--color-open)' }}>{counts.open} open question{counts.open !== 1 ? 's' : ''}</span>
         </>
       )}
-      {counts && counts.active > 0 && (
+      {counts && counts.actions > 0 && (
         <>
           <span>&middot;</span>
-          <span style={{ color: 'var(--color-action)' }}>{counts.active} active action{counts.active !== 1 ? 's' : ''}</span>
+          <span style={{ color: 'var(--color-action)' }}>{counts.actions} active action{counts.actions !== 1 ? 's' : ''}</span>
         </>
       )}
-      {counts && counts.done > 0 && counts.open === 0 && counts.active === 0 && (
+      {counts && counts.done > 0 && counts.open === 0 && counts.actions === 0 && (
         <>
           <span>&middot;</span>
           <span style={{ color: 'var(--text-muted)' }}>All caught up</span>
