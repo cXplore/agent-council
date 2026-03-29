@@ -102,11 +102,12 @@ server.tool(
   {},
   async () => {
     try {
-      const [projectData, meetingsData, suggestionsData, plannedData] = await Promise.all([
+      const [projectData, meetingsData, suggestionsData, plannedData, tasksResponse] = await Promise.all([
         councilRequest('/api/projects'),
         councilRequest('/api/meetings').catch(() => []),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
         councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
+        councilRequest('/api/council/tasks').catch(() => ({ tasks: [] })),
       ]);
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
       const liveMeetings = meetings.filter(m => m.status === 'in-progress');
@@ -114,6 +115,7 @@ server.tool(
       const workItems = suggestions.filter(s => s.type === 'work_on');
       const otherSuggestions = suggestions.filter(s => s.type !== 'work_on');
       const planned = plannedData.meetings || [];
+      const pendingTasks = (tasksResponse?.tasks || []).filter(t => t.status === 'pending' || t.status === 'processing');
       const stalePlanned = planned.filter(m => m.staleness?.isStale);
 
       const result = {
@@ -838,13 +840,14 @@ server.tool(
 // sends an MCP logging message to Claude Code. No output when idle — silent.
 // ---------------------------------------------------------------------------
 
-const TASKS_FILE = pathModule.join(process.cwd(), '.council-tasks.json');
+const TASKS_FILE = process.cwd() + '/.council-tasks.json';
 let lastTaskCheck = '';
 let serverConnected = false;
 
 function checkForTasks() {
   if (!serverConnected) return;
   try {
+    if (!fs.existsSync(TASKS_FILE)) return;
     const raw = fs.readFileSync(TASKS_FILE, 'utf-8');
     if (raw === lastTaskCheck) return; // no change
     lastTaskCheck = raw;
@@ -853,16 +856,15 @@ function checkForTasks() {
     const pending = tasks.filter(t => t.status === 'pending');
     if (pending.length === 0) return;
 
-    // Notify Claude Code about pending tasks via MCP logging
+    // Mark tasks as processing so we don't re-notify
     for (const task of pending) {
-      try {
-        server.server.sendLoggingMessage({
-          level: 'info',
-          data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
-        });
-      } catch {
-        // Logging not supported or server not ready — silent
-      }
+      task.status = 'processing';
+    }
+    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf-8');
+
+    // Log to activity file so council_status picks it up on next call
+    for (const task of pending) {
+      logActivity('task_detected', { type: task.type, id: task.id }, task.params);
     }
   } catch {
     // File doesn't exist or can't be read — silent
