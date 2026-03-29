@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
+import { OPERATOR_SYSTEM_PROMPT, loadSubagents } from '@/lib/sdk/operator';
 
 /**
  * POST /api/agents/suggest-teams — AI-powered team suggestions.
@@ -38,15 +39,23 @@ Team names should be specific to THIS project when possible. For example, a proj
 
 Return ONLY the JSON.`;
 
+    // Load subagents from the project's agent team
+    let agents: Record<string, { description: string; prompt: string; tools: string[] }> = {};
+    try {
+      agents = await loadSubagents(active.agentsDir);
+    } catch { /* No agents — operator works alone */ }
+
     let resultText = '';
 
     for await (const message of query({
       prompt,
       options: {
-        allowedTools: ['Read', 'Glob', 'Grep'],
+        systemPrompt: OPERATOR_SYSTEM_PROMPT,
+        allowedTools: ['Read', 'Glob', 'Grep', 'Agent'],
         permissionMode: 'acceptEdits',
         cwd: projectPath,
         maxTurns: 15,
+        ...(Object.keys(agents).length > 0 ? { agents } : {}),
       },
     })) {
       if (message.type === 'assistant' && message.message?.content) {

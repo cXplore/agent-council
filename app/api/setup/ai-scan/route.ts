@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { getConfig, getActiveProjectConfig } from '@/lib/config';
+import { OPERATOR_SYSTEM_PROMPT, loadSubagents } from '@/lib/sdk/operator';
 
 /**
  * POST /api/setup/ai-scan — Deep project scan using Claude Agent SDK.
@@ -79,13 +81,28 @@ Return ONLY the JSON. No markdown fences, no explanation.`;
 
         send('status', { message: 'Starting project scan...' });
 
+        // Load subagents from the active project's agent team
+        let agents: Record<string, { description: string; prompt: string; tools: string[] }> = {};
+        try {
+          const config = await getConfig();
+          const active = getActiveProjectConfig(config);
+          agents = await loadSubagents(active.agentsDir);
+          if (Object.keys(agents).length > 0) {
+            send('status', { message: `Loaded ${Object.keys(agents).length} agents as subagents` });
+          }
+        } catch {
+          // No agents available — operator works alone
+        }
+
         for await (const message of query({
           prompt,
           options: {
-            allowedTools: ['Read', 'Glob', 'Grep'],
+            systemPrompt: OPERATOR_SYSTEM_PROMPT,
+            allowedTools: ['Read', 'Glob', 'Grep', 'Agent'],
             permissionMode: 'acceptEdits',
             cwd: projectPath,
             maxTurns: 30,
+            ...(Object.keys(agents).length > 0 ? { agents } : {}),
           },
         })) {
           if (message.type === 'assistant' && message.message?.content) {
