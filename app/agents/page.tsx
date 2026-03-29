@@ -782,6 +782,8 @@ function AgentsPageInner() {
     );
   }
 
+  const hasTeams = agents.some(a => a.team);
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
@@ -831,6 +833,34 @@ function AgentsPageInner() {
                 <option value="sonnet">All → sonnet</option>
                 <option value="haiku">All → haiku</option>
               </select>
+            )}
+            {!hasTeams && agents.length > 0 && (
+              <button
+                onClick={async () => {
+                  const teamMap: Record<string, string> = {
+                    'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
+                    'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
+                    'designer': 'design',
+                    'security-reviewer': 'security', 'domain-expert': 'domain',
+                    'tech-writer': 'content',
+                  };
+                  for (const agent of agents) {
+                    const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
+                    try {
+                      await fetch('/api/agents', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename: agent.filename, field: 'team', value: team }),
+                      });
+                    } catch { /* continue */ }
+                  }
+                  refreshAgents();
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg"
+                style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+              >
+                Suggest teams
+              </button>
             )}
           </div>
         )}
