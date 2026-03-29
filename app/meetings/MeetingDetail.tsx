@@ -353,14 +353,14 @@ export default function MeetingDetail(props: MeetingDetailProps) {
       {/* Meeting stats for completed meetings */}
       {detail && detail.status === 'complete' && detail.content && (() => {
         const wordCounts: Record<string, number> = {};
-        const NON_AGENT_SECTIONS = /^(round\s+\d+|summary|decisions?(\s+made)?|open\s+questions?|action\s+items?|dissent|recommended|carry-forward|what\s+shipped|context|participants)/i;
-        const headingBlocks = detail.content.split(/^###\s+(.+?)(?:\s+\(Round\s+\d+\))?$/m);
+        // Only match agent turn headings: "### AgentName (Round N)" — this excludes all context/summary sections
+        const headingBlocks = detail.content.split(/^###\s+(.+?)\s+\(Round\s+\d+\)$/m);
         if (headingBlocks.length > 1) {
           for (let i = 1; i < headingBlocks.length; i += 2) {
             const name = headingBlocks[i].trim();
             const text = headingBlocks[i + 1] || '';
             const words = text.trim().split(/\s+/).filter((w: string) => w.length > 0).length;
-            if (name && !NON_AGENT_SECTIONS.test(name)) {
+            if (name) {
               wordCounts[name] = (wordCounts[name] || 0) + words;
             }
           }
