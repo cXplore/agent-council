@@ -12,5 +12,292 @@
       "test": true
     },
     "completedAt": "2026-03-29T14:55:50.495Z"
+  },
+  {
+    "id": "task_1774796553770_z3nhio",
+    "type": "scan_project",
+    "status": "complete",
+    "params": {
+      "path": "C:\\Projects\\AI-platform",
+      "name": "AI-platform"
+    },
+    "createdAt": "2026-03-29T15:02:33.770Z",
+    "result": {
+      "profile": {
+        "languages": [
+          {
+            "name": "TypeScript",
+            "fileCount": 77,
+            "percentage": 87
+          },
+          {
+            "name": "JavaScript",
+            "fileCount": 10,
+            "percentage": 13
+          }
+        ],
+        "frameworks": [
+          {
+            "name": "Next.js",
+            "confidence": "high",
+            "version": "16.1.6"
+          },
+          {
+            "name": "React",
+            "confidence": "high",
+            "version": "19.2.3"
+          },
+          {
+            "name": "TailwindCSS",
+            "confidence": "high",
+            "version": "4"
+          },
+          {
+            "name": "Supabase",
+            "confidence": "high"
+          },
+          {
+            "name": "Stripe",
+            "confidence": "high"
+          },
+          {
+            "name": "Vercel AI SDK",
+            "confidence": "high"
+          }
+        ],
+        "structure": {
+          "hasApi": true,
+          "hasFrontend": true,
+          "hasDatabase": true,
+          "hasTests": false,
+          "hasCICD": false,
+          "isMonorepo": false,
+          "hasDocker": false
+        },
+        "packageManager": "npm",
+        "libraries": {
+          "ai": [
+            "Vercel AI SDK",
+            "Anthropic SDK",
+            "Google Gemini"
+          ],
+          "auth": [
+            "Supabase Auth"
+          ],
+          "styling": [
+            "TailwindCSS"
+          ],
+          "ui": [
+            "Lucide React"
+          ]
+        },
+        "suggestedPreset": "full-stack",
+        "suggestedAgents": [
+          "facilitator",
+          "project-manager",
+          "critic",
+          "north-star",
+          "developer",
+          "architect",
+          "designer",
+          "security-reviewer",
+          "devops",
+          "tech-writer",
+          "domain-expert"
+        ]
+      },
+      "suggestedAgents": [
+        "facilitator",
+        "project-manager",
+        "critic",
+        "north-star",
+        "developer",
+        "architect",
+        "designer",
+        "security-reviewer",
+        "devops",
+        "tech-writer"
+      ],
+      "agentDescriptions": {
+        "facilitator": "Meeting orchestrator � design reviews, architecture sessions, sprint planning for AI platform development",
+        "project-manager": "Ground truth tracker � Next.js 16, Supabase, Stripe, WebContainer integration status and dependencies",
+        "critic": "Quality challenger � auth flow security, prompt injection risks, context window limits, billing edge cases",
+        "north-star": "Product vision advocate � AI-powered creation platform positioning, Builder/Thinker experience quality",
+        "developer": "Full-stack engineer � Next.js 16, React 19, Supabase auth/DB, Stripe webhooks, Vercel AI SDK, WebContainer runtime",
+        "architect": "System design � context assembly, stage orchestration, prompt architecture, artifact flow, LLM integration patterns",
+        "designer": "UI/UX specialist � Tailwind CSS 4, three-column layout, Builder panels, Thinker UI, artifact viewers, real-time state",
+        "security-reviewer": "Auth & data security � Supabase RLS policies, OAuth flows, API protection, prompt injection mitigation",
+        "devops": "Deployment & infrastructure � Vercel config, Supabase CLI, WebContainer sandboxing, COEP/COOP headers",
+        "tech-writer": "Prompt engineer & docs � Builder/Thinker system prompts, stage instructions, injection formatting, architecture docs",
+        "domain-expert": "AI platform specialist � multi-model orchestration, context window management, agent definition patterns",
+        "qa-engineer": "Testing strategy � API endpoint validation, auth flow testing, billing integration, WebContainer isolation"
+      },
+      "teamSuggestions": {
+        "core": [
+          "facilitator",
+          "project-manager",
+          "critic",
+          "north-star"
+        ],
+        "platform": [
+          "developer",
+          "architect",
+          "tech-writer"
+        ],
+        "frontend": [
+          "developer",
+          "designer"
+        ],
+        "security": [
+          "security-reviewer",
+          "devops"
+        ]
+      },
+      "projectSummary": "AI-powered creation platform (Momentum) � structured 5-stage workflow (Define/Architect/Build/Refine/Ship) with Builder + Thinker dual AI surfaces. Next.js 16, React 19, Supabase, Stripe, WebContainers, Claude API."
+    },
+    "completedAt": "2026-03-29T15:05:26.511Z"
+  },
+  {
+    "id": "task_1774797332150_zdzruh",
+    "type": "scan_project",
+    "status": "complete",
+    "params": {
+      "path": "C:\\Projects\\AI-platform",
+      "name": "AI-platform"
+    },
+    "createdAt": "2026-03-29T15:15:32.150Z",
+    "result": {
+      "profile": {
+        "languages": [
+          {
+            "name": "TypeScript",
+            "fileCount": 77,
+            "percentage": 87
+          },
+          {
+            "name": "JavaScript",
+            "fileCount": 10,
+            "percentage": 13
+          }
+        ],
+        "frameworks": [
+          {
+            "name": "Next.js",
+            "confidence": "high",
+            "version": "16.1.6"
+          },
+          {
+            "name": "React",
+            "confidence": "high",
+            "version": "19.2.3"
+          },
+          {
+            "name": "TailwindCSS",
+            "confidence": "high",
+            "version": "4"
+          },
+          {
+            "name": "Supabase",
+            "confidence": "high"
+          },
+          {
+            "name": "Stripe",
+            "confidence": "high"
+          },
+          {
+            "name": "Vercel AI SDK",
+            "confidence": "high"
+          }
+        ],
+        "structure": {
+          "hasApi": true,
+          "hasFrontend": true,
+          "hasDatabase": true,
+          "hasTests": false,
+          "hasCICD": false,
+          "isMonorepo": false,
+          "hasDocker": false
+        },
+        "packageManager": "npm",
+        "libraries": {
+          "ai": [
+            "Vercel AI SDK",
+            "Anthropic SDK",
+            "Google Gemini"
+          ],
+          "auth": [
+            "Supabase Auth"
+          ],
+          "styling": [
+            "TailwindCSS"
+          ],
+          "ui": [
+            "Lucide React"
+          ]
+        },
+        "suggestedPreset": "full-stack",
+        "suggestedAgents": [
+          "facilitator",
+          "project-manager",
+          "critic",
+          "north-star",
+          "developer",
+          "architect",
+          "designer",
+          "security-reviewer",
+          "devops",
+          "tech-writer"
+        ]
+      },
+      "suggestedAgents": [
+        "facilitator",
+        "project-manager",
+        "critic",
+        "north-star",
+        "developer",
+        "architect",
+        "designer",
+        "security-reviewer",
+        "devops",
+        "tech-writer"
+      ],
+      "agentDescriptions": {
+        "facilitator": "Meeting orchestrator — design reviews, architecture sessions, sprint planning for AI platform development",
+        "project-manager": "Ground truth tracker — Next.js 16, Supabase, Stripe, WebContainer integration status and dependencies",
+        "critic": "Quality challenger — auth flow security, prompt injection risks, context window limits, billing edge cases",
+        "north-star": "Product vision advocate — AI-powered creation platform positioning, Builder/Thinker experience quality",
+        "developer": "Full-stack engineer — Next.js 16, React 19, Supabase auth/DB, Stripe webhooks, Vercel AI SDK, WebContainer runtime",
+        "architect": "System design — context assembly, stage orchestration, prompt architecture, artifact flow, LLM integration patterns",
+        "designer": "UI/UX specialist — Tailwind CSS 4, three-column layout, Builder panels, Thinker UI, artifact viewers, real-time state",
+        "security-reviewer": "Auth & data security — Supabase RLS policies, OAuth flows, API protection, prompt injection mitigation",
+        "devops": "Deployment & infrastructure — Vercel config, Supabase CLI, WebContainer sandboxing, COEP/COOP headers",
+        "tech-writer": "Prompt engineer & docs — Builder/Thinker system prompts, stage instructions, injection formatting, architecture docs",
+        "domain-expert": "AI platform specialist — multi-model orchestration, context window management, agent definition patterns",
+        "qa-engineer": "Testing strategy — API endpoint validation, auth flow testing, billing integration, WebContainer isolation"
+      },
+      "teamSuggestions": {
+        "core": [
+          "facilitator",
+          "project-manager",
+          "critic",
+          "north-star"
+        ],
+        "platform": [
+          "developer",
+          "architect",
+          "tech-writer"
+        ],
+        "frontend": [
+          "developer",
+          "designer"
+        ],
+        "security": [
+          "security-reviewer",
+          "devops"
+        ]
+      },
+      "projectSummary": "AI-powered creation platform (Momentum) — structured 5-stage workflow (Define/Architect/Build/Refine/Ship) with Builder + Thinker dual AI surfaces. Next.js 16, React 19, Supabase, Stripe, WebContainers, Claude API."
+    },
+    "completedAt": "2026-03-29T15:19:17.294Z"
   }
 ]

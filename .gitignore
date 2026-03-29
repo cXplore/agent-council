@@ -58,6 +58,11 @@ next-env.d.ts
 # tool caches
 .playwright-mcp/
 
+# screenshots from walkthroughs/UX audits
+ux-*.png
+walkthrough-*.png
+page-*.png
+
 # claude
 .claude/
 .council-tasks.json

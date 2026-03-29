@@ -139,7 +139,7 @@ export interface MeetingData {
   windowFind: (query: string, caseSensitive?: boolean, backward?: boolean) => boolean;
 }
 
-export function useMeetingData(activeProject: string | null, hasFacilitatorProp: boolean | null, setHasFacilitatorProp: (v: boolean | null) => void): MeetingData {
+export function useMeetingData(activeProject: string | null, _hasFacilitatorProp: boolean | null, setHasFacilitatorProp: (v: boolean | null) => void): MeetingData {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
