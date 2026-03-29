@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // The viewer queues suggestions; Claude picks them up via MCP
 interface Suggestion {
   id: string;
-  type: 'move_team' | 'set_role' | 'set_model' | 'update_description' | 'create_agent' | 'custom';
+  type: 'move_team' | 'set_role' | 'set_model' | 'update_description' | 'create_agent' | 'custom' | 'work_on';
   agent?: string;       // agent name (for agent-specific suggestions)
   field?: string;       // which field to change
   value?: string;       // new value
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'type and message are required' }, { status: 400 });
     }
 
-    const validTypes = ['move_team', 'set_role', 'set_model', 'update_description', 'create_agent', 'custom'];
+    const validTypes = ['move_team', 'set_role', 'set_model', 'update_description', 'create_agent', 'custom', 'work_on'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Invalid suggestion type' }, { status: 400 });
     }

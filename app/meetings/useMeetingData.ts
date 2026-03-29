@@ -202,7 +202,7 @@ export function useMeetingData(activeProject: string | null, hasFacilitatorProp:
   const [plannedMeetings, setPlannedMeetings] = useState<{ id: string; type: string; topic: string; trigger?: string; source?: string }[]>([]);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planTopic, setPlanTopic] = useState('');
-  const [planType, setPlanType] = useState('strategy');
+  const [planType, setPlanType] = useState('auto');
 
   const [connectionLost, setConnectionLost] = useState(false);
   const [pollPaused, setPollPaused] = useState(false);

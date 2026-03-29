@@ -265,12 +265,26 @@ server.tool(
           content: [{ type: 'text', text: 'No pending suggestions from Agent Council.' }],
         };
       }
+      // Separate work_on items from other suggestions for clarity
+      const workItems = suggestions.filter(s => s.type === 'work_on');
+      const otherSuggestions = suggestions.filter(s => s.type !== 'work_on');
+
+      const parts = [];
+      if (workItems.length > 0) {
+        parts.push(`🔨 ${workItems.length} work item(s) from the roadmap:\n${workItems.map((s, i) =>
+          `${i + 1}. ${s.message}${s.value ? `\n   Context: ${s.value}` : ''}`
+        ).join('\n')}`);
+      }
+      if (otherSuggestions.length > 0) {
+        parts.push(`${otherSuggestions.length} suggestion(s):\n${otherSuggestions.map((s, i) =>
+          `${i + 1}. [${s.type}] ${s.message}${s.agent ? ` (agent: ${s.agent})` : ''}${s.value ? ` → ${s.value}` : ''}`
+        ).join('\n')}`);
+      }
+
       return {
         content: [{
           type: 'text',
-          text: `${suggestions.length} suggestion(s) from Agent Council:\n\n${suggestions.map((s, i) =>
-            `${i + 1}. [${s.type}] ${s.message}${s.agent ? ` (agent: ${s.agent})` : ''}${s.value ? ` → ${s.value}` : ''}`
-          ).join('\n')}`,
+          text: parts.join('\n\n'),
         }],
       };
     } catch (err) {

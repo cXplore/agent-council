@@ -155,10 +155,29 @@ function ActionButtons({
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(item.text).catch(() => {});
+  const handleWorkOn = async () => {
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    navigator.clipboard.writeText(item.text).catch(() => {});
+    try {
+      await fetch('/api/council/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'work_on',
+          message: item.text,
+          value: JSON.stringify({
+            itemType: item.type,
+            meeting: item.meeting,
+            meetingTitle: item.meetingTitle,
+            hash: item.hash,
+            id: item.id,
+          }),
+        }),
+      });
+    } catch {
+      // POST failed silently — clipboard copy still works as fallback
+    }
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (updating) {
@@ -214,12 +233,12 @@ function ActionButtons({
         Stale
       </button>
       <button
-        onClick={handleCopy}
+        onClick={handleWorkOn}
         className="text-xs px-1.5 py-0.5 rounded"
         style={{ color: copied ? 'var(--live-green)' : 'var(--text-muted)', background: 'var(--bg)' }}
-        title="Copy item text to clipboard"
+        title="Send to Claude via MCP"
       >
-        {copied ? 'Copied' : 'Work on this'}
+        {copied ? 'Sent ✓' : 'Work on this'}
       </button>
     </div>
   );

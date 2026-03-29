@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType } from './MeetingListCard';
+import { inferMeetingType } from '@/lib/meeting-type-inference';
 
 /** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
 function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
@@ -107,6 +108,21 @@ export default function MeetingList(props: MeetingListProps) {
     bulkDeleteCompleted,
     projectParam,
   } = props;
+
+  const handlePlanSubmit = () => {
+    if (!planTopic.trim()) return;
+    const resolvedType = planType === 'auto' ? inferMeetingType(planTopic.trim()) : planType;
+    fetch('/api/council/planned', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: resolvedType, topic: planTopic.trim(), source: 'manual' }),
+    }).then(() => {
+      setPlanTopic('');
+      setPlanType('auto');
+      setShowPlanForm(false);
+      fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
+    });
+  };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -327,6 +343,7 @@ export default function MeetingList(props: MeetingListProps) {
                 className="text-sm px-3 py-2 rounded outline-none"
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               >
+                <option value="auto">Auto-detect type</option>
                 <option value="standup">Standup</option>
                 <option value="design-review">Design Review</option>
                 <option value="strategy">Strategy Session</option>
@@ -340,17 +357,7 @@ export default function MeetingList(props: MeetingListProps) {
                 value={planTopic}
                 onChange={(e) => setPlanTopic(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && planTopic.trim()) {
-                    fetch('/api/council/planned', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
-                    }).then(() => {
-                      setPlanTopic('');
-                      setShowPlanForm(false);
-                      fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
-                    });
-                  }
+                  if (e.key === 'Enter' && planTopic.trim()) handlePlanSubmit();
                   if (e.key === 'Escape') setShowPlanForm(false);
                 }}
                 placeholder="What should the meeting discuss?"
@@ -368,18 +375,7 @@ export default function MeetingList(props: MeetingListProps) {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  if (!planTopic.trim()) return;
-                  fetch('/api/council/planned', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: planType, topic: planTopic.trim(), source: 'manual' }),
-                  }).then(() => {
-                    setPlanTopic('');
-                    setShowPlanForm(false);
-                    fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || []));
-                  });
-                }}
+                onClick={handlePlanSubmit}
                 className="text-sm px-4 py-1.5 rounded"
                 style={{ background: 'var(--accent)', color: 'white' }}
               >
