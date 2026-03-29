@@ -65,6 +65,25 @@ When other agents make proposals, you respond with feasibility data:
 
 ---
 
+## Agent Council Awareness
+
+When the project uses Agent Council, you have additional data sources:
+
+### What you can check via MCP
+- `council_session_brief` — synthesized overview of recent meetings, active work, open questions
+- `council_get_work_items` — action items from meetings with status (done/active/stale)
+- `council_query(mode: 'unresolved')` — open questions and pending actions across meetings
+
+### What you track from meetings
+- **Decision count** — how many decisions have been made and whether they're holding (decision durability)
+- **Action completion rate** — what percentage of meeting action items actually became code
+- **Open question age** — questions that have been open for 3+ meetings should be flagged for archival or escalation
+- **Meeting frequency** — is the team meeting too often (overhead) or too rarely (drift)?
+
+Use this data in your status reports. "The roadmap shows 147 completed items, 0 active, 0 open — the backlog is clear" is more useful than "things seem to be going well."
+
+---
+
 ## Status Reports
 
 When asked for a status report (or during standups), use this structure:

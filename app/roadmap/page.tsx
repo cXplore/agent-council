@@ -1,6 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { motion } from 'motion/react';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.25 },
+};
 
 interface RoadmapItem {
   type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED';
@@ -83,7 +90,7 @@ function StatusBadge({ status }: { status: RoadmapItem['itemStatus'] }) {
   );
 }
 
-function ProgressBar({ done, active, open, stale }: { done: number; active: number; open: number; stale: number }) {
+function ProgressBar({ done, active, open, stale, animate: shouldAnimate = false }: { done: number; active: number; open: number; stale: number; animate?: boolean }) {
   const total = done + active + open;
   if (total === 0) return null;
 
@@ -96,15 +103,21 @@ function ProgressBar({ done, active, open, stale }: { done: number; active: numb
         <div className="h-2 flex-1 rounded-full overflow-hidden" style={{ background: 'var(--bg)' }}>
           <div className="h-full flex">
             {donePct > 0 && (
-              <div
-                className="h-full transition-all"
-                style={{ width: `${donePct}%`, background: 'var(--accent)' }}
+              <motion.div
+                className="h-full"
+                style={{ background: 'var(--accent)' }}
+                initial={shouldAnimate ? { width: '0%' } : false}
+                animate={{ width: `${donePct}%` }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
               />
             )}
             {activePct > 0 && (
-              <div
-                className="h-full transition-all"
-                style={{ width: `${activePct}%`, background: 'var(--live-green)' }}
+              <motion.div
+                className="h-full"
+                style={{ background: 'var(--live-green)' }}
+                initial={shouldAnimate ? { width: '0%' } : false}
+                animate={{ width: `${activePct}%` }}
+                transition={{ duration: 0.3, ease: 'easeOut', delay: 0.05 }}
               />
             )}
           </div>
@@ -215,14 +228,25 @@ function ActionButtons({
 function ItemRow({
   item,
   onStatusChange,
+  index,
 }: {
   item: RoadmapItem;
   onStatusChange: (hash: string, status: 'done' | 'active' | 'stale') => Promise<void>;
+  index?: number;
 }) {
   const isWorking = item.itemStatus === 'working';
+  const shouldAnimate = index !== undefined && index < 10;
+  const MotionOrDiv = shouldAnimate ? motion.div : 'div';
+  const animProps = shouldAnimate ? {
+    initial: { opacity: 0, y: 8 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+    transition: { duration: 0.2, delay: (index ?? 0) * 0.03 },
+  } : {};
   return (
-    <div
+    <MotionOrDiv
       className={`flex items-start gap-2 group rounded-lg ${isWorking ? 'px-2 py-1.5 -mx-2' : ''}`}
+      {...animProps}
       style={isWorking ? {
         background: 'rgba(124, 109, 216, 0.08)',
         border: '1px solid rgba(124, 109, 216, 0.3)',
@@ -301,7 +325,13 @@ function SectionHeader({
   accent: string;
 }) {
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <motion.div
+      className="flex items-center gap-2 mb-4"
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.2 }}
+    >
       <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
         {title}
       </h2>
@@ -311,7 +341,7 @@ function SectionHeader({
       >
         {count}
       </span>
-    </div>
+    </motion.div>
   );
 }
 

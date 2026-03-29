@@ -1,7 +1,27 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import { motion } from 'motion/react';
 import { getAgentColor } from '@/lib/utils';
+
+const fadeUp = {
+  initial: { opacity: 0, y: 16 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true } as const,
+  transition: { duration: 0.25 },
+};
+
+const staggerContainer = {
+  initial: {},
+  whileInView: { transition: { staggerChildren: 0.06 } },
+  viewport: { once: true } as const,
+};
+
+const staggerChild = {
+  initial: { opacity: 0, y: 12 },
+  whileInView: { opacity: 1, y: 0 },
+  transition: { duration: 0.25 },
+};
 
 interface MeetingAnalytics {
   totalMeetings: number;
@@ -455,41 +475,51 @@ function DashboardInner() {
         ) : (
           <div className="space-y-4">
             {/* Count cards */}
-            <div className="flex gap-3 flex-wrap">
-              <CountCard label="Total" value={analytics.totalMeetings} />
-              <CountCard label="Completed" value={analytics.completedMeetings} />
-              <CountCard
-                label="Live"
-                value={analytics.liveMeetings}
-                accent={analytics.liveMeetings > 0 ? 'var(--live-green)' : undefined}
-              />
-            </div>
+            <motion.div className="flex gap-3 flex-wrap" {...staggerContainer}>
+              <motion.div className="flex-1 min-w-[120px]" {...staggerChild}>
+                <CountCard label="Total" value={analytics.totalMeetings} />
+              </motion.div>
+              <motion.div className="flex-1 min-w-[120px]" {...staggerChild}>
+                <CountCard label="Completed" value={analytics.completedMeetings} />
+              </motion.div>
+              <motion.div className="flex-1 min-w-[120px]" {...staggerChild}>
+                <CountCard
+                  label="Live"
+                  value={analytics.liveMeetings}
+                  accent={analytics.liveMeetings > 0 ? 'var(--live-green)' : undefined}
+                />
+              </motion.div>
+            </motion.div>
 
             {/* Two-column layout for type distribution and active agents */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" {...fadeUp}>
               <TypeDistribution meetingsByType={analytics.meetingsByType} />
               <ActiveAgents agents={analytics.mostActiveAgents} />
-            </div>
+            </motion.div>
 
             {/* Bottom row: recent activity and tags */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 gap-4" {...fadeUp} transition={{ duration: 0.25, delay: 0.05 }}>
               <RecentActivity recentActivity={analytics.recentActivity} />
               {tags && <TagsSummary tags={tags} />}
-            </div>
+            </motion.div>
 
             {/* Meeting timeline */}
             {recentMeetings.length > 0 && (
-              <MeetingTimeline meetings={recentMeetings} />
+              <motion.div {...fadeUp} transition={{ duration: 0.25, delay: 0.1 }}>
+                <MeetingTimeline meetings={recentMeetings} />
+              </motion.div>
             )}
 
             {/* Key terms from latest completed meeting */}
             {keyTerms && keyTerms.terms.length > 0 && (
-              <KeyTermsBar data={keyTerms} />
+              <motion.div {...fadeUp} transition={{ duration: 0.25, delay: 0.1 }}>
+                <KeyTermsBar data={keyTerms} />
+              </motion.div>
             )}
 
             {/* Recent meetings quick-access */}
             {recentMeetings.length > 0 && (
-              <div className="rounded-lg px-5 py-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <motion.div className="rounded-lg px-5 py-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }} {...fadeUp} transition={{ duration: 0.25, delay: 0.12 }}>
                 <div className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Recent meetings</div>
                 <div className="space-y-1.5">
                   {recentMeetings.map(m => (
@@ -508,7 +538,7 @@ function DashboardInner() {
                     </a>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Quick links */}
