@@ -43,12 +43,28 @@ export async function POST(req: NextRequest) {
     const languageNames = (projectProfile?.languages ?? []).map(l => l.name).join(', ') || 'Unknown';
     const pkgManager = projectProfile?.packageManager ?? 'unknown';
 
+    // Format detected libraries by category for agent templates
+    const libs = projectProfile?.libraries ?? {};
+    const libSections: string[] = [];
+    for (const [category, names] of Object.entries(libs)) {
+      if (names.length > 0) {
+        libSections.push(`${category}: ${names.join(', ')}`);
+      }
+    }
+    const librariesStr = libSections.length > 0 ? libSections.join('\n') : 'None detected';
+
     const placeholders: Record<string, string> = {
       PROJECT_NAME: projectName,
       FRAMEWORK: frameworkNames,
       LANGUAGES: languageNames,
       PACKAGE_MANAGER: pkgManager,
       MEETINGS_DIR: body.meetingsDir || 'meetings',
+      LIBRARIES: librariesStr,
+      ANIMATION_LIBS: (libs.animation ?? []).join(', ') || 'None installed',
+      TESTING_LIBS: (libs.testing ?? []).join(', ') || 'None installed',
+      DB_LIBS: (libs.database ?? []).join(', ') || 'None installed',
+      UI_LIBS: (libs.ui ?? []).join(', ') || 'None installed',
+      THREE_D_LIBS: (libs['3d'] ?? []).join(', ') || 'None installed',
     };
 
     // Validate targetDir is an existing directory

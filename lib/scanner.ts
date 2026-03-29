@@ -410,6 +410,107 @@ function detectPackageManager(files: string[]): ProjectProfile['packageManager']
 }
 
 // ---------------------------------------------------------------------------
+// Library detection — what tools are available beyond frameworks
+// ---------------------------------------------------------------------------
+
+function detectLibraries(allDeps: Record<string, string>): Record<string, string[]> {
+  const libs: Record<string, string[]> = {};
+
+  function check(category: string, npmName: string, displayName: string) {
+    if (allDeps[npmName]) {
+      if (!libs[category]) libs[category] = [];
+      libs[category].push(displayName);
+    }
+  }
+
+  // Animation & motion
+  check('animation', 'motion', 'Motion');
+  check('animation', 'framer-motion', 'Framer Motion');
+  check('animation', 'gsap', 'GSAP');
+  check('animation', 'animejs', 'Anime.js');
+  check('animation', 'lottie-web', 'Lottie');
+  check('animation', 'lottie-react', 'Lottie React');
+  check('animation', 'remotion', 'Remotion');
+  check('animation', 'auto-animate', 'AutoAnimate');
+
+  // 3D & WebGL
+  check('3d', 'three', 'Three.js');
+  check('3d', '@react-three/fiber', 'React Three Fiber');
+  check('3d', '@react-three/drei', 'Drei');
+  check('3d', '@react-three/postprocessing', 'R3F Postprocessing');
+
+  // Styling
+  check('styling', 'tailwindcss', 'TailwindCSS');
+  check('styling', '@emotion/react', 'Emotion');
+  check('styling', 'styled-components', 'Styled Components');
+  check('styling', 'sass', 'Sass');
+  check('styling', 'css-modules', 'CSS Modules');
+
+  // Testing
+  check('testing', 'vitest', 'Vitest');
+  check('testing', 'jest', 'Jest');
+  check('testing', '@playwright/test', 'Playwright');
+  check('testing', 'cypress', 'Cypress');
+  check('testing', '@testing-library/react', 'Testing Library');
+  check('testing', 'msw', 'MSW');
+
+  // Database & ORM
+  check('database', 'prisma', 'Prisma');
+  check('database', '@prisma/client', 'Prisma Client');
+  check('database', 'drizzle-orm', 'Drizzle');
+  check('database', 'mongoose', 'Mongoose');
+  check('database', 'typeorm', 'TypeORM');
+  check('database', 'better-sqlite3', 'SQLite');
+
+  // Validation
+  check('validation', 'zod', 'Zod');
+  check('validation', 'valibot', 'Valibot');
+  check('validation', 'yup', 'Yup');
+  check('validation', 'joi', 'Joi');
+
+  // API & networking
+  check('api', 'trpc', 'tRPC');
+  check('api', '@trpc/server', 'tRPC');
+  check('api', 'hono', 'Hono');
+  check('api', 'axios', 'Axios');
+  check('api', 'ky', 'Ky');
+  check('api', 'graphql', 'GraphQL');
+
+  // AI & ML
+  check('ai', '@anthropic-ai/sdk', 'Anthropic SDK');
+  check('ai', 'openai', 'OpenAI SDK');
+  check('ai', 'ai', 'Vercel AI SDK');
+  check('ai', 'langchain', 'LangChain');
+  check('ai', '@modelcontextprotocol/sdk', 'MCP SDK');
+
+  // Monitoring & analytics
+  check('monitoring', '@sentry/nextjs', 'Sentry');
+  check('monitoring', '@sentry/node', 'Sentry');
+  check('monitoring', 'posthog-js', 'PostHog');
+  check('monitoring', 'plausible-tracker', 'Plausible');
+
+  // Auth
+  check('auth', 'next-auth', 'NextAuth');
+  check('auth', '@auth/core', 'Auth.js');
+  check('auth', '@clerk/nextjs', 'Clerk');
+  check('auth', '@supabase/supabase-js', 'Supabase');
+  check('auth', 'lucia', 'Lucia Auth');
+
+  // UI component libraries
+  check('ui', '@radix-ui/react-dialog', 'Radix UI');
+  check('ui', '@headlessui/react', 'Headless UI');
+  check('ui', '@shadcn/ui', 'shadcn/ui');
+  check('ui', 'cmdk', 'cmdk');
+
+  // Remove empty categories
+  for (const key of Object.keys(libs)) {
+    if (libs[key].length === 0) delete libs[key];
+  }
+
+  return libs;
+}
+
+// ---------------------------------------------------------------------------
 // Preset suggestion
 // ---------------------------------------------------------------------------
 
@@ -471,11 +572,20 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
   const suggestedPreset = suggestPreset(structure, languages);
   const suggestedAgents = suggestAgents(structure, frameworks);
 
+  // Detect installed libraries from package.json
+  const pkg = await readJson(path.join(dirPath, 'package.json'));
+  const allDeps: Record<string, string> = {
+    ...(pkg?.dependencies as Record<string, string> ?? {}),
+    ...(pkg?.devDependencies as Record<string, string> ?? {}),
+  };
+  const libraries = detectLibraries(allDeps);
+
   return {
     languages,
     frameworks,
     structure,
     packageManager,
+    libraries,
     suggestedPreset,
     suggestedAgents,
   };

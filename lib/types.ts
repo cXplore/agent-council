@@ -11,6 +11,8 @@ export interface ProjectProfile {
     hasDocker: boolean;
   };
   packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun' | 'pip' | 'cargo' | 'go' | 'unknown';
+  /** Detected libraries by category */
+  libraries: Record<string, string[]>;
   suggestedPreset: string;
   suggestedAgents: string[];
 }
