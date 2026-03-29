@@ -1,9 +1,7 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Welcome — Agent Council',
-};
+import Link from 'next/link';
+import { motion } from 'motion/react';
 
 function AgentCouncilLogo({ size = 48 }: { size?: number }) {
   return (
@@ -99,42 +97,59 @@ export default function WelcomePage() {
         {/* Hero */}
         <div className="text-center mb-20">
           <div className="flex justify-center mb-6">
-            <div
+            <motion.div
               className="rounded-2xl p-4"
               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
             >
               <AgentCouncilLogo size={56} />
-            </div>
+            </motion.div>
           </div>
-          <h1
+          <motion.h1
             className="text-3xl font-bold mb-3 tracking-tight"
             style={{ color: 'var(--text-primary)' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5, ease: 'easeOut' }}
           >
             Agent Council
-          </h1>
-          <p
+          </motion.h1>
+          <motion.p
             className="text-base leading-relaxed max-w-xl mx-auto"
             style={{ color: 'var(--text-secondary)' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5, ease: 'easeOut' }}
           >
             Run structured meetings between your Claude Code agents.
             Watch them deliberate in real time.
-          </p>
+          </motion.p>
         </div>
 
         {/* How it works */}
         <section className="mb-20">
-          <h2
+          <motion.h2
             className="text-xs font-semibold uppercase tracking-widest mb-6 text-center"
             style={{ color: 'var(--text-muted)' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
           >
             How it works
-          </h2>
+          </motion.h2>
           <div className="space-y-4">
-            {steps.map((step) => (
-              <div
+            {steps.map((step, i) => (
+              <motion.div
                 key={step.number}
                 className="rounded-lg p-5 flex gap-5 items-start"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15, duration: 0.4, ease: 'easeOut' }}
               >
                 <div className="flex-shrink-0 flex items-center gap-3">
                   <span
@@ -161,25 +176,33 @@ export default function WelcomePage() {
                     {step.description}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </section>
 
         {/* What you get */}
         <section className="mb-20">
-          <h2
+          <motion.h2
             className="text-xs font-semibold uppercase tracking-widest mb-6 text-center"
             style={{ color: 'var(--text-muted)' }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
           >
             What you get
-          </h2>
+          </motion.h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {valueProps.map((prop) => (
-              <div
+            {valueProps.map((prop, i) => (
+              <motion.div
                 key={prop.title}
                 className="rounded-lg p-5"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15, duration: 0.4, ease: 'easeOut' }}
               >
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
@@ -202,27 +225,40 @@ export default function WelcomePage() {
                 >
                   {prop.description}
                 </p>
-              </div>
+              </motion.div>
             ))}
           </div>
         </section>
 
         {/* CTA */}
-        <div className="text-center">
-          <Link
-            href="/setup"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-colors"
-            style={{
-              background: 'var(--accent)',
-              color: 'white',
-            }}
+        <motion.div
+          className="text-center"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <motion.div
+            className="inline-block"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
-            Get started
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </Link>
+            <Link
+              href="/setup"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-colors"
+              style={{
+                background: 'var(--accent)',
+                color: 'white',
+              }}
+            >
+              Get started
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Link>
+          </motion.div>
           <p className="mt-4">
             <Link
               href="/setup"
@@ -232,7 +268,7 @@ export default function WelcomePage() {
               I already have a project set up
             </Link>
           </p>
-        </div>
+        </motion.div>
 
       </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType } from './MeetingListCard';
@@ -420,7 +421,10 @@ export default function MeetingList(props: MeetingListProps) {
           <div className="space-y-3">
             {/* Cross-meeting tag summary -- expandable (only show if there are unresolved items worth expanding) */}
             {tagSummary && tagSummary.decisions > 0 && (
-              <div
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
                 className="rounded-lg mb-2"
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
               >
@@ -494,7 +498,7 @@ export default function MeetingList(props: MeetingListProps) {
                     })}
                   </div>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* Suggested next meetings -- separate collapsible */}
@@ -608,8 +612,9 @@ export default function MeetingList(props: MeetingListProps) {
                 {(['all', 'in-progress', 'complete'] as const).map(f => {
                   const count = f === 'all' ? meetings.length : meetings.filter(m => m.status === f).length;
                   return (
-                  <button
+                  <motion.button
                     key={f}
+                    layout
                     onClick={() => setStatusFilter(f)}
                     className="text-xs px-3 py-1 rounded-full transition-colors"
                     style={{
@@ -617,10 +622,11 @@ export default function MeetingList(props: MeetingListProps) {
                       color: statusFilter === f ? 'var(--accent)' : 'var(--text-muted)',
                       border: `1px solid ${statusFilter === f ? 'var(--accent)' : 'var(--border)'}`,
                     }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30, duration: 0.2 }}
                   >
                     {f === 'all' ? 'All' : f === 'in-progress' ? 'Live' : 'Completed'}
                     {count > 0 && <span className="ml-1 opacity-60">{count}</span>}
-                  </button>
+                  </motion.button>
                   );
                 })}
               </div>
@@ -658,7 +664,12 @@ export default function MeetingList(props: MeetingListProps) {
                 const groupLabels: Record<string, string> = { live: 'Live', pinned: 'Pinned', today: 'Today', yesterday: 'Yesterday', 'this-week': 'This Week', 'this-month': 'This Month', older: 'Older' };
 
                 return (
-                  <div key={m.filename}>
+                  <motion.div
+                    key={m.filename}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i < 10 ? i * 0.05 : 0, duration: 0.3 }}
+                  >
                     {showHeader && group !== 'live' && group !== 'pinned' && (
                       <div className="text-xs font-medium uppercase tracking-wider px-1 pt-4 pb-1" style={{ color: 'var(--text-muted)' }}>
                         {groupLabels[group] || group}
@@ -675,7 +686,7 @@ export default function MeetingList(props: MeetingListProps) {
                       pinned={pinnedMeetings.has(m.filename)}
                       onTogglePin={togglePin}
                     />
-                  </div>
+                  </motion.div>
                 );
               });
             })()}
