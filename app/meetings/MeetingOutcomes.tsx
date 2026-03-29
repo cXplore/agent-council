@@ -205,7 +205,11 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
   );
 }
 
-// Export the extraction function for use in the toggle button count
+// Export the visible count for the toggle button — excludes OPEN items suppressed by matching RESOLVED
 export function countOutcomes(content: string): number {
-  return extractOutcomes(content).length;
+  const items = extractOutcomes(content);
+  const resolvedSlugs = new Set(
+    items.filter(o => o.type === 'RESOLVED' && o.id).map(o => o.id!)
+  );
+  return items.filter(item => !(item.type === 'OPEN' && item.id && resolvedSlugs.has(item.id))).length;
 }
