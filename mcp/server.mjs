@@ -587,7 +587,10 @@ server.tool(
 
       const actions = activeItems.filter(i => i.type === 'ACTION');
       const open = activeItems.filter(i => i.type === 'OPEN');
-      const decisions = allItems.filter(i => i.type === 'DECISION').slice(0, maxItems);
+      const decisions = allItems
+        .filter(i => i.type === 'DECISION')
+        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+        .slice(0, maxItems);
 
       const sections = [];
 
