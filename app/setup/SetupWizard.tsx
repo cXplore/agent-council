@@ -48,6 +48,7 @@ function SetupWizardInner() {
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
   const [scanProgress, setScanProgress] = useState<string[]>([]);
+  const scanLogRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<ProjectProfile | null>(null);
   const [agents, setAgents] = useState<AgentSelection[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -248,6 +249,13 @@ function SetupWizardInner() {
         .catch(() => {});
     }
   }, [searchParams]);
+
+  // Auto-scroll the scan progress log
+  useEffect(() => {
+    if (scanLogRef.current) {
+      scanLogRef.current.scrollTop = scanLogRef.current.scrollHeight;
+    }
+  }, [scanProgress]);
 
   const handleScan = async () => {
     if (!projectPath.trim()) return;
@@ -485,6 +493,7 @@ function SetupWizardInner() {
                   </div>
                   {scanProgress.length > 0 && (
                     <div
+                      ref={scanLogRef}
                       className="text-xs space-y-0.5 px-3 py-2 rounded max-h-32 overflow-y-auto"
                       style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.7rem' }}
                     >
