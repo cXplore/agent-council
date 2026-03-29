@@ -45,8 +45,9 @@ function SetupWizardInner() {
   const autoScanTriggered = useRef(false);
   const [step, setStep] = useState<Step>('path');
   const [projectPath, setProjectPath] = useState('');
-  const [, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProjectProfile | null>(null);
   const [agents, setAgents] = useState<AgentSelection[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -248,6 +249,53 @@ function SetupWizardInner() {
     }
   }, [searchParams]);
 
+  // Poll for task result when aiTaskId is set
+  useEffect(() => {
+    if (!aiTaskId) return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/council/tasks?id=${aiTaskId}`);
+        if (!res.ok) return;
+        const task = await res.json();
+        if (task.status === 'complete' && task.result) {
+          clearInterval(poll);
+          setScanning(false);
+
+          // Use the AI scan results to build the agent list
+          const result = task.result;
+          if (result.profile) setProfile(result.profile);
+
+          const selections: AgentSelection[] = [];
+          const suggestedAgents: string[] = result.suggestedAgents || Object.keys(ALL_AGENTS).slice(0, 6);
+          if (!suggestedAgents.includes('facilitator')) suggestedAgents.unshift('facilitator');
+
+          for (const [template, info] of Object.entries(ALL_AGENTS)) {
+            const aiDesc = result.agentDescriptions?.[template];
+            selections.push({
+              template,
+              name: template,
+              description: aiDesc || info.description,
+              model: info.defaultModel,
+              tools: [...DEFAULT_TOOLS],
+              enabled: suggestedAgents.includes(template),
+            });
+          }
+
+          setAgents(selections);
+          setStep('scan');
+          setAiTaskId(null);
+        } else if (task.status === 'error') {
+          clearInterval(poll);
+          setScanError(task.result?.error || 'Scan failed');
+          setScanning(false);
+          setAiTaskId(null);
+        }
+      } catch { /* keep polling */ }
+    }, 2000);
+
+    return () => clearInterval(poll);
+  }, [aiTaskId]);
+
   const handleScan = async () => {
     if (!projectPath.trim()) return;
     setScanning(true);
@@ -256,72 +304,26 @@ function SetupWizardInner() {
     const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
 
     try {
-      const res = await fetch('/api/setup/scan', {
+      // Post a scan task — Claude Code will pick it up via MCP
+      const taskRes = await fetch('/api/council/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: cleanPath }),
+        body: JSON.stringify({
+          type: 'scan_project',
+          params: {
+            path: cleanPath,
+            name: cleanPath.split(/[\\/]/).pop() || 'project',
+          },
+        }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Scan failed');
-      }
+      if (!taskRes.ok) throw new Error('Failed to create scan task');
+      const taskData = await taskRes.json();
+      setAiTaskId(taskData.id);
 
-      const data: ProjectProfile = await res.json();
-      setProfile(data);
-
-      // Build agent selections from suggested agents
-      const selections: AgentSelection[] = [];
-
-      // Always include facilitator
-      if (!data.suggestedAgents.includes('facilitator')) {
-        data.suggestedAgents.unshift('facilitator');
-      }
-
-      for (const [template, info] of Object.entries(ALL_AGENTS)) {
-        selections.push({
-          template,
-          name: template,
-          description: info.description,
-          model: info.defaultModel,
-          tools: [...DEFAULT_TOOLS],
-          enabled: data.suggestedAgents.includes(template),
-        });
-      }
-
-      setAgents(selections);
-      setStep('scan');
-
-      // Post a task for AI-enhanced scanning via MCP
-      try {
-        const taskRes = await fetch('/api/council/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'scan_project',
-            params: {
-              path: cleanPath,
-              name: cleanPath.split(/[\\/]/).pop() || 'project',
-              basicProfile: {
-                languages: data.languages.map(l => l.name),
-                frameworks: data.frameworks.map(f => f.name),
-                structure: data.structure,
-                packageManager: data.packageManager,
-                libraries: data.libraries,
-              },
-            },
-          }),
-        });
-        if (taskRes.ok) {
-          const taskData = await taskRes.json();
-          setAiTaskId(taskData.id);
-        }
-      } catch {
-        // AI enhancement is optional — basic scan still works
-      }
+      // The useEffect above will poll for results
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Scan failed');
-    } finally {
       setScanning(false);
     }
   };
@@ -467,17 +469,30 @@ function SetupWizardInner() {
                 </button>
                 <button
                   onClick={() => { handleConnect().then(() => handleScan()); }}
-                  disabled={!projectPath.trim() || connecting}
+                  disabled={!projectPath.trim() || connecting || scanning}
                   className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
                   style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >
-                  Connect &amp; scan
+                  {scanning ? 'Scanning...' : 'Connect & scan'}
                 </button>
               </div>
-              <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                <strong style={{ color: 'var(--text-secondary)' }}>Connect</strong> watches your meetings directory.{' '}
-                <strong style={{ color: 'var(--text-secondary)' }}>Connect &amp; scan</strong> also analyzes your codebase to suggest an agent team.
-              </p>
+              {scanning && (
+                <div className="mt-3 flex items-center gap-2 text-xs" style={{ color: 'var(--accent)' }}>
+                  <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
+                  Claude Code is analyzing your project... This takes a few seconds.
+                </div>
+              )}
+              {scanError && (
+                <p className="text-xs mt-2" style={{ color: 'var(--error, #ef4444)' }}>
+                  {scanError}
+                </p>
+              )}
+              {!scanning && (
+                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+                  <strong style={{ color: 'var(--text-secondary)' }}>Connect</strong> watches your meetings directory.{' '}
+                  <strong style={{ color: 'var(--text-secondary)' }}>Connect &amp; scan</strong> uses Claude Code to analyze your codebase and suggest an agent team.
+                </p>
+              )}
             </div>
 
             <a
