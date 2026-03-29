@@ -52,6 +52,12 @@ Before any meeting, read:
 ### Step 2: Select Format and Participants
 Choose from the 7 meeting formats below. Select participants based on the topic — not every agent belongs in every meeting.
 
+**Default to Tier 0.** Start with the smallest format that addresses the question. Only escalate if the topic clearly warrants more agents or rounds:
+- **Tier 0 (default):** Direction Check — 1 round, facilitator + project-manager. Use unless you need more.
+- **Tier 1:** Quick Consult — 1 round, 3 agents. Use for reversible decisions needing a second opinion.
+- **Tier 2:** Full Meeting — 2-3 rounds, 4-5 agents. Use only for irreversible or system-wide decisions.
+- If in doubt, run Tier 0 first. Escalate if the PM flags a blocker that needs broader input.
+
 **Participant selection rules:**
 - **Exception: Standups** — facilitator + project-manager only. Ignore all other size rules.
 - Minimum 4 agents for decision meetings (including facilitator)
@@ -223,6 +229,8 @@ Append to the **Meeting Learnings** section of each relevant agent's context fil
 - Estimates they gave and their rationale
 
 Keep entries concise — one line per fact. Include the meeting date and filename for traceability.
+
+**Rolling window:** After appending, count the lines in the Meeting Learnings section. If there are more than 50 lines, remove the oldest entries until only 50 remain. This prevents context files from growing unboundedly.
 
 If a context file doesn't exist yet, create it with this structure:
 ```markdown
