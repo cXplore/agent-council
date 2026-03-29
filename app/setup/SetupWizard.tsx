@@ -47,6 +47,7 @@ function SetupWizardInner() {
   const [projectPath, setProjectPath] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
+  const [scanProgress, setScanProgress] = useState<string[]>([]);
   const [profile, setProfile] = useState<ProjectProfile | null>(null);
   const [agents, setAgents] = useState<AgentSelection[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -252,18 +253,15 @@ function SetupWizardInner() {
     if (!projectPath.trim()) return;
     setScanning(true);
     setScanError('');
+    setScanProgress([]);
 
     const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
 
     try {
-      // Call the Agent SDK scan endpoint directly — instant, no polling
       const res = await fetch('/api/setup/ai-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          path: cleanPath,
-          name: cleanPath.split(/[\\/]/).pop() || 'project',
-        }),
+        body: JSON.stringify({ path: cleanPath }),
       });
 
       if (!res.ok) {
@@ -271,28 +269,59 @@ function SetupWizardInner() {
         throw new Error(err.error || 'Scan failed');
       }
 
-      const result = await res.json();
+      // Read SSE stream for live progress
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      if (result.profile) setProfile(result.profile);
+      if (!reader) throw new Error('No response stream');
 
-      const selections: AgentSelection[] = [];
-      const suggestedAgents: string[] = result.suggestedAgents || Object.keys(ALL_AGENTS).slice(0, 6);
-      if (!suggestedAgents.includes('facilitator')) suggestedAgents.unshift('facilitator');
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      for (const [template, info] of Object.entries(ALL_AGENTS)) {
-        const aiDesc = result.agentDescriptions?.[template];
-        selections.push({
-          template,
-          name: template,
-          description: aiDesc || info.description,
-          model: info.defaultModel,
-          tools: [...DEFAULT_TOOLS],
-          enabled: suggestedAgents.includes(template),
-        });
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6));
+
+            if (eventType === 'status') {
+              setScanProgress(prev => [...prev, data.message]);
+            } else if (eventType === 'progress') {
+              setScanProgress(prev => [...prev, data.detail]);
+            } else if (eventType === 'result') {
+              if (data.profile) setProfile(data.profile);
+
+              const selections: AgentSelection[] = [];
+              const suggestedAgents: string[] = data.suggestedAgents || Object.keys(ALL_AGENTS).slice(0, 6);
+              if (!suggestedAgents.includes('facilitator')) suggestedAgents.unshift('facilitator');
+
+              for (const [template, info] of Object.entries(ALL_AGENTS)) {
+                const aiDesc = data.agentDescriptions?.[template];
+                selections.push({
+                  template,
+                  name: template,
+                  description: aiDesc || info.description,
+                  model: info.defaultModel,
+                  tools: [...DEFAULT_TOOLS],
+                  enabled: suggestedAgents.includes(template),
+                });
+              }
+
+              setAgents(selections);
+              setStep('scan');
+            } else if (eventType === 'error') {
+              throw new Error(data.message);
+            }
+          }
+        }
       }
-
-      setAgents(selections);
-      setStep('scan');
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Scan failed');
     } finally {
@@ -449,9 +478,26 @@ function SetupWizardInner() {
                 </button>
               </div>
               {scanning && (
-                <div className="mt-3 flex items-center gap-2 text-xs" style={{ color: 'var(--accent)' }}>
-                  <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-                  Claude Code is analyzing your project... This takes a few seconds.
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--accent)' }}>
+                    <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
+                    Claude is analyzing your project...
+                  </div>
+                  {scanProgress.length > 0 && (
+                    <div
+                      className="text-xs space-y-0.5 px-3 py-2 rounded max-h-32 overflow-y-auto"
+                      style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.7rem' }}
+                    >
+                      {scanProgress.map((msg, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span style={{ color: 'var(--accent)', opacity: i === scanProgress.length - 1 ? 1 : 0.4 }}>
+                            {i === scanProgress.length - 1 ? '▸' : '·'}
+                          </span>
+                          <span style={{ opacity: i === scanProgress.length - 1 ? 1 : 0.5 }}>{msg}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {scanError && (

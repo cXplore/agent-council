@@ -1,24 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 /**
  * POST /api/setup/ai-scan — Deep project scan using Claude Agent SDK.
  *
- * Uses the Claude Agent SDK with the user's subscription (via setup-token)
- * to read and analyze a project's codebase. Returns project-specific agent
- * suggestions, descriptions, and team groupings.
- *
- * This replaces the basic scanner for the "Connect & scan" flow.
+ * Streams progress as Server-Sent Events so the setup wizard shows
+ * what Claude is doing in real-time. Final event contains the JSON result.
  */
 export async function POST(req: NextRequest) {
-  try {
-    const { path: projectPath } = await req.json();
+  const { path: projectPath } = await req.json();
 
-    if (!projectPath) {
-      return NextResponse.json({ error: 'path is required' }, { status: 400 });
-    }
+  if (!projectPath) {
+    return new Response(JSON.stringify({ error: 'path is required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-    const prompt = `You are scanning a project at "${projectPath}" to set up an AI agent team.
+  const prompt = `You are scanning a project at "${projectPath}" to set up an AI agent team.
 
 Read the project's key files to understand what it does:
 1. README.md (if exists)
@@ -58,45 +57,77 @@ Make descriptions specific to THIS project — mention actual frameworks, servic
 
 Return ONLY the JSON. No markdown fences, no explanation.`;
 
-    let resultText = '';
+  const encoder = new TextEncoder();
 
-    for await (const message of query({
-      prompt,
-      options: {
-        allowedTools: ['Read', 'Glob', 'Grep'],
-        permissionMode: 'acceptEdits',
-        cwd: projectPath,
-      },
-    })) {
-      if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
-          if ('text' in block && block.text) {
-            resultText += block.text;
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+      };
+
+      try {
+        let resultText = '';
+
+        send('status', { message: 'Starting project scan...' });
+
+        for await (const message of query({
+          prompt,
+          options: {
+            allowedTools: ['Read', 'Glob', 'Grep'],
+            permissionMode: 'acceptEdits',
+            cwd: projectPath,
+          },
+        })) {
+          if (message.type === 'assistant' && message.message?.content) {
+            for (const block of message.message.content) {
+              if ('text' in block && block.text) {
+                resultText += block.text;
+              } else if ('name' in block) {
+                // Tool call — show what Claude is doing
+                const toolName = (block as { name: string }).name;
+                const toolInput = (block as { input?: Record<string, unknown> }).input;
+                let detail = toolName;
+                if (toolName === 'Read' && toolInput?.file_path) {
+                  detail = `Reading ${String(toolInput.file_path).split(/[\\/]/).pop()}`;
+                } else if (toolName === 'Glob' && toolInput?.pattern) {
+                  detail = `Searching for ${toolInput.pattern}`;
+                } else if (toolName === 'Grep' && toolInput?.pattern) {
+                  detail = `Searching code for "${toolInput.pattern}"`;
+                }
+                send('progress', { tool: toolName, detail });
+              }
+            }
           }
         }
+
+        // Parse the JSON result
+        let jsonStr = resultText.trim();
+        const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) jsonStr = jsonMatch[1].trim();
+
+        const objStart = jsonStr.indexOf('{');
+        const objEnd = jsonStr.lastIndexOf('}');
+        if (objStart >= 0 && objEnd > objStart) {
+          jsonStr = jsonStr.slice(objStart, objEnd + 1);
+        }
+
+        const result = JSON.parse(jsonStr);
+        send('result', result);
+        send('done', {});
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Scan failed';
+        send('error', { message: errorMsg });
+      } finally {
+        controller.close();
       }
-    }
+    },
+  });
 
-    // Extract JSON from the response (Claude might wrap it in markdown fences)
-    let jsonStr = resultText.trim();
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) jsonStr = jsonMatch[1].trim();
-
-    // Find the JSON object
-    const objStart = jsonStr.indexOf('{');
-    const objEnd = jsonStr.lastIndexOf('}');
-    if (objStart >= 0 && objEnd > objStart) {
-      jsonStr = jsonStr.slice(objStart, objEnd + 1);
-    }
-
-    const result = JSON.parse(jsonStr);
-
-    return NextResponse.json(result, {
-      headers: { 'Cache-Control': 'no-cache, no-store' },
-    });
-  } catch (err) {
-    console.error('AI scan error:', err);
-    const message = err instanceof Error ? err.message : 'AI scan failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-store',
+      'Connection': 'keep-alive',
+    },
+  });
 }
