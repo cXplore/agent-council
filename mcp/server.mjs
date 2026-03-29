@@ -782,43 +782,41 @@ server.tool(
 // sends an MCP logging message to Claude Code. No output when idle — silent.
 // ---------------------------------------------------------------------------
 
-const TASKS_FILE = process.cwd() + '/.council-tasks.json';
-let lastTaskCheck = '';
+let lastTaskIds = '';
 let serverConnected = false;
 
 function checkForTasks() {
   if (!serverConnected) return;
-  try {
-    if (!fs.existsSync(TASKS_FILE)) return;
-    const raw = fs.readFileSync(TASKS_FILE, 'utf-8');
-    if (raw === lastTaskCheck) return; // no change
-    lastTaskCheck = raw;
 
-    const tasks = JSON.parse(raw);
-    const pending = tasks.filter(t => t.status === 'pending');
-    if (pending.length === 0) return;
+  // Use HTTP to check for tasks (filesystem path may differ from server)
+  councilRequest('/api/council/tasks')
+    .then(data => {
+      const tasks = data.tasks || [];
+      if (tasks.length === 0) return;
 
-    // Mark tasks as processing so we don't re-notify
-    for (const task of pending) {
-      task.status = 'processing';
-    }
-    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf-8');
+      // Deduplicate — only notify for tasks we haven't seen
+      const ids = tasks.map(t => t.id).join(',');
+      if (ids === lastTaskIds) return;
+      lastTaskIds = ids;
 
-    // Notify Claude Code directly via MCP logging message
-    for (const task of pending) {
-      try {
-        server.sendLoggingMessage({
-          level: 'info',
-          data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
-        });
-      } catch {
-        // Fallback: log to activity file
-        logActivity('task_detected', { type: task.type, id: task.id }, task.params);
+      for (const task of tasks) {
+        // Mark as processing via API
+        councilRequest('/api/council/tasks', 'PATCH', { id: task.id, status: 'processing' }).catch(() => {});
+
+        // Notify Claude Code via MCP logging message
+        try {
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
+          });
+        } catch {
+          // silent
+        }
       }
-    }
-  } catch {
-    // File doesn't exist or can't be read — silent
-  }
+    })
+    .catch(() => {
+      // Server not reachable — silent
+    });
 }
 
 // Start the server, then begin task watching
