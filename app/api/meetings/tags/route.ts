@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     if (query) {
       const q = query.toLowerCase();
-      results = results.filter(r => r.text.toLowerCase().includes(q));
+      results = results.filter(r => r.text?.toLowerCase().includes(q));
     }
 
     return NextResponse.json({
