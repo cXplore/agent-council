@@ -25,6 +25,7 @@
     "dist:linux": "next build && electron-builder --linux --publish never"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.87",
     "@gsap/react": "^2.1.2",
     "gsap": "^3.14.2",
     "lottie-react": "^2.4.1",

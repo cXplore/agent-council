@@ -47,7 +47,6 @@ function SetupWizardInner() {
   const [projectPath, setProjectPath] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
-  const [aiTaskId, setAiTaskId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProjectProfile | null>(null);
   const [agents, setAgents] = useState<AgentSelection[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -249,53 +248,6 @@ function SetupWizardInner() {
     }
   }, [searchParams]);
 
-  // Poll for task result when aiTaskId is set
-  useEffect(() => {
-    if (!aiTaskId) return;
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/council/tasks?id=${aiTaskId}`);
-        if (!res.ok) return;
-        const task = await res.json();
-        if (task.status === 'complete' && task.result) {
-          clearInterval(poll);
-          setScanning(false);
-
-          // Use the AI scan results to build the agent list
-          const result = task.result;
-          if (result.profile) setProfile(result.profile);
-
-          const selections: AgentSelection[] = [];
-          const suggestedAgents: string[] = result.suggestedAgents || Object.keys(ALL_AGENTS).slice(0, 6);
-          if (!suggestedAgents.includes('facilitator')) suggestedAgents.unshift('facilitator');
-
-          for (const [template, info] of Object.entries(ALL_AGENTS)) {
-            const aiDesc = result.agentDescriptions?.[template];
-            selections.push({
-              template,
-              name: template,
-              description: aiDesc || info.description,
-              model: info.defaultModel,
-              tools: [...DEFAULT_TOOLS],
-              enabled: suggestedAgents.includes(template),
-            });
-          }
-
-          setAgents(selections);
-          setStep('scan');
-          setAiTaskId(null);
-        } else if (task.status === 'error') {
-          clearInterval(poll);
-          setScanError(task.result?.error || 'Scan failed');
-          setScanning(false);
-          setAiTaskId(null);
-        }
-      } catch { /* keep polling */ }
-    }, 2000);
-
-    return () => clearInterval(poll);
-  }, [aiTaskId]);
-
   const handleScan = async () => {
     if (!projectPath.trim()) return;
     setScanning(true);
@@ -304,26 +256,46 @@ function SetupWizardInner() {
     const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
 
     try {
-      // Post a scan task — Claude Code will pick it up via MCP
-      const taskRes = await fetch('/api/council/tasks', {
+      // Call the Agent SDK scan endpoint directly — instant, no polling
+      const res = await fetch('/api/setup/ai-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'scan_project',
-          params: {
-            path: cleanPath,
-            name: cleanPath.split(/[\\/]/).pop() || 'project',
-          },
+          path: cleanPath,
+          name: cleanPath.split(/[\\/]/).pop() || 'project',
         }),
       });
 
-      if (!taskRes.ok) throw new Error('Failed to create scan task');
-      const taskData = await taskRes.json();
-      setAiTaskId(taskData.id);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Scan failed');
+      }
 
-      // The useEffect above will poll for results
+      const result = await res.json();
+
+      if (result.profile) setProfile(result.profile);
+
+      const selections: AgentSelection[] = [];
+      const suggestedAgents: string[] = result.suggestedAgents || Object.keys(ALL_AGENTS).slice(0, 6);
+      if (!suggestedAgents.includes('facilitator')) suggestedAgents.unshift('facilitator');
+
+      for (const [template, info] of Object.entries(ALL_AGENTS)) {
+        const aiDesc = result.agentDescriptions?.[template];
+        selections.push({
+          template,
+          name: template,
+          description: aiDesc || info.description,
+          model: info.defaultModel,
+          tools: [...DEFAULT_TOOLS],
+          enabled: suggestedAgents.includes(template),
+        });
+      }
+
+      setAgents(selections);
+      setStep('scan');
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'Scan failed');
+    } finally {
       setScanning(false);
     }
   };
