@@ -791,6 +791,32 @@ server.tool(
   }
 );
 
+// Tool: AI context — narrative summary of recent project activity
+server.tool(
+  'council_ai_context',
+  'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer. Call when you want deep context about project direction.',
+  {},
+  async () => {
+    try {
+      const data = await councilRequest('/api/council/ai-context', 'POST', {});
+      if (data.error) {
+        return { content: [{ type: 'text', text: `Could not generate context: ${data.error}` }] };
+      }
+      const meta = `(${data.meetingsAnalyzed} meeting${data.meetingsAnalyzed !== 1 ? 's' : ''} analyzed${data.inProgressMeetings > 0 ? `, ${data.inProgressMeetings} in progress` : ''})`;
+      return {
+        content: [{
+          type: 'text',
+          text: `Agent Council — AI Context ${meta}\n\n${data.narrative}`,
+        }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not generate AI context: ${err.message}\n\nHint: Ensure CLAUDE_CODE_OAUTH_TOKEN is set in .env.local` }],
+      };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
