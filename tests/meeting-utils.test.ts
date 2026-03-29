@@ -486,4 +486,22 @@ Think bigger.
     expect(agents).toContain('critic');
     expect(agents).toContain('north-star');
   });
+
+  it('normalizes agent names to lowercase from both patterns', () => {
+    const content = `# Meeting
+
+## Round 1
+
+**Critic:** This needs work.
+
+### North-Star (Round 1)
+
+Think bigger.
+`;
+    const agents = extractAgents(content);
+    expect(agents).toContain('critic');
+    expect(agents).toContain('north-star');
+    expect(agents).not.toContain('Critic');
+    expect(agents).not.toContain('North-Star');
+  });
 });

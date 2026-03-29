@@ -107,7 +107,12 @@ export async function GET() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: { agents?: string[] } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Empty or missing body is valid — means "merge all"
+    }
     const requestedAgents: string[] | undefined = body.agents;
 
     const config = await getConfig();

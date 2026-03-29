@@ -8,7 +8,16 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
  * what Claude is doing in real-time. Final event contains the JSON result.
  */
 export async function POST(req: NextRequest) {
-  const { path: projectPath } = await req.json();
+  let projectPath: string;
+  try {
+    const body = await req.json();
+    projectPath = body?.path;
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   if (!projectPath) {
     return new Response(JSON.stringify({ error: 'path is required' }), {

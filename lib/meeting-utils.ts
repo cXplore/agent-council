@@ -237,11 +237,11 @@ export function extractAgents(content: string): string[] {
   for (const m of content.matchAll(/\*\*(\w[\w-]+):\*\*/g)) {
     const name = m[1].toLowerCase();
     if (!['type', 'date', 'participants', 'facilitator', 'status', 'topic'].includes(name)) {
-      agents.add(m[1]);
+      agents.add(name);
     }
   }
   for (const m of content.matchAll(/^### (\w[\w-]+)\s*\(Round/gm)) {
-    agents.add(m[1]);
+    agents.add(m[1].toLowerCase());
   }
 
   return [...agents];
