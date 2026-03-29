@@ -64,6 +64,8 @@ function SettingsInner() {
   const [projectList, setProjectList] = useState<{ name: string; path: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => { document.title = 'Settings — Agent Council'; }, []);
+
   useEffect(() => {
     Promise.all([
       fetch('/api/health').then(r => r.ok ? r.json() : null),

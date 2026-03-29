@@ -335,6 +335,8 @@ function DashboardInner() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
 
+  useEffect(() => { document.title = 'Dashboard — Agent Council'; }, []);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);

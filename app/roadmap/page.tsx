@@ -412,6 +412,8 @@ function RoadmapInner() {
     }
   }, []);
 
+  useEffect(() => { document.title = 'Roadmap — Agent Council'; }, []);
+
   useEffect(() => {
     setLoading(true);
     loadData().finally(() => setLoading(false));

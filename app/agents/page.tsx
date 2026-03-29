@@ -673,6 +673,8 @@ function AgentsPageInner() {
     handleEditField(filename, 'team', team);
   };
 
+  useEffect(() => { document.title = 'Agents — Agent Council'; }, []);
+
   useEffect(() => {
     const fetchAgents = async () => {
       setLoading(true);
