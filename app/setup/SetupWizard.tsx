@@ -532,8 +532,8 @@ function SetupWizardInner() {
           </div>
         )}
 
-        {/* Connected card — shown on path step when connected */}
-        {step === 'path' && connected && (
+        {/* Connected card — shown on path step when connected, hidden during scan */}
+        {step === 'path' && connected && !scanning && (
           <div className="mt-6 space-y-6">
             <div
               className="rounded-lg p-6"
