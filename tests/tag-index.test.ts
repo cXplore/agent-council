@@ -138,3 +138,189 @@ describe('Roadmap item hashing', () => {
     expect(hash1).toHaveLength(8); // always 8 hex chars
   });
 });
+
+describe('Tag summary extraction', () => {
+  const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+
+  function extractTagsFromSummary(content: string): { type: string; id: string | null; text: string }[] {
+    const lines = content.split('\n');
+    const summaryIndex = lines.findIndex(l => l.trim() === '## Summary');
+    const startLine = summaryIndex >= 0 ? summaryIndex : 0;
+    const results = [];
+
+    for (let i = startLine; i < lines.length; i++) {
+      const match = lines[i].match(TAG_REGEX);
+      if (match) {
+        results.push({
+          type: match[1].toUpperCase(),
+          id: match[2]?.toLowerCase() ?? null,
+          text: match[3].trim(),
+        });
+      }
+    }
+    return results;
+  }
+
+  it('extracts tags only from summary section of complete meetings', () => {
+    const content = `<!-- status: complete -->
+# My Meeting
+
+## Round 1
+
+### Developer (Round 1)
+DECISION: This is a round decision that should be excluded
+
+## Summary
+
+- [DECISION] This is the real decision from the summary
+- [ACTION] Do the thing — assigned to developer`;
+
+    const tags = extractTagsFromSummary(content);
+    // Should NOT include the round decision since we start from summary
+    expect(tags.some(t => t.text.includes('round decision'))).toBe(false);
+    expect(tags.some(t => t.text.includes('real decision'))).toBe(true);
+    expect(tags.some(t => t.type === 'ACTION')).toBe(true);
+  });
+
+  it('extracts OPEN tags with slugs', () => {
+    const content = `## Summary
+
+- [OPEN:auth-tokens] How should refresh tokens work?
+- [OPEN] What is the fallback strategy?`;
+
+    const tags = extractTagsFromSummary(content);
+    const withSlug = tags.find(t => t.id === 'auth-tokens');
+    const withoutSlug = tags.find(t => t.id === null && t.type === 'OPEN');
+
+    expect(withSlug).toBeDefined();
+    expect(withSlug?.text).toContain('How should refresh tokens');
+    expect(withoutSlug).toBeDefined();
+  });
+
+  it('handles RESOLVED tags with slugs', () => {
+    const content = `## Summary
+
+- [RESOLVED:auth-tokens] Decided: use rotating refresh tokens`;
+
+    const tags = extractTagsFromSummary(content);
+    expect(tags[0].type).toBe('RESOLVED');
+    expect(tags[0].id).toBe('auth-tokens');
+    expect(tags[0].text).toContain('rotating refresh tokens');
+  });
+
+  it('handles IDEA tags', () => {
+    const content = `## Summary
+
+- [IDEA] Build an integrator that tracks decisions across commits`;
+
+    const tags = extractTagsFromSummary(content);
+    expect(tags[0].type).toBe('IDEA');
+    expect(tags[0].text).toContain('integrator');
+  });
+
+  it('returns empty array for content without tags', () => {
+    const content = `# Meeting
+
+## Summary
+
+Nothing tagged here. Just prose.`;
+
+    const tags = extractTagsFromSummary(content);
+    expect(tags).toHaveLength(0);
+  });
+});
+
+describe('JSON appendix extraction', () => {
+  function extractFromJSON(content: string): { decisions: number; actions: number; open: number; resolved: number } | null {
+    const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+    if (!jsonMatch) return null;
+    try {
+      const data = JSON.parse(jsonMatch[1]);
+      if (!data.schema_version) return null;
+      return {
+        decisions: (data.decisions ?? []).length,
+        actions: (data.actions ?? []).length,
+        open: (data.open_questions ?? []).length,
+        resolved: (data.resolved ?? []).length,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  it('returns null when no JSON appendix present', () => {
+    expect(extractFromJSON('# Plain markdown\n\n- [DECISION] Some decision')).toBeNull();
+  });
+
+  it('returns null for malformed JSON', () => {
+    const content = `<!-- meeting-outcomes
+{ invalid json
+-->`;
+    expect(extractFromJSON(content)).toBeNull();
+  });
+
+  it('returns null when schema_version is missing', () => {
+    const content = `<!-- meeting-outcomes
+{"decisions": []}
+-->`;
+    expect(extractFromJSON(content)).toBeNull();
+  });
+
+  it('extracts counts from valid JSON appendix', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [
+    { "text": "Use TypeScript", "rationale": "Type safety" },
+    { "text": "Use Drizzle ORM" }
+  ],
+  "actions": [
+    { "text": "Set up database schema", "assignee": "developer" }
+  ],
+  "open_questions": [
+    { "slug": "deployment-target", "text": "Where do we deploy?" }
+  ],
+  "resolved": []
+}
+-->`;
+
+    const result = extractFromJSON(content);
+    expect(result).not.toBeNull();
+    expect(result!.decisions).toBe(2);
+    expect(result!.actions).toBe(1);
+    expect(result!.open).toBe(1);
+    expect(result!.resolved).toBe(0);
+  });
+
+  it('handles empty arrays in appendix', () => {
+    const content = `<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [],
+  "actions": [],
+  "open_questions": [],
+  "resolved": []
+}
+-->`;
+    const result = extractFromJSON(content);
+    expect(result).not.toBeNull();
+    expect(result!.decisions).toBe(0);
+  });
+
+  it('handles missing optional fields in appendix', () => {
+    const content = `<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Decision only" }]
+}
+-->`;
+    const result = extractFromJSON(content);
+    expect(result).not.toBeNull();
+    expect(result!.decisions).toBe(1);
+    expect(result!.actions).toBe(0);
+    expect(result!.open).toBe(0);
+    expect(result!.resolved).toBe(0);
+  });
+});

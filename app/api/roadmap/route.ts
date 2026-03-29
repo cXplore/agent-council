@@ -22,7 +22,7 @@ export function hashItem(text: string, meeting: string): string {
 
 // --- Status store types ---
 
-type ItemStatus = 'active' | 'done' | 'stale';
+type ItemStatus = 'active' | 'done' | 'stale' | 'working';
 
 interface StatusEntry {
   status: ItemStatus;
