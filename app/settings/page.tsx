@@ -61,6 +61,7 @@ function SettingsInner() {
   const [mcp, setMcp] = useState<McpStatus | null>(null);
   const [templateCheck, setTemplateCheck] = useState<AgentCheckResponse | null>(null);
   const [mergeStatus, setMergeStatus] = useState<string | null>(null);
+  const [projectList, setProjectList] = useState<{ name: string; path: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -68,10 +69,12 @@ function SettingsInner() {
       fetch('/api/health').then(r => r.ok ? r.json() : null),
       fetch('/api/setup/mcp').then(r => r.ok ? r.json() : null),
       fetch('/api/agents/check').then(r => r.ok ? r.json() : null),
-    ]).then(([h, m, tc]) => {
+      fetch('/api/projects').then(r => r.ok ? r.json() : null),
+    ]).then(([h, m, tc, p]) => {
       setHealth(h);
       setMcp(m);
       setTemplateCheck(tc);
+      if (p?.projects) setProjectList(p.projects);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -154,30 +157,50 @@ function SettingsInner() {
           {health && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
               className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-              <h2 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Projects</h2>
-              <div className="grid grid-cols-3 gap-4 text-xs mb-3">
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Connected</div>
-                  <div className="text-2xl font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>{health.projects.total}</div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Accessible</div>
-                  <div className="text-2xl font-semibold mt-1" style={{ color: 'var(--live-green)' }}>{health.projects.accessible}</div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Missing</div>
-                  <div className="text-2xl font-semibold mt-1"
-                    style={{ color: health.projects.missing > 0 ? 'var(--warning)' : 'var(--text-primary)' }}>
-                    {health.projects.missing}
-                  </div>
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Projects</h2>
+                <a href="/setup" className="text-xs" style={{ color: 'var(--accent)' }}>+ Connect</a>
               </div>
-              <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Active: <strong style={{ color: 'var(--text-primary)' }}>{health.activeProject || '—'}</strong>
-                </span>
-                <a href="/setup" className="text-xs" style={{ color: 'var(--accent)' }}>Manage projects →</a>
-              </div>
+              {projectList.length === 0 ? (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No projects connected. <a href="/setup" style={{ color: 'var(--accent)' }}>Connect one →</a></p>
+              ) : (
+                <div className="space-y-2">
+                  {projectList.map(project => (
+                    <div
+                      key={project.name}
+                      className="flex items-center justify-between py-2 px-3 rounded text-xs"
+                      style={{ background: 'var(--bg)' }}
+                    >
+                      <div>
+                        <span className="font-medium" style={{ color: health.activeProject === project.name ? 'var(--accent)' : 'var(--text-primary)' }}>
+                          {project.name}
+                        </span>
+                        {health.activeProject === project.name && (
+                          <span className="ml-2 text-xs" style={{ color: 'var(--text-muted)' }}>active</span>
+                        )}
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                          {project.path}
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Disconnect "${project.name}" from Agent Council? This won't delete any files.`)) return;
+                          await fetch('/api/projects', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'remove', name: project.name }),
+                          });
+                          window.location.reload();
+                        }}
+                        className="text-xs px-2 py-0.5 rounded transition-colors hover:brightness-125"
+                        style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      >
+                        Disconnect
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           )}
 
