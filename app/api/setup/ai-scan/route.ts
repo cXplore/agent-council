@@ -76,6 +76,7 @@ Return ONLY the JSON. No markdown fences, no explanation.`;
             allowedTools: ['Read', 'Glob', 'Grep'],
             permissionMode: 'acceptEdits',
             cwd: projectPath,
+            maxTurns: 30,
           },
         })) {
           if (message.type === 'assistant' && message.message?.content) {
@@ -86,15 +87,21 @@ Return ONLY the JSON. No markdown fences, no explanation.`;
                 // Tool call — show what Claude is doing
                 const toolName = (block as { name: string }).name;
                 const toolInput = (block as { input?: Record<string, unknown> }).input;
-                let detail = toolName;
+                let detail = '';
                 if (toolName === 'Read' && toolInput?.file_path) {
                   detail = `Reading ${String(toolInput.file_path).split(/[\\/]/).pop()}`;
                 } else if (toolName === 'Glob' && toolInput?.pattern) {
-                  detail = `Searching for ${toolInput.pattern}`;
+                  const pattern = String(toolInput.pattern);
+                  detail = `Finding ${pattern.split(/[\\/]/).pop() || pattern}`;
                 } else if (toolName === 'Grep' && toolInput?.pattern) {
-                  detail = `Searching code for "${toolInput.pattern}"`;
+                  detail = `Searching for "${toolInput.pattern}"`;
+                } else if (toolName === 'Bash') {
+                  const cmd = String(toolInput?.command || '').slice(0, 60);
+                  detail = cmd ? `Running: ${cmd}` : '';
+                } else if (toolName === 'Agent') {
+                  detail = 'Analyzing project structure...';
                 }
-                send('progress', { tool: toolName, detail });
+                if (detail) send('progress', { tool: toolName, detail });
               }
             }
           }
