@@ -683,11 +683,29 @@ server.tool(
     try {
       const sections = [];
 
-      // 1. Get recent meetings
-      const meetingsData = await councilRequest('/api/meetings').catch(() => []);
+      // 1. Get recent meetings + roadmap in parallel
+      const [meetingsData, roadmapData] = await Promise.all([
+        councilRequest('/api/meetings').catch(() => []),
+        councilRequest('/api/roadmap').catch(() => ({ items: [], counts: {} })),
+      ]);
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
-      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 3);
+      const recentCompleted = meetings.filter(m => m.status === 'complete').slice(0, 2);
+      const items = roadmapData.items || [];
+      const counts = roadmapData.counts || {};
 
+      const activeActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+      const activeOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
+
+      // One-line synthesis at top
+      const lastMeeting = recentCompleted[0];
+      const lastMeetingLabel = lastMeeting
+        ? `last meeting: ${lastMeeting.title || lastMeeting.filename} (${lastMeeting.date || 'unknown'})`
+        : 'no completed meetings yet';
+      const moreActionsNote = activeActions.length > 3 ? ` (+${activeActions.length - 3} more)` : '';
+      sections.push(`${activeActions.length} action${activeActions.length !== 1 ? 's' : ''} pending · ${activeOpen.length} open question${activeOpen.length !== 1 ? 's' : ''} · ${lastMeetingLabel}`);
+      sections.push('');
+
+      // 2. Recent meetings (last 2)
       if (recentCompleted.length > 0) {
         sections.push('RECENT MEETINGS:');
         for (const m of recentCompleted) {
@@ -696,16 +714,23 @@ server.tool(
         sections.push('');
       }
 
-      // 2. Get active work items
-      const roadmapData = await councilRequest('/api/roadmap').catch(() => ({ items: [], counts: {} }));
-      const items = roadmapData.items || [];
-      const activeActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
-      const activeOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
-      const counts = roadmapData.counts || {};
+      // 3. Key decisions from last 2 meetings (max 5)
+      const last2MeetingFiles = new Set(recentCompleted.map(m => m.filename));
+      const recentDecisions = items
+        .filter(i => i.type === 'DECISION' && last2MeetingFiles.has(i.meeting))
+        .slice(0, 5);
+      if (recentDecisions.length > 0) {
+        sections.push('KEY DECISIONS (last 2 meetings):');
+        for (const d of recentDecisions) {
+          sections.push(`  ✓ ${d.text}`);
+        }
+        sections.push('');
+      }
 
+      // 4. Active actions (cap at 3)
       if (activeActions.length > 0) {
-        sections.push(`ACTIVE WORK (${activeActions.length} items):`);
-        for (const a of activeActions) {
+        sections.push(`ACTIVE WORK (${activeActions.length} items${moreActionsNote}):`);
+        for (const a of activeActions.slice(0, 3)) {
           sections.push(`  → ${a.text}`);
           sections.push(`    from: ${a.meetingTitle || a.meeting}`);
         }
@@ -715,15 +740,22 @@ server.tool(
         sections.push('');
       }
 
-      if (activeOpen.length > 0) {
-        sections.push(`OPEN QUESTIONS (${activeOpen.length}):`);
-        for (const o of activeOpen) {
+      // 5. Open questions (cap at 2, recent meetings only)
+      const recentMeetingFiles = new Set(
+        meetings.filter(m => m.status === 'complete').slice(0, 3).map(m => m.filename)
+      );
+      const recentOpen = activeOpen.filter(o => !o.meeting || recentMeetingFiles.has(o.meeting));
+      const displayOpen = recentOpen.length > 0 ? recentOpen : activeOpen;
+      if (displayOpen.length > 0) {
+        const extraNote = displayOpen.length > 2 ? ` (+${displayOpen.length - 2} more)` : '';
+        sections.push(`OPEN QUESTIONS (${displayOpen.length}${extraNote}):`);
+        for (const o of displayOpen.slice(0, 2)) {
           sections.push(`  ? ${o.text}`);
         }
         sections.push('');
       }
 
-      // 3. Progress summary
+      // 6. Progress summary
       const done = counts.done || 0;
       const active = counts.active || 0;
       const open = counts.open || 0;
@@ -731,7 +763,7 @@ server.tool(
       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
       sections.push(`PROGRESS: ${done} done, ${active} active, ${open} open (${pct}% complete)`);
 
-      // 4. Live meetings
+      // 7. Live meetings
       const live = meetings.filter(m => m.status === 'in-progress');
       if (live.length > 0) {
         sections.push('');
@@ -741,7 +773,7 @@ server.tool(
         }
       }
 
-      // 5. Check for user nudges (work items + planned meetings)
+      // 8. Check for user nudges (work items + planned meetings)
       const [suggestionsData, plannedData] = await Promise.all([
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
         councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
