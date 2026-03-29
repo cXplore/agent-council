@@ -431,7 +431,7 @@ function CreateAgentForm({ onCreated }: { onCreated: () => void }) {
 
       // Refresh agents list after a brief moment so the user sees the success message
       setTimeout(() => onCreated(), 600);
-    } catch (err: unknown) {
+    } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       setFeedback({ type: 'error', message });
     } finally {
