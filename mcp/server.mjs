@@ -840,8 +840,10 @@ server.tool(
 
 const TASKS_FILE = pathModule.join(process.cwd(), '.council-tasks.json');
 let lastTaskCheck = '';
+let serverConnected = false;
 
 function checkForTasks() {
+  if (!serverConnected) return;
   try {
     const raw = fs.readFileSync(TASKS_FILE, 'utf-8');
     if (raw === lastTaskCheck) return; // no change
@@ -853,23 +855,28 @@ function checkForTasks() {
 
     // Notify Claude Code about pending tasks via MCP logging
     for (const task of pending) {
-      server.server.sendLoggingMessage({
-        level: 'info',
-        data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
-      });
+      try {
+        server.server.sendLoggingMessage({
+          level: 'info',
+          data: `[TASK] ${task.type}: ${JSON.stringify(task.params)} (id: ${task.id})`,
+        });
+      } catch {
+        // Logging not supported or server not ready — silent
+      }
     }
   } catch {
     // File doesn't exist or can't be read — silent
   }
 }
 
-// Start checking every 3 seconds
-setInterval(checkForTasks, 3000);
-
-// Start the server
+// Start the server, then begin task watching
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  serverConnected = true;
+
+  // Start checking for tasks every 3 seconds (only after server is connected)
+  setInterval(checkForTasks, 3000);
 }
 
 main().catch(console.error);
