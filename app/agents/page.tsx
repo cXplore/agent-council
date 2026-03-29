@@ -193,11 +193,26 @@ function MeetingHistory({ agentName, meetings }: { agentName: string; meetings: 
   );
 }
 
-function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void }) {
+const TEAM_OPTIONS = ['core', 'engineering', 'design', 'security', 'content', 'domain', 'other'];
+const MODEL_OPTIONS = ['opus', 'sonnet', 'haiku'];
+
+function AgentCard({ agent, onSelect, editMode, onRefresh }: { agent: AgentInfo; onSelect: (a: AgentInfo) => void; editMode?: boolean; onRefresh?: () => void }) {
+  const patchAgent = async (field: string, value: string) => {
+    await fetch('/api/agents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: agent.filename, field, value }),
+    });
+    onRefresh?.();
+  };
+
   return (
-    <button
-      onClick={() => onSelect(agent)}
-      className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110"
+    <div
+      role={editMode ? undefined : 'button'}
+      tabIndex={editMode ? undefined : 0}
+      onClick={editMode ? undefined : () => onSelect(agent)}
+      onKeyDown={editMode ? undefined : (e) => { if (e.key === 'Enter') onSelect(agent); }}
+      className={`w-full text-left rounded-lg p-4 transition-colors ${editMode ? '' : 'hover:brightness-110 cursor-pointer'}`}
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <div className="flex items-center gap-3">
@@ -218,13 +233,42 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
             required
           </span>
         )}
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-          {agent.model}
-        </span>
+        {!editMode && (
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {agent.model}
+          </span>
+        )}
       </div>
       <p className="text-xs mt-1 ml-5" style={{ color: 'var(--text-secondary)' }}>
         {agent.description}
       </p>
+      {editMode && (
+        <div className="flex items-center gap-2 mt-2 ml-5">
+          <select
+            className="text-xs px-2 py-1 rounded cursor-pointer"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            value={agent.team || ''}
+            onChange={(e) => patchAgent('team', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <option value="">No team</option>
+            {TEAM_OPTIONS.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            className="text-xs px-2 py-1 rounded cursor-pointer"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            value={agent.model || 'sonnet'}
+            onChange={(e) => patchAgent('model', e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {MODEL_OPTIONS.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+      )}
       {agent.tools.length > 0 && (
         <div className="flex gap-1 mt-2 ml-5 flex-wrap">
           {agent.tools.slice(0, 5).map(t => (
@@ -239,7 +283,7 @@ function AgentCard({ agent, onSelect }: { agent: AgentInfo; onSelect: (a: AgentI
           )}
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -565,6 +609,7 @@ function AgentsPageInner() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editMode, setEditMode] = useState(false);
 
   const refreshAgents = () => setRefreshKey(k => k + 1);
 
@@ -782,8 +827,6 @@ function AgentsPageInner() {
     );
   }
 
-  const hasTeams = agents.some(a => a.team);
-
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
@@ -807,59 +850,17 @@ function AgentsPageInner() {
             >
               {showCreateForm ? 'Cancel' : '+ New Agent'}
             </button>
-            {agents.length > 1 && (
-              <select
-                className="text-xs px-2 py-1 rounded cursor-pointer"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
-                value=""
-                onChange={async (e) => {
-                  const newModel = e.target.value;
-                  if (!newModel) return;
-                  if (!confirm(`Set all ${agents.length} agents to model "${newModel}"?`)) return;
-                  for (const agent of agents) {
-                    try {
-                      await fetch('/api/agents', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
-                      });
-                    } catch { /* continue */ }
-                  }
-                  refreshAgents();
-                }}
-              >
-                <option value="">Set all models...</option>
-                <option value="opus">All → opus</option>
-                <option value="sonnet">All → sonnet</option>
-                <option value="haiku">All → haiku</option>
-              </select>
-            )}
-            {!hasTeams && agents.length > 0 && (
+            {agents.length > 0 && (
               <button
-                onClick={async () => {
-                  const teamMap: Record<string, string> = {
-                    'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
-                    'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
-                    'designer': 'design',
-                    'security-reviewer': 'security', 'domain-expert': 'domain',
-                    'tech-writer': 'content',
-                  };
-                  for (const agent of agents) {
-                    const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
-                    try {
-                      await fetch('/api/agents', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ filename: agent.filename, field: 'team', value: team }),
-                      });
-                    } catch { /* continue */ }
-                  }
-                  refreshAgents();
+                onClick={() => setEditMode(v => !v)}
+                className="text-xs px-2.5 py-1 rounded transition-colors"
+                style={{
+                  background: editMode ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                  color: editMode ? 'var(--accent)' : 'var(--text-muted)',
+                  border: editMode ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border)',
                 }}
-                className="text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
               >
-                Suggest teams
+                {editMode ? 'Done editing' : 'Edit'}
               </button>
             )}
           </div>
@@ -876,6 +877,66 @@ function AgentsPageInner() {
 
         {!loading && !fetchError && agents.length > 0 && (
           <StatsBanner agents={agents} />
+        )}
+
+        {/* Edit mode toolbar */}
+        {editMode && agents.length > 0 && (
+          <div
+            className="flex items-center gap-2 flex-wrap mb-4 px-4 py-3 rounded-lg"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', borderStyle: 'dashed' }}
+          >
+            <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>Bulk actions:</span>
+            <select
+              className="text-xs px-2 py-1 rounded cursor-pointer"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              value=""
+              onChange={async (e) => {
+                const newModel = e.target.value;
+                if (!newModel) return;
+                for (const agent of agents) {
+                  try {
+                    await fetch('/api/agents', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ filename: agent.filename, field: 'model', value: newModel }),
+                    });
+                  } catch { /* continue */ }
+                }
+                refreshAgents();
+              }}
+            >
+              <option value="">Set all models...</option>
+              <option value="opus">All → opus</option>
+              <option value="sonnet">All → sonnet</option>
+              <option value="haiku">All → haiku</option>
+            </select>
+            <button
+              onClick={async () => {
+                const teamMap: Record<string, string> = {
+                  'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
+                  'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
+                  'designer': 'design',
+                  'security-reviewer': 'security', 'domain-expert': 'domain',
+                  'tech-writer': 'content',
+                };
+                for (const agent of agents) {
+                  const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
+                  try {
+                    await fetch('/api/agents', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ filename: agent.filename, field: 'team', value: team }),
+                    });
+                  } catch { /* continue */ }
+                }
+                refreshAgents();
+              }}
+              className="text-xs px-2.5 py-1 rounded"
+              style={{ background: 'rgba(124, 109, 216, 0.15)', color: '#a78bfa', border: '1px solid rgba(124, 109, 216, 0.3)' }}
+            >
+              ✨ AI suggest teams
+            </button>
+          </div>
         )}
 
         {!loading && !fetchError && agents.length > 3 && (
@@ -993,7 +1054,7 @@ function AgentsPageInner() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.2, delay: idx < 10 ? idx * 0.04 : 0 }}
                             >
-                              <AgentCard agent={agent} onSelect={setSelected} />
+                              <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} />
                             </motion.div>
                           );
                         })}
@@ -1014,7 +1075,7 @@ function AgentsPageInner() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2, delay: i < 10 ? i * 0.04 : 0 }}
                 >
-                  <AgentCard agent={agent} onSelect={setSelected} />
+                  <AgentCard agent={agent} onSelect={setSelected} editMode={editMode} onRefresh={refreshAgents} />
                 </motion.div>
               ))}
             </div>
