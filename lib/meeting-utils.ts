@@ -231,6 +231,24 @@ export function getContentForRound(content: string, round: number | null): strin
   return contextPart + roundContent;
 }
 
+/**
+ * Format structured outcomes into the meeting-outcomes HTML comment block.
+ * Used by the PATCH /api/meetings endpoint and MCP council_close_meeting tool.
+ */
+export function formatOutcomesAppendix(outcomes: {
+  decisions?: Array<{ text: string; rationale?: string }>;
+  actions?: Array<{ text: string; assignee?: string }>;
+  openQuestions?: Array<{ text: string; slug?: string }>;
+}): string {
+  const json: Record<string, unknown> = { schema_version: 1 };
+  if (outcomes.decisions?.length) json.decisions = outcomes.decisions;
+  if (outcomes.actions?.length) json.actions = outcomes.actions;
+  if (outcomes.openQuestions?.length) json.open_questions = outcomes.openQuestions;
+  // Only schema_version means no actual outcomes
+  if (Object.keys(json).length === 1) return '';
+  return `\n\n<!-- meeting-outcomes\n${JSON.stringify(json, null, 2)}\nmeeting-outcomes -->`;
+}
+
 export function extractAgents(content: string): string[] {
   const agents = new Set<string>();
 

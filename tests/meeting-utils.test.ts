@@ -6,6 +6,7 @@ import {
   extractSummary,
   getContentForRound,
   extractAgents,
+  formatOutcomesAppendix,
 } from '@/lib/meeting-utils';
 
 // ---------------------------------------------------------------------------
@@ -505,3 +506,108 @@ Think bigger.
     expect(agents).not.toContain('North-Star');
   });
 });
+
+// ---------------------------------------------------------------------------
+// formatOutcomesAppendix
+// ---------------------------------------------------------------------------
+
+describe('formatOutcomesAppendix', () => {
+  it('returns empty string when no outcomes provided', () => {
+    expect(formatOutcomesAppendix({})).toBe('');
+  });
+
+  it('returns empty string when all arrays are empty', () => {
+    expect(formatOutcomesAppendix({ decisions: [], actions: [], openQuestions: [] })).toBe('');
+  });
+
+  it('formats decisions only', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Use JWT', rationale: 'Industry standard' }],
+    });
+    expect(result).toContain('<!-- meeting-outcomes');
+    expect(result).toContain('meeting-outcomes -->');
+    const json = extractJsonFromAppendix(result);
+    expect(json.decisions).toHaveLength(1);
+    expect(json.decisions[0].text).toBe('Use JWT');
+    expect(json.decisions[0].rationale).toBe('Industry standard');
+  });
+
+  it('formats actions only', () => {
+    const result = formatOutcomesAppendix({
+      actions: [{ text: 'Build login endpoint', assignee: 'developer' }],
+    });
+    const json = extractJsonFromAppendix(result);
+    expect(json.actions).toHaveLength(1);
+    expect(json.actions[0].assignee).toBe('developer');
+  });
+
+  it('formats open questions only (uses open_questions key for tag-index compat)', () => {
+    const result = formatOutcomesAppendix({
+      openQuestions: [{ text: 'How should tokens refresh?', slug: 'token-refresh' }],
+    });
+    const json = extractJsonFromAppendix(result);
+    expect(json.open_questions).toHaveLength(1);
+    expect(json.open_questions[0].slug).toBe('token-refresh');
+  });
+
+  it('formats all outcome types together', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Use JWT' }, { text: 'Use Neon' }],
+      actions: [{ text: 'Build auth' }],
+      openQuestions: [{ text: 'Token rotation?' }],
+    });
+    const json = extractJsonFromAppendix(result);
+    expect(json.decisions).toHaveLength(2);
+    expect(json.actions).toHaveLength(1);
+    expect(json.open_questions).toHaveLength(1);
+  });
+
+  it('omits empty arrays from JSON output', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Ship it' }],
+      actions: [],
+      openQuestions: [],
+    });
+    const json = extractJsonFromAppendix(result);
+    expect(json.decisions).toBeDefined();
+    expect(json.actions).toBeUndefined();
+    expect(json.open_questions).toBeUndefined();
+  });
+
+  it('includes schema_version for tag-index compatibility', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Ship it' }],
+    });
+    const json = extractJsonFromAppendix(result);
+    expect(json.schema_version).toBe(1);
+  });
+
+  it('produces output parseable by tag-index regex', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Use JWT' }],
+    });
+    // This is the exact regex used in lib/tag-index.ts and mcp/server.mjs
+    const jsonMatch = result.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
+    expect(jsonMatch).not.toBeNull();
+    const parsed = JSON.parse(jsonMatch![1]);
+    expect(parsed.decisions[0].text).toBe('Use JWT');
+  });
+
+  it('produces valid JSON without code fences', () => {
+    const result = formatOutcomesAppendix({
+      decisions: [{ text: 'Decision with "quotes" and special chars: <>&' }],
+    });
+    // Should not contain code fences
+    expect(result).not.toContain('```');
+    const jsonMatch = result.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
+    expect(() => JSON.parse(jsonMatch![1])).not.toThrow();
+  });
+});
+
+/** Helper: extract and parse JSON from formatOutcomesAppendix output */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractJsonFromAppendix(appendix: string): Record<string, any> {
+  const match = appendix.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
+  if (!match) throw new Error('No meeting-outcomes block found');
+  return JSON.parse(match[1]);
+}

@@ -3,7 +3,7 @@ import { readdir, readFile, stat, appendFile, unlink, writeFile, mkdir } from 'n
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
-import { parseMetadata, titleFromFilename } from '@/lib/meeting-utils';
+import { parseMetadata, titleFromFilename, formatOutcomesAppendix } from '@/lib/meeting-utils';
 
 /** Resolve meetings dir — uses ?project= param or active project */
 async function getMeetingsDir(request: NextRequest): Promise<{ dir: string; project: string }> {
@@ -264,20 +264,6 @@ export async function PUT(request: NextRequest) {
   } catch (err) {
     return NextResponse.json({ error: `Failed to create meeting: ${(err as Error).message}` }, { status: 500 });
   }
-}
-
-/** Format structured outcomes into the meeting-outcomes HTML comment block */
-function formatOutcomesAppendix(outcomes: {
-  decisions?: Array<{ text: string; rationale?: string }>;
-  actions?: Array<{ text: string; assignee?: string }>;
-  openQuestions?: Array<{ text: string; slug?: string }>;
-}): string {
-  const json: Record<string, unknown[]> = {};
-  if (outcomes.decisions?.length) json.decisions = outcomes.decisions;
-  if (outcomes.actions?.length) json.actions = outcomes.actions;
-  if (outcomes.openQuestions?.length) json.openQuestions = outcomes.openQuestions;
-  if (Object.keys(json).length === 0) return '';
-  return `\n\n<!-- meeting-outcomes\n\`\`\`json\n${JSON.stringify(json, null, 2)}\n\`\`\`\nmeeting-outcomes -->`;
 }
 
 export async function PATCH(request: NextRequest) {

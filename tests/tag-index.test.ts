@@ -314,4 +314,34 @@ describe('JSON appendix extraction', () => {
     expect(result!.open).toBe(0);
     expect(result!.resolved).toBe(0);
   });
+
+  it('parses the "meeting-outcomes -->" closing format', () => {
+    // This is the format produced by formatOutcomesAppendix
+    const content = `<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Use JWT" }],
+  "actions": [{ "text": "Build auth", "assignee": "developer" }]
+}
+meeting-outcomes -->`;
+    const result = extractFromJSON(content);
+    expect(result).not.toBeNull();
+    expect(result!.decisions).toBe(1);
+    expect(result!.actions).toBe(1);
+  });
+
+  it('parses formatOutcomesAppendix output (includes schema_version)', () => {
+    // formatOutcomesAppendix now includes schema_version and uses open_questions
+    const content = `<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Ship it" }],
+  "open_questions": [{ "text": "Token rotation?", "slug": "token-refresh" }]
+}
+meeting-outcomes -->`;
+    const result = extractFromJSON(content);
+    expect(result).not.toBeNull();
+    expect(result!.decisions).toBe(1);
+    expect(result!.open).toBe(1);
+  });
 });
