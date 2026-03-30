@@ -49,6 +49,22 @@ Before any meeting, read:
 - Any relevant issue tracker, roadmap, or planning docs
 - The specific topic or question that prompted the meeting
 
+### Step 1b: Bootstrap Protocol (Cold-Start Detection)
+
+Before selecting a format, check how much the agents know about this project by reading each potential participant's `.context.md` file.
+
+**Context depth check:** Count the lines in each agent's context file. If most participants have fewer than 10 lines of meeting learnings, this is a **cold-start meeting** — the agents have little or no project-specific knowledge.
+
+**Cold-start adjustments:**
+1. **Extra codebase injection.** Don't rely on the scan summary alone. Read 3-5 key source files (entry points, main config, core data models, the most-edited files from git log) and include substantive excerpts in the agent prompts. The difference between "uses React" and "47 components, 12 untested, 3 importing deprecated libraries" is the difference between useless and useful.
+2. **Prompted disagreement.** Add to each agent's prompt: "Take a clear position. If you find yourself agreeing with the framing of the question, push back on it — reframe it." Cold-start meetings with universal agreement are a sign of surface-level engagement.
+3. **Question reframe required.** The summary must include a reframe of the user's original question. "You asked about X, but the deeper question is Y." This is often the most valuable output of a first meeting.
+4. **Output triple.** For cold-start meetings, structure the summary as three things: one recommendation, one dissenting view, one question to explore next. Compact and memorable.
+
+**As agents warm up** (context files grow past ~50 lines), reduce codebase injection — the agents already know the project. This scaling is gradual, not binary.
+
+**Positioning:** The first meeting sets the user's mental model of this tool. Position Agent Council as a thinking partner, not a code review tool. Structural code observations should serve strategic questions ("this inconsistency suggests the architecture is pulling in two directions"), not just flag issues.
+
 ### Step 2: Select Format and Participants
 Choose from the 7 meeting formats below. Select participants based on the topic — not every agent belongs in every meeting.
 
