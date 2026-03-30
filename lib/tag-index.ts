@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { hashItem } from '@/lib/utils';
 
@@ -268,10 +268,12 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     builtAt: new Date().toISOString(),
   };
 
-  // Write cache
+  // Write cache atomically: write to .tmp then rename to prevent corruption on interrupted writes
   try {
     const cacheData: CacheFile = { index, mtimes };
-    await writeFile(cachePath, JSON.stringify(cacheData, null, 2), 'utf-8');
+    const tmpPath = cachePath + '.tmp';
+    await writeFile(tmpPath, JSON.stringify(cacheData, null, 2), 'utf-8');
+    await rename(tmpPath, cachePath);
   } catch {
     // Cache write failure is non-critical
   }

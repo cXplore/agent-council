@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { hashItem } from '@/lib/utils';
-import { extractTags, recallByTopic } from '@/lib/tag-index';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { extractTags, buildTagIndex, recallByTopic } from '@/lib/tag-index';
+import { mkdtemp, writeFile, rm, readFile, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -512,5 +512,90 @@ status: complete
     expect(results.length).toBeGreaterThan(0);
     expect(results.every(r => r.type === 'DECISION' || r.type === 'OPEN')).toBe(true);
     expect(results.every(r => r.date! >= '2026-03-30')).toBe(true);
+  });
+});
+
+describe('buildTagIndex caching', () => {
+  let cacheDir: string;
+  const cacheName = '.council-tag-cache.json';
+
+  beforeEach(async () => {
+    cacheDir = await mkdtemp(path.join(tmpdir(), 'cache-test-'));
+  });
+
+  afterAll(async () => {
+    // Best-effort cleanup (beforeEach creates new dirs)
+  });
+
+  it('creates a cache file on first build', async () => {
+    await writeFile(path.join(cacheDir, '2026-01-01-test.md'), `# Test\n\n- [DECISION] Ship it`);
+    await buildTagIndex(cacheDir);
+
+    const cacheExists = await stat(path.join(cacheDir, cacheName)).then(() => true, () => false);
+    expect(cacheExists).toBe(true);
+  });
+
+  it('returns cached results on second call (cache hit)', async () => {
+    await writeFile(path.join(cacheDir, '2026-01-01-test.md'), `# Test\n\n- [DECISION] Ship it`);
+
+    const first = await buildTagIndex(cacheDir);
+    const second = await buildTagIndex(cacheDir);
+
+    expect(first.decisions).toHaveLength(1);
+    expect(second.decisions).toHaveLength(1);
+    expect(first.decisions[0].text).toBe(second.decisions[0].text);
+  });
+
+  it('detects new files and rebuilds (cache miss)', async () => {
+    await writeFile(path.join(cacheDir, '2026-01-01-test.md'), `# Test\n\n- [DECISION] Decision A`);
+    const first = await buildTagIndex(cacheDir);
+    expect(first.decisions).toHaveLength(1);
+
+    // Add a new file
+    await writeFile(path.join(cacheDir, '2026-01-02-test2.md'), `# Test 2\n\n- [DECISION] Decision B`);
+    const second = await buildTagIndex(cacheDir);
+    expect(second.decisions).toHaveLength(2);
+  });
+
+  it('detects modified files and re-indexes them', async () => {
+    const filePath = path.join(cacheDir, '2026-01-01-test.md');
+    await writeFile(filePath, `# Test\n\n- [DECISION] Old decision`);
+    const first = await buildTagIndex(cacheDir);
+    expect(first.decisions[0].text).toBe('Old decision');
+
+    // Wait briefly so mtime changes, then overwrite
+    await new Promise(r => setTimeout(r, 50));
+    await writeFile(filePath, `# Test\n\n- [DECISION] New decision`);
+    const second = await buildTagIndex(cacheDir);
+    expect(second.decisions[0].text).toBe('New decision');
+  });
+
+  it('handles deleted files by removing their entries', async () => {
+    await writeFile(path.join(cacheDir, '2026-01-01-keep.md'), `# Keep\n\n- [DECISION] Keep this`);
+    await writeFile(path.join(cacheDir, '2026-01-02-delete.md'), `# Delete\n\n- [DECISION] Remove this`);
+
+    const first = await buildTagIndex(cacheDir);
+    expect(first.decisions).toHaveLength(2);
+
+    // Delete one file
+    await unlink(path.join(cacheDir, '2026-01-02-delete.md'));
+    const second = await buildTagIndex(cacheDir);
+    expect(second.decisions).toHaveLength(1);
+    expect(second.decisions[0].text).toBe('Keep this');
+  });
+
+  it('uses atomic writes (tmp file renamed)', async () => {
+    await writeFile(path.join(cacheDir, '2026-01-01-test.md'), `# Test\n\n- [DECISION] Ship it`);
+    await buildTagIndex(cacheDir);
+
+    // The .tmp file should not exist after successful write
+    const tmpExists = await stat(path.join(cacheDir, cacheName + '.tmp')).then(() => true, () => false);
+    expect(tmpExists).toBe(false);
+
+    // But the cache file should exist
+    const cacheContent = await readFile(path.join(cacheDir, cacheName), 'utf-8');
+    const parsed = JSON.parse(cacheContent);
+    expect(parsed.index.decisions).toHaveLength(1);
+    expect(parsed.mtimes).toHaveProperty('2026-01-01-test.md');
   });
 });
