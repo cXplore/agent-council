@@ -67,3 +67,4 @@ page-*.png
 # claude
 .claude/
 .env.local
+meetings/

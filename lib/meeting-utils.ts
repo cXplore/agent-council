@@ -259,6 +259,194 @@ export function formatOutcomesAppendix(outcomes: {
   return `\n\n<!-- meeting-outcomes\n${JSON.stringify(json, null, 2)}\nmeeting-outcomes -->`;
 }
 
+/**
+ * Generate a meeting filename from type and topic.
+ */
+export function generateMeetingFilename(type: string, topic: string, date?: string): string {
+  const d = date ?? new Date().toISOString().slice(0, 10);
+  const slug = topic
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60);
+  return `${d}-${type}-${slug}.md`;
+}
+
+/**
+ * Summarize one round's responses into a compact context block for the next round.
+ * Each agent's position is condensed to key points for cross-referencing.
+ */
+export function summarizeRound(
+  roundNumber: number,
+  responses: Array<{ agent: string; answer: string }>,
+): string {
+  const lines: string[] = [`## Round ${roundNumber} Summary\n`];
+  for (const { agent, answer } of responses) {
+    const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    const condensed = answer.length > 800
+      ? answer.slice(0, 800).replace(/\n[^\n]*$/, '') + '...'
+      : answer;
+    lines.push(`### ${displayName}\n${condensed}\n`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Build the prompt for Round N that includes previous rounds' context,
+ * instructing agents to respond to each other's positions.
+ */
+export function buildRoundPrompt(
+  roundNumber: number,
+  topic: string,
+  previousRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+): string {
+  const roundSummaries = previousRounds.map(r => summarizeRound(r.round, r.responses));
+  return [
+    `You are participating in Round ${roundNumber} of a structured multi-agent meeting.`,
+    `The topic is: ${topic}\n`,
+    `You have heard your colleagues' responses from previous rounds. Now respond to what they said — agree, challenge, build on their ideas, or synthesize. Reference specific colleagues by name.`,
+    `\n---\n\n## Previous Rounds\n`,
+    ...roundSummaries,
+    `\n---\n\nNow give your Round ${roundNumber} response. Address specific points from your colleagues. Where do you agree? Where do you push back? What synthesis emerges?`,
+  ].join('\n');
+}
+
+/**
+ * Structured outcomes extracted from meeting responses.
+ */
+export interface StructuredOutcomes {
+  decisions: Array<{ text: string; rationale?: string }>;
+  actions: Array<{ text: string; assignee?: string }>;
+  openQuestions: Array<{ text: string; slug?: string }>;
+}
+
+/**
+ * Extract structured outcomes (decisions, actions, open questions) from
+ * agent responses by parsing [DECISION], [ACTION], and [OPEN:slug] tags.
+ *
+ * Each tag must appear at the start of a line (possibly preceded by `-` or `*`).
+ * The text after the tag on the same line is captured as the item text.
+ * If the next non-empty line starts with "Rationale:" or "Why:", it's captured too.
+ */
+export function extractStructuredOutcomes(
+  rounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+): StructuredOutcomes {
+  const decisions: Array<{ text: string; rationale?: string }> = [];
+  const actions: Array<{ text: string; assignee?: string }> = [];
+  const openQuestions: Array<{ text: string; slug?: string }> = [];
+
+  // Collect all response text
+  const allText = rounds
+    .flatMap(r => r.responses.map(resp => resp.answer))
+    .join('\n\n');
+
+  const lines = allText.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].replace(/^[-*]\s*/, '').trim();
+
+    // [DECISION] or [DECISION:] text
+    const decisionMatch = line.match(/^\[DECISION[:\]]?\s*(.+)/i);
+    if (decisionMatch) {
+      const text = decisionMatch[1].replace(/^\]?\s*/, '').trim();
+      if (text) {
+        const rationale = peekRationale(lines, i);
+        decisions.push(rationale ? { text, rationale } : { text });
+      }
+      continue;
+    }
+
+    // [ACTION] or [ACTION:] text
+    const actionMatch = line.match(/^\[ACTION[:\]]?\s*(.+)/i);
+    if (actionMatch) {
+      const text = actionMatch[1].replace(/^\]?\s*/, '').trim();
+      if (text) {
+        // Check for "— assignee" or "(assignee)" at end
+        const assigneeMatch = text.match(/\s*[—–]\s*([\w-]+)\s*$/);
+        const parenMatch = text.match(/\s*\(([\w-]+)\)\s*$/);
+        if (assigneeMatch) {
+          actions.push({ text: text.replace(assigneeMatch[0], '').trim(), assignee: assigneeMatch[1] });
+        } else if (parenMatch) {
+          actions.push({ text: text.replace(parenMatch[0], '').trim(), assignee: parenMatch[1] });
+        } else {
+          actions.push({ text });
+        }
+      }
+      continue;
+    }
+
+    // [OPEN:slug] text
+    const openMatch = line.match(/^\[OPEN(?::([a-z][\w-]*))?\]?\s*(.+)/i);
+    if (openMatch) {
+      const slug = openMatch[1] || undefined;
+      const text = openMatch[2].replace(/^\]?\s*/, '').trim();
+      if (text) {
+        openQuestions.push(slug ? { text, slug } : { text });
+      }
+      continue;
+    }
+  }
+
+  return { decisions, actions, openQuestions };
+}
+
+/**
+ * Look at the next non-empty line for a "Rationale:" or "Why:" prefix.
+ */
+function peekRationale(lines: string[], currentIndex: number): string | undefined {
+  for (let j = currentIndex + 1; j < Math.min(currentIndex + 3, lines.length); j++) {
+    const next = lines[j].trim();
+    if (!next) continue;
+    const match = next.match(/^(?:Rationale|Why|Reason)[:\s]\s*(.+)/i);
+    return match ? match[1].trim() : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Build a synthesis prompt that asks an agent to extract outcomes from meeting responses.
+ * Used when tag-based parsing finds no results but we still want structured outcomes.
+ */
+export function buildOutcomeExtractionPrompt(
+  topic: string,
+  rounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+): string {
+  const roundTexts = rounds.map(r => {
+    const agentTexts = r.responses.map(resp => {
+      const name = resp.agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+      return `### ${name}\n${resp.answer}`;
+    }).join('\n\n');
+    return `## Round ${r.round}\n\n${agentTexts}`;
+  }).join('\n\n---\n\n');
+
+  return [
+    `You are a meeting synthesizer. A team of agents discussed: "${topic}"`,
+    '',
+    'Here are their responses:',
+    '',
+    roundTexts,
+    '',
+    '---',
+    '',
+    'Extract the key outcomes from this discussion. Output ONLY in this exact format, one item per line:',
+    '',
+    '[DECISION] The agreed-upon decision text',
+    'Rationale: Why this was decided',
+    '',
+    '[ACTION] The specific action to take — assignee-name',
+    '',
+    '[OPEN:kebab-slug] The unresolved question',
+    '',
+    'Rules:',
+    '- Only include items that have clear consensus or near-consensus across agents',
+    '- Decisions must be things the team agreed on, not individual opinions',
+    '- Actions must be concrete and actionable',
+    '- Open questions are unresolved disagreements or unknowns',
+    '- If there are no clear outcomes of a type, omit that type entirely',
+    '- Do NOT include any other text, headers, or explanation',
+  ].join('\n');
+}
+
 export function extractAgents(content: string): string[] {
   const agents = new Set<string>();
 

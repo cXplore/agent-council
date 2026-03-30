@@ -7,6 +7,11 @@ import {
   getContentForRound,
   extractAgents,
   formatOutcomesAppendix,
+  generateMeetingFilename,
+  summarizeRound,
+  buildRoundPrompt,
+  extractStructuredOutcomes,
+  buildOutcomeExtractionPrompt,
 } from '@/lib/meeting-utils';
 
 // ---------------------------------------------------------------------------
@@ -601,6 +606,342 @@ describe('formatOutcomesAppendix', () => {
     expect(result).not.toContain('```');
     const jsonMatch = result.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
     expect(() => JSON.parse(jsonMatch![1])).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// generateMeetingFilename
+// ---------------------------------------------------------------------------
+
+describe('generateMeetingFilename', () => {
+  it('generates filename with date, type, and slugified topic', () => {
+    const result = generateMeetingFilename('strategy', 'SDK Meeting Orchestration', '2026-03-30');
+    expect(result).toBe('2026-03-30-strategy-sdk-meeting-orchestration.md');
+  });
+
+  it('strips special characters from topic', () => {
+    const result = generateMeetingFilename('design-review', 'What\'s Next? — The Plan!', '2026-03-30');
+    expect(result).toBe('2026-03-30-design-review-what-s-next-the-plan.md');
+  });
+
+  it('truncates long topics to 60 characters', () => {
+    const longTopic = 'This is a very long topic that should be truncated because it exceeds the maximum allowed length for a filename';
+    const result = generateMeetingFilename('strategy', longTopic, '2026-03-30');
+    const slug = result.replace('2026-03-30-strategy-', '').replace('.md', '');
+    expect(slug.length).toBeLessThanOrEqual(60);
+  });
+
+  it('strips leading and trailing hyphens from slug', () => {
+    const result = generateMeetingFilename('standup', '---hello---', '2026-03-30');
+    expect(result).toBe('2026-03-30-standup-hello.md');
+  });
+
+  it('handles empty topic gracefully', () => {
+    const result = generateMeetingFilename('direction-check', '', '2026-03-30');
+    expect(result).toBe('2026-03-30-direction-check-.md');
+  });
+
+  it('uses current date when date parameter is omitted', () => {
+    const result = generateMeetingFilename('standup', 'daily');
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}-standup-daily\.md$/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// summarizeRound
+// ---------------------------------------------------------------------------
+
+describe('summarizeRound', () => {
+  it('produces a summary with round number and agent names', () => {
+    const result = summarizeRound(1, [
+      { agent: 'project-manager', answer: 'We should prioritize X.' },
+      { agent: 'critic', answer: 'I disagree because Y.' },
+    ]);
+    expect(result).toContain('## Round 1 Summary');
+    expect(result).toContain('### Project Manager');
+    expect(result).toContain('### Critic');
+    expect(result).toContain('We should prioritize X.');
+    expect(result).toContain('I disagree because Y.');
+  });
+
+  it('truncates long answers at ~800 chars', () => {
+    const longAnswer = 'A'.repeat(1000);
+    const result = summarizeRound(1, [
+      { agent: 'architect', answer: longAnswer },
+    ]);
+    expect(result).toContain('...');
+    expect(result.length).toBeLessThan(longAnswer.length + 200);
+  });
+
+  it('keeps short answers intact', () => {
+    const shortAnswer = 'Just a brief point.';
+    const result = summarizeRound(2, [
+      { agent: 'north-star', answer: shortAnswer },
+    ]);
+    expect(result).toContain(shortAnswer);
+    expect(result).not.toContain('...');
+  });
+
+  it('handles empty responses gracefully', () => {
+    const result = summarizeRound(1, []);
+    expect(result).toContain('## Round 1 Summary');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildRoundPrompt
+// ---------------------------------------------------------------------------
+
+describe('buildRoundPrompt', () => {
+  const round1Data = {
+    round: 1,
+    responses: [
+      { agent: 'project-manager', answer: 'We should do X.' },
+      { agent: 'critic', answer: 'X has risks.' },
+    ],
+  };
+
+  it('includes round number in the prompt', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data]);
+    expect(result).toContain('Round 2');
+    expect(result).toContain('Test topic');
+  });
+
+  it('includes instructions to reference colleagues', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data]);
+    expect(result).toContain('respond to what they said');
+    expect(result).toContain('Reference specific colleagues by name');
+  });
+
+  it('includes previous round summaries', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data]);
+    expect(result).toContain('## Round 1 Summary');
+    expect(result).toContain('Project Manager');
+    expect(result).toContain('We should do X.');
+  });
+
+  it('includes multiple previous rounds for Round 3', () => {
+    const round2Data = {
+      round: 2,
+      responses: [
+        { agent: 'project-manager', answer: 'I agree with critic.' },
+        { agent: 'critic', answer: 'Synthesis: do Y instead.' },
+      ],
+    };
+    const result = buildRoundPrompt(3, 'Test topic', [round1Data, round2Data]);
+    expect(result).toContain('Round 3');
+    expect(result).toContain('## Round 1 Summary');
+    expect(result).toContain('## Round 2 Summary');
+    expect(result).toContain('Synthesis: do Y instead.');
+  });
+
+  it('handles empty previous rounds', () => {
+    const result = buildRoundPrompt(2, 'Test topic', []);
+    expect(result).toContain('Round 2');
+    expect(result).toContain('Test topic');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractStructuredOutcomes
+// ---------------------------------------------------------------------------
+
+describe('extractStructuredOutcomes', () => {
+  it('extracts [DECISION] tags with rationale', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'architect',
+        answer: '[DECISION] Use PostgreSQL for the data layer\nRationale: Best fit for relational data with strong consistency requirements',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions).toHaveLength(1);
+    expect(result.decisions[0].text).toBe('Use PostgreSQL for the data layer');
+    expect(result.decisions[0].rationale).toBe('Best fit for relational data with strong consistency requirements');
+  });
+
+  it('extracts [ACTION] tags with assignee (dash format)', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'project-manager',
+        answer: '- [ACTION] Write migration scripts — developer',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].text).toBe('Write migration scripts');
+    expect(result.actions[0].assignee).toBe('developer');
+  });
+
+  it('extracts [ACTION] tags with assignee (paren format)', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'critic',
+        answer: '[ACTION] Add error handling for edge cases (architect)',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].text).toBe('Add error handling for edge cases');
+    expect(result.actions[0].assignee).toBe('architect');
+  });
+
+  it('extracts [ACTION] tags without assignee', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'developer',
+        answer: '[ACTION] Update the CI pipeline configuration',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.actions).toHaveLength(1);
+    expect(result.actions[0].text).toBe('Update the CI pipeline configuration');
+    expect(result.actions[0].assignee).toBeUndefined();
+  });
+
+  it('extracts [OPEN:slug] tags', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'north-star',
+        answer: '[OPEN:auth-strategy] Should we use JWT or session-based auth?',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.openQuestions).toHaveLength(1);
+    expect(result.openQuestions[0].text).toBe('Should we use JWT or session-based auth?');
+    expect(result.openQuestions[0].slug).toBe('auth-strategy');
+  });
+
+  it('extracts [OPEN] tags without slug', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'critic',
+        answer: '[OPEN] How do we handle backward compatibility?',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.openQuestions).toHaveLength(1);
+    expect(result.openQuestions[0].text).toBe('How do we handle backward compatibility?');
+    expect(result.openQuestions[0].slug).toBeUndefined();
+  });
+
+  it('extracts outcomes across multiple rounds and agents', () => {
+    const rounds = [
+      {
+        round: 1,
+        responses: [
+          { agent: 'architect', answer: 'Some analysis here\n[DECISION] Use microservices architecture' },
+          { agent: 'critic', answer: '[OPEN:scaling] How do we handle inter-service communication?' },
+        ],
+      },
+      {
+        round: 2,
+        responses: [
+          { agent: 'architect', answer: '[ACTION] Create service boundary document — architect' },
+          { agent: 'critic', answer: '[DECISION] Use gRPC for internal communication\nRationale: Lower latency than REST' },
+        ],
+      },
+    ];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions).toHaveLength(2);
+    expect(result.actions).toHaveLength(1);
+    expect(result.openQuestions).toHaveLength(1);
+  });
+
+  it('handles responses with no tags', () => {
+    const rounds = [{
+      round: 1,
+      responses: [
+        { agent: 'architect', answer: 'I think we should consider the trade-offs carefully.' },
+        { agent: 'critic', answer: 'Good points. The main risk is performance under load.' },
+      ],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions).toHaveLength(0);
+    expect(result.actions).toHaveLength(0);
+    expect(result.openQuestions).toHaveLength(0);
+  });
+
+  it('handles list-prefixed tags (- and *)', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'project-manager',
+        answer: '- [DECISION] Ship MVP by Friday\n* [ACTION] Write the spec\n- [OPEN:timeline] Is Friday realistic?',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions).toHaveLength(1);
+    expect(result.actions).toHaveLength(1);
+    expect(result.openQuestions).toHaveLength(1);
+  });
+
+  it('handles [DECISION:] variant (colon after tag)', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'architect',
+        answer: '[DECISION:] Use TypeScript for all new code',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions).toHaveLength(1);
+    expect(result.decisions[0].text).toBe('Use TypeScript for all new code');
+  });
+
+  it('picks up Why: as rationale variant', () => {
+    const rounds = [{
+      round: 1,
+      responses: [{
+        agent: 'critic',
+        answer: '[DECISION] Reject the proposal\nWhy: Too risky without more data',
+      }],
+    }];
+    const result = extractStructuredOutcomes(rounds);
+    expect(result.decisions[0].rationale).toBe('Too risky without more data');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildOutcomeExtractionPrompt
+// ---------------------------------------------------------------------------
+
+describe('buildOutcomeExtractionPrompt', () => {
+  it('includes topic and round content', () => {
+    const rounds = [{
+      round: 1,
+      responses: [
+        { agent: 'architect', answer: 'Use REST for simplicity' },
+        { agent: 'critic', answer: 'Consider gRPC for performance' },
+      ],
+    }];
+    const prompt = buildOutcomeExtractionPrompt('API design', rounds);
+    expect(prompt).toContain('API design');
+    expect(prompt).toContain('Architect');
+    expect(prompt).toContain('Use REST for simplicity');
+    expect(prompt).toContain('Critic');
+    expect(prompt).toContain('Consider gRPC for performance');
+    expect(prompt).toContain('[DECISION]');
+    expect(prompt).toContain('[ACTION]');
+    expect(prompt).toContain('[OPEN:');
+  });
+
+  it('includes multiple rounds', () => {
+    const rounds = [
+      { round: 1, responses: [{ agent: 'architect', answer: 'Round 1 thoughts' }] },
+      { round: 2, responses: [{ agent: 'architect', answer: 'Round 2 synthesis' }] },
+    ];
+    const prompt = buildOutcomeExtractionPrompt('topic', rounds);
+    expect(prompt).toContain('## Round 1');
+    expect(prompt).toContain('## Round 2');
+    expect(prompt).toContain('Round 1 thoughts');
+    expect(prompt).toContain('Round 2 synthesis');
   });
 });
 

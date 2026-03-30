@@ -583,13 +583,50 @@ function SetupWizardInner() {
                   <p>The meeting viewer is now watching your project&apos;s meetings directory.</p>
                 </div>
               )}
-              <a
-                href="/meetings"
-                className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
-                style={{ background: 'var(--accent)', color: 'white' }}
-              >
-                Open Meeting Viewer
-              </a>
+              {/* What's Next guidance */}
+              <div className="space-y-3 mb-4">
+                <h4 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  What&apos;s next
+                </h4>
+                <div className="space-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <p>Open your project in Claude Code and try:</p>
+                  <div
+                    className="px-3 py-2 rounded cursor-pointer group relative"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                    onClick={() => {
+                      navigator.clipboard.writeText("Let's do a quick direction check on this project — what should we focus on?");
+                    }}
+                    title="Click to copy"
+                  >
+                    <code className="text-xs" style={{ color: 'var(--accent)' }}>
+                      &quot;Let&apos;s do a quick direction check on this project — what should we focus on?&quot;
+                    </code>
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }}>
+                      click to copy
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    The facilitator will pick the right format and assemble your team. Watch it live in the meeting viewer.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mb-4">
+                <a
+                  href="/meetings"
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
+                  style={{ background: 'var(--accent)', color: 'white' }}
+                >
+                  Open Meeting Viewer
+                </a>
+                <a
+                  href="/agents"
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
+                >
+                  View Agents
+                </a>
+              </div>
 
               {/* MCP auto-setup */}
               {mcpTargets && (
@@ -698,6 +735,47 @@ function SetupWizardInner() {
                       </div>
                     );
                   })}
+
+                  {/* Manual copy fallback */}
+                  {mcpServerPath && (
+                    <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                        Or copy the config manually:
+                      </p>
+                      <div className="relative">
+                        <pre
+                          className="px-3 py-2 rounded text-xs overflow-x-auto"
+                          style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.7rem', lineHeight: '1.4' }}
+                        >
+{`{
+  "mcpServers": {
+    "agent-council": {
+      "command": "node",
+      "args": ["${mcpServerPath.replace(/\\/g, '/')}"]
+    }
+  }
+}`}
+                        </pre>
+                        <button
+                          onClick={() => {
+                            const json = JSON.stringify({
+                              mcpServers: {
+                                'agent-council': {
+                                  command: 'node',
+                                  args: [mcpServerPath.replace(/\\/g, '/')],
+                                },
+                              },
+                            }, null, 2);
+                            navigator.clipboard.writeText(json);
+                          }}
+                          className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded transition-opacity hover:opacity-100 opacity-60"
+                          style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Post-configure messages */}
                   {Object.values(mcpDone).some(Boolean) && (

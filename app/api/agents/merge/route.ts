@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
 import { fillTemplate, parseFrontmatter, serializeFrontmatter } from '@/lib/agent-templates';
 import { scanProject } from '@/lib/scanner';
+import { buildPlaceholders } from '@/lib/project-setup';
 
 const TEMPLATES_DIR = path.join(process.cwd(), 'templates', 'agents');
 
@@ -189,31 +190,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** Build placeholder map from project profile — same logic as generate route */
-function buildPlaceholders(projectPath: string, profile: { languages: { name: string }[]; frameworks: { name: string }[]; packageManager: string; libraries: Record<string, string[]> }): Record<string, string> {
-  const projectName = path.basename(projectPath);
-  const frameworkNames = profile.frameworks.map(f => f.name).join(', ') || 'Unknown';
-  const languageNames = profile.languages.map(l => l.name).join(', ') || 'Unknown';
-  const libs = profile.libraries;
-
-  const libSections: string[] = [];
-  for (const [category, names] of Object.entries(libs)) {
-    if (names.length > 0) {
-      libSections.push(`${category}: ${names.join(', ')}`);
-    }
-  }
-
-  return {
-    PROJECT_NAME: projectName,
-    FRAMEWORK: frameworkNames,
-    LANGUAGES: languageNames,
-    PACKAGE_MANAGER: profile.packageManager,
-    MEETINGS_DIR: 'meetings',
-    LIBRARIES: libSections.length > 0 ? libSections.join('\n') : 'None detected',
-    ANIMATION_LIBS: (libs.animation ?? []).join(', ') || 'None installed',
-    TESTING_LIBS: (libs.testing ?? []).join(', ') || 'None installed',
-    DB_LIBS: (libs.database ?? []).join(', ') || 'None installed',
-    UI_LIBS: (libs.ui ?? []).join(', ') || 'None installed',
-    THREE_D_LIBS: (libs['3d'] ?? []).join(', ') || 'None installed',
-  };
-}

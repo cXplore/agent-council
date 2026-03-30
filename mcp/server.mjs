@@ -1199,6 +1199,88 @@ server.tool(
   }
 );
 
+server.tool(
+  'council_multi_consult',
+  'Run a structured multi-agent meeting. Round 1: agents respond independently in parallel. Round 2+: agents receive previous rounds as context and respond to each other — challenging, building on, and synthesizing ideas. Results are written to a meeting file. Use when you want deliberation from 2-6 agents.',
+  {
+    topic: z.string().describe('The question or topic for agents to discuss'),
+    agents: z.array(z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager']))
+      .min(2).max(6)
+      .describe('Which agents to consult (2-6 agents)'),
+    rounds: z.number().min(1).max(3).optional()
+      .describe('Number of deliberation rounds (1-3, default: 1). Use 2 for decisions that benefit from cross-agent synthesis. Use 3 only for complex/irreversible decisions.'),
+    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'direction-check'])
+      .optional()
+      .describe('Meeting type for the generated file (default: direction-check)'),
+    codeAware: z.boolean().optional()
+      .describe('When true, agents can read the project codebase. Slower but more grounded. Default: false.'),
+    writeMeeting: z.boolean().optional()
+      .describe('Write results to a meeting file (default: true). Set false to get responses only.'),
+  },
+  async ({ topic, agents, rounds = 1, type = 'direction-check', codeAware = false, writeMeeting = true }) => {
+    try {
+      const result = await councilRequest('/api/council/multi-consult', 'POST', {
+        topic, agents, rounds, type, codeAware, writeMeeting,
+      });
+      if (result.error) {
+        return { content: [{ type: 'text', text: `Multi-consult failed: ${result.error}` }] };
+      }
+
+      const parts = [];
+      if (result.meetingFile) {
+        parts.push(`Meeting file: ${result.meetingFile}\n`);
+      }
+      // Handle multi-round response format
+      const roundsData = result.rounds || [];
+      for (const roundData of roundsData) {
+        if (roundsData.length > 1) {
+          parts.push(`## Round ${roundData.round}\n`);
+        }
+        for (const r of (roundData.responses || [])) {
+          const displayName = r.agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+          parts.push(`### ${displayName}\n\n${r.answer}`);
+        }
+      }
+
+      // Append structured outcomes if present
+      if (result.outcomes) {
+        const outcomeParts = ['\n## Outcomes\n'];
+        if (result.outcomes.decisions?.length) {
+          outcomeParts.push('**Decisions:**');
+          for (const d of result.outcomes.decisions) {
+            outcomeParts.push(`- [DECISION] ${d.text}${d.rationale ? `\n  Rationale: ${d.rationale}` : ''}`);
+          }
+          outcomeParts.push('');
+        }
+        if (result.outcomes.actions?.length) {
+          outcomeParts.push('**Actions:**');
+          for (const a of result.outcomes.actions) {
+            outcomeParts.push(`- [ACTION] ${a.text}${a.assignee ? ` — ${a.assignee}` : ''}`);
+          }
+          outcomeParts.push('');
+        }
+        if (result.outcomes.openQuestions?.length) {
+          outcomeParts.push('**Open Questions:**');
+          for (const o of result.outcomes.openQuestions) {
+            outcomeParts.push(`- [OPEN${o.slug ? ':' + o.slug : ''}] ${o.text}`);
+          }
+          outcomeParts.push('');
+        }
+        parts.push(outcomeParts.join('\n'));
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: parts.join('\n\n---\n\n'),
+        }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Multi-consult error: ${err.message}` }] };
+    }
+  }
+);
+
 // Start the server
 async function main() {
   const transport = new StdioServerTransport();
