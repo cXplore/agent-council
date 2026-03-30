@@ -351,21 +351,40 @@ server.tool(
 // Tool: Close a meeting by setting status to complete
 server.tool(
   'council_close_meeting',
-  'Close a meeting by setting its status to "complete". Optionally append final content (summary section, JSON appendix) before closing. Use after all rounds are done and the summary is written.',
+  'Close a meeting by setting its status to "complete". Optionally append final content and/or structured outcomes before closing. Use the outcomes parameter to avoid JSON-in-JSON escaping — the server formats the appendix.',
   {
     filename: z.string().describe('Meeting filename (e.g., "2026-03-30-design-review-api-caching.md")'),
-    appendContent: z.string().optional().describe('Content to append before closing (e.g., summary section with decisions, actions, JSON appendix)'),
+    appendContent: z.string().optional().describe('Text content to append before closing (e.g., summary section). Raw markdown, not JSON.'),
+    outcomes: z.object({
+      decisions: z.array(z.object({
+        text: z.string().describe('The decision text'),
+        rationale: z.string().optional().describe('Why this was decided'),
+      })).optional().describe('Decisions made in the meeting'),
+      actions: z.array(z.object({
+        text: z.string().describe('The action item text'),
+        assignee: z.string().optional().describe('Who should do this'),
+      })).optional().describe('Action items from the meeting'),
+      openQuestions: z.array(z.object({
+        text: z.string().describe('The open question text'),
+        slug: z.string().optional().describe('Short slug for tracking (e.g., "api-versioning")'),
+      })).optional().describe('Unresolved questions to carry forward'),
+    }).optional().describe('Structured outcomes — server formats the JSON appendix. Preferred over embedding JSON in appendContent.'),
   },
-  async ({ filename, appendContent }) => {
+  async ({ filename, appendContent, outcomes }) => {
     try {
       const data = await councilRequest('/api/meetings', 'PATCH', {
         file: filename,
         status: 'complete',
         content: appendContent || null,
+        outcomes: outcomes || null,
       });
 
+      const parts = [`Meeting closed: ${data.filename}`, 'Status: complete'];
+      if (data.appended) parts.push('Summary appended');
+      if (data.outcomesAppended) parts.push('Outcomes appendix generated');
+
       return {
-        content: [{ type: 'text', text: `Meeting closed: ${data.filename}\nStatus: complete${data.appended ? '\nSummary appended' : ''}` }],
+        content: [{ type: 'text', text: parts.join('\n') }],
       };
     } catch (err) {
       return { content: [{ type: 'text', text: `Failed to close meeting: ${err.message}` }] };

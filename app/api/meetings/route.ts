@@ -266,11 +266,25 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/** Format structured outcomes into the meeting-outcomes HTML comment block */
+function formatOutcomesAppendix(outcomes: {
+  decisions?: Array<{ text: string; rationale?: string }>;
+  actions?: Array<{ text: string; assignee?: string }>;
+  openQuestions?: Array<{ text: string; slug?: string }>;
+}): string {
+  const json: Record<string, unknown[]> = {};
+  if (outcomes.decisions?.length) json.decisions = outcomes.decisions;
+  if (outcomes.actions?.length) json.actions = outcomes.actions;
+  if (outcomes.openQuestions?.length) json.openQuestions = outcomes.openQuestions;
+  if (Object.keys(json).length === 0) return '';
+  return `\n\n<!-- meeting-outcomes\n\`\`\`json\n${JSON.stringify(json, null, 2)}\n\`\`\`\nmeeting-outcomes -->`;
+}
+
 export async function PATCH(request: NextRequest) {
   const { dir: meetingsDir } = await getMeetingsDir(request);
 
   try {
-    const { file, status, content: appendContent } = await request.json();
+    const { file, status, content: appendContent, outcomes } = await request.json();
 
     if (!file) {
       return NextResponse.json({ error: 'file is required' }, { status: 400 });
@@ -283,6 +297,12 @@ export async function PATCH(request: NextRequest) {
     // Append content if provided (e.g., summary section, agent responses)
     if (appendContent && typeof appendContent === 'string') {
       fileContent += appendContent;
+    }
+
+    // Append structured outcomes as JSON appendix (avoids JSON-in-JSON escaping)
+    if (outcomes && typeof outcomes === 'object') {
+      const appendix = formatOutcomesAppendix(outcomes);
+      if (appendix) fileContent += appendix;
     }
 
     // Update status if provided
@@ -308,6 +328,7 @@ export async function PATCH(request: NextRequest) {
       filename: safeName,
       status: status || 'unchanged',
       appended: !!appendContent,
+      outcomesAppended: !!(outcomes && typeof outcomes === 'object'),
     });
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
