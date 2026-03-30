@@ -19,6 +19,7 @@ import {
   type ResolutionManifest,
 } from '@/lib/preflight-context';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { writeActivityEntry } from '@/lib/activity-log';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
 
@@ -402,6 +403,20 @@ export async function POST(req: NextRequest) {
       meetingFile = meetingFilename;
 
       await emitEvent('meeting_complete', meetingFilename, `${allRounds.length} round${allRounds.length > 1 ? 's' : ''} complete`);
+
+      // Log to activity feed
+      const decisionCount = outcomes.decisions.length;
+      const actionCount = outcomes.actions.length;
+      const outcomeSummary = [
+        decisionCount > 0 ? `${decisionCount} decision${decisionCount > 1 ? 's' : ''}` : '',
+        actionCount > 0 ? `${actionCount} action${actionCount > 1 ? 's' : ''}` : '',
+      ].filter(Boolean).join(', ');
+      await writeActivityEntry({
+        source: 'meeting',
+        type: 'meeting_complete',
+        summary: `Meeting complete: ${topic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
+        linkedMeeting: meetingFilename,
+      }).catch(() => {}); // fire-and-forget
     }
 
     // Build outcomes for response (only include non-empty arrays)

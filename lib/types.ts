@@ -100,3 +100,15 @@ export interface MeetingEvent {
   detail?: string;
   timestamp: string;
 }
+
+/** Activity log entry — shared schema for worker, interactive, and meeting contexts */
+export interface ActivityEntry {
+  id: string;
+  timestamp: string;
+  source: 'worker' | 'interactive' | 'meeting';
+  type: 'code_change' | 'meeting_complete' | 'action_resolved' | 'flag' | 'worker_run';
+  summary: string;
+  detail?: string;
+  linkedMeeting?: string;
+  linkedCommit?: string;
+}

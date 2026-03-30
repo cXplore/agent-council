@@ -7,6 +7,7 @@ import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType, getTypeColor } from './MeetingListCard';
 import { inferMeetingType } from '@/lib/meeting-type-inference';
 import { renderInline } from './render-inline';
+import ActivityFeed from './ActivityFeed';
 
 /** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
 function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
@@ -293,6 +294,9 @@ export default function MeetingList(props: MeetingListProps) {
             )}
           </div>
         )}
+
+        {/* Activity feed — shared log of worker, meeting, and interactive activity */}
+        <ActivityFeed />
 
         {/* Planned meetings */}
         {plannedMeetings.length > 0 && (
