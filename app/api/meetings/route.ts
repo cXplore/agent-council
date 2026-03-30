@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, readFile, stat, appendFile, unlink } from 'node:fs/promises';
+import { readdir, readFile, stat, appendFile, unlink, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
 import type { MeetingListItem, MeetingDetail } from '@/lib/types';
@@ -168,6 +168,101 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Meeting file not found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Failed to add message' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const { dir: meetingsDir } = await getMeetingsDir(request);
+
+  try {
+    const body = await request.json();
+    const { title, type, participants, context, carryForward } = body;
+
+    if (!title || !type) {
+      return NextResponse.json({ error: 'title and type are required' }, { status: 400 });
+    }
+
+    const validTypes = ['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check'];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` }, { status: 400 });
+    }
+
+    const participantList: string[] = participants || [];
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
+
+    // Generate filename: YYYY-MM-DD-type-topic-slug.md
+    const topicSlug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 60)
+      .replace(/-$/, '');
+    const filename = `${dateStr}-${type}-${topicSlug}.md`;
+    const filePath = path.join(meetingsDir, filename);
+
+    // Check if file already exists
+    try {
+      await stat(filePath);
+      return NextResponse.json({ error: `Meeting file already exists: ${filename}` }, { status: 409 });
+    } catch {
+      // File doesn't exist — good
+    }
+
+    // Build meeting file content
+    const lines: string[] = [];
+    lines.push(`<!-- meeting-type: ${type} -->`);
+    lines.push(`<!-- status: in-progress -->`);
+    lines.push(`<!-- created: ${timeStr} -->`);
+    if (participantList.length > 0) {
+      lines.push(`<!-- participants: ${participantList.join(', ')} -->`);
+    }
+    lines.push(`<!-- topic: ${title} -->`);
+    lines.push('');
+    lines.push(`# ${title}`);
+    lines.push('');
+    lines.push(`**Date:** ${dateStr}`);
+    lines.push(`**Type:** ${type}`);
+    lines.push(`**Status:** in-progress`);
+    if (participantList.length > 0) {
+      lines.push(`**Participants:** ${participantList.join(', ')}`);
+    }
+    lines.push('');
+    lines.push('## Context');
+    lines.push('');
+    if (context) {
+      lines.push(context);
+    } else {
+      lines.push(`Meeting topic: ${title}`);
+    }
+
+    if (carryForward && typeof carryForward === 'string' && carryForward.trim()) {
+      lines.push('');
+      lines.push('### Carry-forward from previous meetings');
+      lines.push('');
+      lines.push(carryForward.trim());
+    }
+
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+
+    // Ensure meetings directory exists
+    await mkdir(meetingsDir, { recursive: true });
+    await writeFile(filePath, lines.join('\n'), 'utf-8');
+
+    return NextResponse.json({
+      filename,
+      title,
+      type,
+      status: 'in-progress',
+      participants: participantList,
+      date: dateStr,
+    }, { status: 201 });
+  } catch (err) {
+    return NextResponse.json({ error: `Failed to create meeting: ${(err as Error).message}` }, { status: 500 });
   }
 }
 

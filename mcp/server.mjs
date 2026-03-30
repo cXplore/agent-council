@@ -283,6 +283,47 @@ server.tool(
   }
 );
 
+// Tool: Create a new meeting file with proper structure
+server.tool(
+  'council_create_meeting',
+  'Create a new meeting file with proper metadata and structure. Returns the filename for use with council_notify and other tools. The meeting is created with status "in-progress" — write agent contributions to it, then close it.',
+  {
+    title: z.string().describe('Meeting title (e.g., "Design Review: API Caching Strategy")'),
+    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check']).describe('Meeting format'),
+    participants: z.array(z.string()).optional().describe('Agent names participating (e.g., ["project-manager", "critic", "north-star"])'),
+    context: z.string().optional().describe('Context section content — what prompted this meeting, relevant project state'),
+    carryForward: z.string().optional().describe('Carry-forward from previous meetings — unresolved OPEN items or pending ACTIONs'),
+  },
+  async ({ title, type, participants, context, carryForward }) => {
+    try {
+      const data = await councilRequest('/api/meetings', 'PUT', {
+        title,
+        type,
+        participants: participants || [],
+        context: context || null,
+        carryForward: carryForward || null,
+      });
+
+      const lines = [`Meeting created: ${data.filename}`];
+      lines.push(`  Title: ${data.title}`);
+      lines.push(`  Type: ${data.type}`);
+      lines.push(`  Status: ${data.status}`);
+      if (data.participants?.length) {
+        lines.push(`  Participants: ${data.participants.join(', ')}`);
+      }
+      lines.push('');
+      lines.push('Next steps:');
+      lines.push('  1. Call council_notify(event: "meeting_starting", meeting: "' + data.filename + '")');
+      lines.push('  2. Write agent contributions to the file');
+      lines.push('  3. Call council_notify(event: "meeting_complete", meeting: "' + data.filename + '") when done');
+
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Failed to create meeting: ${err.message}` }] };
+    }
+  }
+);
+
 // Tool: Notify meeting event
 server.tool(
   'council_notify',
