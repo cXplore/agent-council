@@ -18,6 +18,7 @@ export async function GET() {
       meetingsDir: p.meetingsDir,
       agentsDir: p.agentsDir,
       accessible: !missingSet.has(name),
+      profile: p.profile,
     }));
 
     return NextResponse.json({

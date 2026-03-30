@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readdir, stat, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig } from '@/lib/config';
+import { scanProject } from '@/lib/scanner';
 
 export async function POST(req: NextRequest) {
   try {
@@ -64,12 +65,21 @@ export async function POST(req: NextRequest) {
       // might already exist
     }
 
+    // Run lightweight filesystem scan — pure file I/O, no AI tokens needed
+    let profile = undefined;
+    try {
+      profile = await scanProject(projectPath);
+    } catch {
+      // Scan failure is non-fatal — connect still works without a profile
+    }
+
     // Add project to config and make it active
     const config = await getConfig();
     config.projects[projectName] = {
       path: projectPath.replace(/\\/g, '/'),
       meetingsDir: resolvedMeetingsDir,
       agentsDir,
+      ...(profile ? { profile } : {}),
     };
     config.activeProject = projectName;
     await saveConfig(config);
@@ -80,6 +90,7 @@ export async function POST(req: NextRequest) {
       project: config.projects[projectName],
       agentCount,
       hasFacilitator,
+      profile,
     });
   } catch (err) {
     console.error('Connect project error:', err);

@@ -873,10 +873,11 @@ server.tool(
   {},
   async () => {
     try {
-      const [meetingsData, roadmapData, suggestionsData] = await Promise.all([
+      const [meetingsData, roadmapData, suggestionsData, projectsData] = await Promise.all([
         councilRequest('/api/meetings').catch(() => []),
         councilRequest('/api/roadmap').catch(() => ({ items: [] })),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
+        councilRequest('/api/projects').catch(() => ({ projects: [], activeProject: '' })),
       ]);
 
       const meetings = Array.isArray(meetingsData) ? meetingsData : [];
@@ -918,10 +919,30 @@ server.tool(
         focusText = 'No active items. Try: council_list_agents to see available agents, council_quick_consult to ask one, or council_schedule_meeting to plan a discussion.';
       }
 
+      // Project context from auto-scan profile
+      const allProjects = projectsData.projects || [];
+      const activeProjectName = projectsData.activeProject || '';
+      const activeProject = allProjects.find(p => p.name === activeProjectName);
+      const profile = activeProject?.profile;
+
       const lines = [];
 
       if (live.length > 0) {
         lines.push(`⚡ LIVE: ${live.map(m => m.title || m.filename).join(', ')}`);
+        lines.push('');
+      }
+
+      if (activeProject) {
+        lines.push(`PROJECT: ${activeProjectName} (${activeProject.path})`);
+        if (profile) {
+          const langs = (profile.languages || []).slice(0, 3).map(l => l.name).join(', ');
+          const frameworks = (profile.frameworks || []).map(f => f.name).join(', ');
+          const parts = [];
+          if (langs) parts.push(langs);
+          if (frameworks) parts.push(frameworks);
+          if (profile.structure?.isMonorepo) parts.push('monorepo');
+          if (parts.length > 0) lines.push(`  Stack: ${parts.join(' · ')}`);
+        }
         lines.push('');
       }
 

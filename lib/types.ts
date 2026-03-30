@@ -28,6 +28,8 @@ export interface ProjectConfig {
   path: string;
   meetingsDir: string;
   agentsDir: string;
+  /** Lightweight filesystem scan results — auto-populated on connect */
+  profile?: ProjectProfile;
 }
 
 /** Top-level council configuration */
