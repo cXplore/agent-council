@@ -455,7 +455,7 @@ status: complete
   });
 
   it('respects the limit parameter', async () => {
-    const results = await recallByTopic(tmpDir, 'authentication', 1);
+    const results = await recallByTopic(tmpDir, 'authentication', { limit: 1 });
     expect(results.length).toBeLessThanOrEqual(1);
   });
 
@@ -464,5 +464,53 @@ status: complete
     expect(results.length).toBeGreaterThan(0);
     // Context should include nearby lines from the meeting
     expect(results[0].context).toBeTruthy();
+  });
+
+  it('filters by dateFrom', async () => {
+    // Only 2026-03-30 meeting should match
+    const results = await recallByTopic(tmpDir, 'authentication', { dateFrom: '2026-03-30' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every(r => r.date! >= '2026-03-30')).toBe(true);
+  });
+
+  it('filters by dateTo', async () => {
+    // Only 2026-03-29 meeting should match
+    const results = await recallByTopic(tmpDir, 'Redis', { dateTo: '2026-03-29' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every(r => r.date! <= '2026-03-29')).toBe(true);
+  });
+
+  it('filters by date range', async () => {
+    // Narrow range that excludes the cache meeting
+    const results = await recallByTopic(tmpDir, 'JWT', { dateFrom: '2026-03-30', dateTo: '2026-03-30' });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every(r => r.date === '2026-03-30')).toBe(true);
+  });
+
+  it('returns empty when date range excludes all matches', async () => {
+    const results = await recallByTopic(tmpDir, 'JWT', { dateFrom: '2027-01-01' });
+    expect(results).toEqual([]);
+  });
+
+  it('includes actions when types includes action', async () => {
+    const results = await recallByTopic(tmpDir, 'cache invalidation', { types: ['action'] });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some(r => r.type === 'ACTION')).toBe(true);
+  });
+
+  it('excludes decisions when types only includes action', async () => {
+    const results = await recallByTopic(tmpDir, 'Redis', { types: ['action'] });
+    const decisions = results.filter(r => r.type === 'DECISION');
+    expect(decisions.length).toBe(0);
+  });
+
+  it('combines type and date filters', async () => {
+    const results = await recallByTopic(tmpDir, 'authentication', {
+      types: ['decision', 'open'],
+      dateFrom: '2026-03-30',
+    });
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.every(r => r.type === 'DECISION' || r.type === 'OPEN')).toBe(true);
+    expect(results.every(r => r.date! >= '2026-03-30')).toBe(true);
   });
 });

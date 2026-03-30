@@ -98,7 +98,7 @@ async function buildAgentPrompt(
   // Topic-specific recall
   if (topic) {
     try {
-      const recalled = await recallByTopic(meetingsDir, topic, 5);
+      const recalled = await recallByTopic(meetingsDir, topic, { limit: 5 });
       if (recalled.length > 0) {
         const recallLines = recalled.map(r => {
           const label = r.type === 'OPEN' ? 'OPEN QUESTION' : 'DECISION';

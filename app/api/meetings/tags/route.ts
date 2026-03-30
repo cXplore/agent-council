@@ -39,7 +39,14 @@ export async function GET(req: NextRequest) {
       if (!topic) {
         return NextResponse.json({ error: 'query or topic parameter required for recall mode' }, { status: 400 });
       }
-      const results = await recallByTopic(meetingsDir, topic);
+      const dateFrom = searchParams.get('date_from') || undefined;
+      const dateTo = searchParams.get('date_to') || undefined;
+      const typesParam = searchParams.get('types');
+      const types = typesParam
+        ? typesParam.split(',').filter((t): t is 'decision' | 'open' | 'action' =>
+            ['decision', 'open', 'action'].includes(t))
+        : undefined;
+      const results = await recallByTopic(meetingsDir, topic, { dateFrom, dateTo, types });
       return NextResponse.json({ results, total: results.length }, {
         headers: { 'Cache-Control': 'no-cache, no-store' },
       });

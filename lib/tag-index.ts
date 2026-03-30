@@ -292,8 +292,14 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
 export async function recallByTopic(
   meetingsDir: string,
   topic: string,
-  limit = 10,
+  options: {
+    limit?: number;
+    dateFrom?: string;  // YYYY-MM-DD inclusive
+    dateTo?: string;    // YYYY-MM-DD inclusive
+    types?: Array<'decision' | 'open' | 'action'>;
+  } = {},
 ): Promise<Array<TagEntry & { context: string }>> {
+  const { limit = 10, dateFrom, dateTo, types } = options;
   const index = await buildTagIndex(meetingsDir);
   const query = topic.toLowerCase();
   const keywords = query.split(/\s+/).filter(k => k.length >= 3);
@@ -302,8 +308,27 @@ export async function recallByTopic(
   type Scored = TagEntry & { context: string; score: number };
   const scored: Scored[] = [];
 
-  // Only recall decisions and open questions (not actions — those are work items, not knowledge)
-  const candidates = [...index.decisions, ...index.open];
+  // Select candidate pools based on types filter (default: decisions + open)
+  let candidates: TagEntry[];
+  if (types && types.length > 0) {
+    candidates = [];
+    if (types.includes('decision')) candidates.push(...index.decisions);
+    if (types.includes('open')) candidates.push(...index.open);
+    if (types.includes('action')) candidates.push(...index.actions);
+  } else {
+    // Default: decisions and open questions (not actions — those are work items, not knowledge)
+    candidates = [...index.decisions, ...index.open];
+  }
+
+  // Apply date range filter
+  if (dateFrom || dateTo) {
+    candidates = candidates.filter(entry => {
+      if (!entry.date) return false;
+      if (dateFrom && entry.date < dateFrom) return false;
+      if (dateTo && entry.date > dateTo) return false;
+      return true;
+    });
+  }
 
   for (const entry of candidates) {
     let score = 0;

@@ -566,8 +566,11 @@ server.tool(
     mode: z.enum(['summary', 'unresolved', 'search', 'recall']).describe('Query mode: summary (counts), unresolved (open items), search (text query), recall (topic-based decision search with context)'),
     query: z.string().optional().describe('Search text (for search and recall modes)'),
     type: z.enum(['decision', 'open', 'action']).optional().describe('Filter by tag type (search mode only)'),
+    date_from: z.string().optional().describe('Start date filter YYYY-MM-DD inclusive (recall mode only)'),
+    date_to: z.string().optional().describe('End date filter YYYY-MM-DD inclusive (recall mode only)'),
+    types: z.string().optional().describe('Comma-separated tag types to include in recall: decision,open,action (recall mode only, default: decision,open)'),
   },
-  async ({ mode, query, type }) => {
+  async ({ mode, query, type, date_from, date_to, types }) => {
     try {
       const params = new URLSearchParams();
       if (mode === 'summary') params.set('mode', 'summary');
@@ -575,6 +578,9 @@ server.tool(
       else if (mode === 'recall') {
         params.set('mode', 'recall');
         if (query) params.set('q', query);
+        if (date_from) params.set('date_from', date_from);
+        if (date_to) params.set('date_to', date_to);
+        if (types) params.set('types', types);
       } else {
         if (query) params.set('q', query);
         if (type) params.set('type', type);
@@ -616,7 +622,7 @@ server.tool(
           return { content: [{ type: 'text', text: `No decisions or open questions found for topic "${query || '(none)'}"` }] };
         }
         const lines = results.map(r => {
-          const typeLabel = r.type === 'OPEN' ? 'OPEN QUESTION' : 'DECISION';
+          const typeLabel = r.type === 'OPEN' ? 'OPEN QUESTION' : r.type === 'ACTION' ? 'ACTION' : 'DECISION';
           const ctx = r.context ? `\n  Context: ${r.context.replace(/\n/g, '\n  ')}` : '';
           return `[${typeLabel}] ${r.text}\n  From: ${r.meetingTitle ?? r.meeting} (${r.date ?? 'unknown date'})${ctx}`;
         });
@@ -922,7 +928,7 @@ server.tool(
 // Tool: Session brief — opinionated 5-line brief for starting a coding session
 server.tool(
   'council_session_brief',
-  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2). Call this at the START of any session.',
+  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2), and aging items that need attention (stale actions, at-risk open questions). Call this at the START of any session.',
   {},
   async () => {
     try {
@@ -958,6 +964,20 @@ server.tool(
       // Open questions: last 3 meetings, active only, max 2
       const allActiveOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
       const recentOpen = allActiveOpen.filter(i => recent3Files.has(i.meeting)).slice(0, 2);
+
+      // Needs Attention: active items that fell off the recency window
+      const now = new Date();
+      const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+      // Aging actions: active, NOT in recent 2 meetings, older than 3 days
+      const agingActions = allActiveActions
+        .filter(i => !recent2Files.has(i.meeting) && i.date && new Date(i.date) < threeDaysAgo)
+        .slice(0, 3);
+
+      // At-risk open questions: active, NOT in recent 3 meetings (approaching archival threshold)
+      const atRiskOpen = allActiveOpen
+        .filter(i => !recent3Files.has(i.meeting))
+        .slice(0, 3);
 
       // Focus: user nudge > recent action > recent decision > fallback
       let focusText;
@@ -1032,6 +1052,22 @@ server.tool(
         lines.push('');
         lines.push('OPEN:');
         recentOpen.forEach(o => lines.push(`  ? ${o.text}`));
+      }
+
+      // Needs Attention: aging items that fell off the recency window
+      if (agingActions.length > 0 || atRiskOpen.length > 0) {
+        lines.push('');
+        lines.push('NEEDS ATTENTION:');
+        for (const a of agingActions) {
+          const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
+          const age = Math.floor((now.getTime() - new Date(a.date).getTime()) / (24 * 60 * 60 * 1000));
+          lines.push(`  ⚠ Action (${age}d old): ${text.length > 100 ? text.slice(0, 97) + '...' : text}`);
+          lines.push(`    from: ${a.meetingTitle || a.meeting}`);
+        }
+        for (const o of atRiskOpen) {
+          lines.push(`  ⚠ Open question (at archival risk): ${o.text.length > 100 ? o.text.slice(0, 97) + '...' : o.text}`);
+          lines.push(`    from: ${o.meetingTitle || o.meeting}`);
+        }
       }
 
       if (completed[0]) {
@@ -1199,6 +1235,88 @@ server.tool(
       return { content: [{ type: 'text', text: lines.join('\n').trim() }] };
     } catch (err) {
       return { content: [{ type: 'text', text: `Could not list agents: ${err.message}` }] };
+    }
+  }
+);
+
+server.tool(
+  'council_triage',
+  'Should you run a meeting on this? Scores a decision on 4 dimensions (reversibility, blast radius, novelty, confidence) and recommends: no meeting, quick consult, direction check, or full meeting. Use before deciding whether to call a meeting.',
+  {
+    decision: z.string().describe('Brief description of the decision or question you\'re considering'),
+  },
+  async ({ decision }) => {
+    // Score using the decision-complexity rubric from the facilitator template
+    // Each dimension: 0 (low) to 2 (high)
+    const rubric = `You are a decision triage assistant. Score this decision on 4 dimensions (0-2 each):
+
+1. **Reversibility** — 0: trivially undone (config change, feature flag) | 1: reversible with effort (refactor, migration rollback) | 2: practically irreversible (public API contract, data deletion, external commitment)
+2. **Blast radius** — 0: single file/function | 1: multiple components/services | 2: entire system, external users, or cross-team
+3. **Novelty** — 0: done before, established pattern | 1: variation on known approach | 2: first time, no precedent in this codebase
+4. **Confidence** — 0: team agrees, high certainty | 1: reasonable debate possible | 2: genuine uncertainty, multiple valid approaches
+
+Decision to triage: "${decision}"
+
+Respond with ONLY this JSON format (no other text):
+{
+  "reversibility": <0-2>,
+  "blastRadius": <0-2>,
+  "novelty": <0-2>,
+  "confidence": <0-2>,
+  "total": <sum>,
+  "reasoning": "<one sentence explaining the dominant factor>"
+}`;
+
+    try {
+      const result = await query({
+        system: rubric,
+        prompt: 'Score this decision now.',
+      });
+      const responseText = typeof result === 'string' ? result : result?.text || JSON.stringify(result);
+
+      // Extract JSON from response
+      const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) {
+        return { content: [{ type: 'text', text: `Could not parse triage result. Raw response:\n${responseText}` }] };
+      }
+
+      const scores = JSON.parse(jsonMatch[0]);
+      const total = scores.total ?? (scores.reversibility + scores.blastRadius + scores.novelty + scores.confidence);
+
+      let recommendation, meetingType;
+      if (total <= 1) {
+        recommendation = 'No meeting needed. Just decide and code.';
+        meetingType = 'none';
+      } else if (total <= 3) {
+        recommendation = 'Quick consult — ask one agent via council_quick_consult.';
+        meetingType = 'quick_consult';
+      } else if (total <= 5) {
+        recommendation = 'Direction check — 1 round, 2 agents. Confirm approach before starting. Use council_multi_consult with rounds=1.';
+        meetingType = 'direction_check';
+      } else if (total === 6) {
+        recommendation = 'Quick meeting — 1 round, 3 agents. Get multiple perspectives. Use council_multi_consult with rounds=1 and 3 agents.';
+        meetingType = 'quick_meeting';
+      } else {
+        recommendation = 'Full meeting — 2-3 rounds, 4-5 agents. Multi-round deliberation needed. Use council_multi_consult with rounds=2.';
+        meetingType = 'full_meeting';
+      }
+
+      const lines = [
+        `Decision Triage: "${decision}"`,
+        '',
+        `Scores (0=low, 2=high):`,
+        `  Reversibility: ${scores.reversibility}  |  Blast radius: ${scores.blastRadius}`,
+        `  Novelty: ${scores.novelty}        |  Confidence: ${scores.confidence}`,
+        `  Total: ${total}/8`,
+        '',
+        `Reasoning: ${scores.reasoning}`,
+        '',
+        `→ ${recommendation}`,
+      ];
+
+      return { content: [{ type: 'text', text: lines.join('\n') }] };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Triage failed: ${err.message}` }] };
     }
   }
 );
