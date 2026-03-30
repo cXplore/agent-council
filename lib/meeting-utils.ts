@@ -7,6 +7,16 @@
  * Extracts status, type, title, started date, participants, and recommended meetings.
  */
 export function parseMetadata(content: string) {
+  // Extract YAML frontmatter if present (---\n...\n---)
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  const fm: Record<string, string> = {};
+  if (fmMatch) {
+    for (const line of fmMatch[1].split('\n')) {
+      const kv = line.match(/^(\w[\w-]*):\s*(.+)/);
+      if (kv) fm[kv[1]] = kv[2].replace(/^["'\[]|["'\]]$/g, '').trim();
+    }
+  }
+
   const statusMatch = content.match(/<!--\s*status:\s*(\S+)\s*-->/);
   const typeMatchComment = content.match(/<!--\s*(?:meeting-)?type:\s*(.+?)\s*-->/);
   const startedMatchComment = content.match(/<!--\s*(?:created|started):\s*(.+?)\s*-->/);
@@ -18,13 +28,13 @@ export function parseMetadata(content: string) {
 
   const titleMatch = content.match(/^#\s+(.+)$/m);
 
-  let type = typeMatchComment?.[1] ?? typeMatchBold?.[1]?.trim() ?? null;
+  let type = fm['type'] ?? typeMatchComment?.[1] ?? typeMatchBold?.[1]?.trim() ?? null;
   if (!type && titleMatch) {
     const titleParts = titleMatch[1].split(/\s*[—–\-]{1,2}\s*/);
     type = titleParts[0]?.trim() ?? null;
   }
 
-  const participantsRaw = participantsMatchComment?.[1] ?? participantsMatchBold?.[1]?.trim() ?? '';
+  const participantsRaw = fm['participants'] ?? participantsMatchComment?.[1] ?? participantsMatchBold?.[1]?.trim() ?? '';
   const participants = participantsRaw
     ? participantsRaw.split(',').map(p => p.trim()).filter(Boolean)
     : [];
@@ -63,10 +73,10 @@ export function parseMetadata(content: string) {
   }
 
   return {
-    status: statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress'),
+    status: fm['status'] ?? statusMatch?.[1] ?? (/^## Summary$/m.test(content) ? 'complete' : 'in-progress'),
     type: type?.toLowerCase().replace(/\s+/g, '-') ?? 'unknown',
-    title: titleMatch?.[1]?.trim() ?? null,
-    started: startedMatchComment?.[1] ?? startedMatchBold?.[1]?.trim() ?? null,
+    title: fm['title'] ?? titleMatch?.[1]?.trim() ?? null,
+    started: fm['created'] ?? fm['date'] ?? startedMatchComment?.[1] ?? startedMatchBold?.[1]?.trim() ?? null,
     participants,
     recommendedMeetings,
   };
