@@ -1165,7 +1165,7 @@ server.tool(
 // Tool: Mark an action item as done
 server.tool(
   'council_mark_done',
-  'Mark an action item as done after completing the work. Finds the best matching active item by text and updates its status. Use after implementing something from meeting decisions.',
+  'Mark an action item or open question as done after completing the work. Finds the best matching active item by text and updates its status. Use after implementing something from meeting decisions.',
   {
     text: z.string().describe('Text identifying the action item — partial match is fine'),
     note: z.string().optional().describe('Brief note about how it was done (optional)'),
@@ -1175,11 +1175,11 @@ server.tool(
       const roadmapData = await councilRequest('/api/roadmap');
       const items = roadmapData.items || [];
 
-      // Only look at active ACTION items
-      const active = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
+      // Look at active ACTION and OPEN items
+      const active = items.filter(i => (i.type === 'ACTION' || i.type === 'OPEN') && i.itemStatus === 'active');
 
       if (active.length === 0) {
-        return { content: [{ type: 'text', text: 'No active action items found. All work may already be complete.' }] };
+        return { content: [{ type: 'text', text: 'No active items found. All work may already be complete.' }] };
       }
 
       // Find best match by text substring
