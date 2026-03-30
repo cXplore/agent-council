@@ -47,6 +47,14 @@ export async function GET(req: NextRequest) {
             ['decision', 'open', 'action'].includes(t))
         : undefined;
       const results = await recallByTopic(meetingsDir, topic, { dateFrom, dateTo, types });
+
+      // Log zero-result and low-result queries for recall quality auditing
+      if (results.length === 0) {
+        console.warn(`[recall] zero results for query="${topic}"${types ? ` types=${types.join(',')}` : ''}`);
+      } else if (results.length <= 2) {
+        console.info(`[recall] low results (${results.length}) for query="${topic}"${types ? ` types=${types.join(',')}` : ''}`);
+      }
+
       return NextResponse.json({ results, total: results.length }, {
         headers: { 'Cache-Control': 'no-cache, no-store' },
       });

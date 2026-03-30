@@ -36,6 +36,8 @@ export interface ProjectProfile {
     filesCovered: number;
     filesEstimatedTotal: number;
   };
+  /** True if the 50,000-file cap was hit during scan — results are incomplete */
+  truncated?: boolean;
 }
 
 export interface Preset {

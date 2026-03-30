@@ -74,10 +74,16 @@ export async function POST(req: NextRequest) {
 
     // Run lightweight filesystem scan — pure file I/O, no AI tokens needed
     let profile: ProjectProfile | undefined = undefined;
+    let scanWarning: string | undefined = undefined;
     try {
       profile = await scanProject(normalizedPath);
-    } catch {
-      // Scan failure is non-fatal — connect still works without a profile
+      if (profile.truncated) {
+        scanWarning = 'Large repository — scan was capped at 50,000 files. Agent context may be incomplete.';
+      } else if (profile.scanQuality?.quality === 'minimal') {
+        scanWarning = 'Could not detect enough project structure. Agents will use generic prompts.';
+      }
+    } catch (scanErr) {
+      scanWarning = `Scan failed: ${scanErr instanceof Error ? scanErr.message : 'unknown error'}. Connected without project profile.`;
     }
 
     // Add meetingsDir to .gitignore if a .gitignore exists
@@ -119,6 +125,7 @@ export async function POST(req: NextRequest) {
       hasFacilitator,
       profile,
       generatedAgents,
+      ...(scanWarning ? { scanWarning } : {}),
     });
   } catch (err) {
     console.error('Connect project error:', err);

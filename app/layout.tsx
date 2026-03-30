@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import Nav from "./components/Nav";
 import CommandPalette from "./components/CommandPalette";
@@ -39,7 +40,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen antialiased">
         <ToastProvider>
-          <Nav />
+          <Suspense><Nav /></Suspense>
           <CommandPalette />
           {children}
         </ToastProvider>

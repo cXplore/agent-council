@@ -12,6 +12,10 @@ interface ProjectStatus {
   totalMeetings: number;
   status: 'meeting' | 'working' | 'idle';
   latestMeetingTitle?: string;
+  /** Meetings modified in last 2 hours (for badge on inactive tabs) */
+  recentMeetings: number;
+  /** Activity log entries in last 2 hours (worker runs, code changes) */
+  recentActivity: number;
 }
 
 /**
@@ -47,11 +51,15 @@ export async function GET() {
       });
     }
 
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    const recentCutoff = Date.now() - TWO_HOURS_MS;
+
     // Fetch status for all projects in parallel
     const statuses = await Promise.all(
       allProjects.map(async (proj): Promise<ProjectStatus> => {
         let totalMeetings = 0;
         let liveMeetings = 0;
+        let recentMeetings = 0;
         let latestMeetingTitle: string | undefined;
         let latestMtime = 0;
 
@@ -84,6 +92,7 @@ export async function GET() {
           for (const check of checks) {
             if (!check) continue;
             if (check.status === 'in-progress') liveMeetings++;
+            if (check.mtime > recentCutoff) recentMeetings++;
             if (check.mtime > latestMtime) {
               latestMtime = check.mtime;
               latestMeetingTitle = check.title ?? undefined;
@@ -91,6 +100,24 @@ export async function GET() {
           }
         } catch {
           // Meetings dir doesn't exist — that's fine
+        }
+
+        // Count recent activity entries from activity.log
+        let recentActivity = 0;
+        try {
+          const logPath = path.join(proj.meetingsDir, 'activity.log');
+          const logContent = await readFile(logPath, 'utf-8');
+          const lines = logContent.split('\n').filter(Boolean);
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line);
+              if (entry.timestamp && new Date(entry.timestamp).getTime() > recentCutoff) {
+                recentActivity++;
+              }
+            } catch { /* skip malformed */ }
+          }
+        } catch {
+          // No activity log — that's fine
         }
 
         const status: ProjectStatus['status'] =
@@ -104,6 +131,8 @@ export async function GET() {
           totalMeetings,
           status,
           latestMeetingTitle,
+          recentMeetings,
+          recentActivity,
         };
       })
     );

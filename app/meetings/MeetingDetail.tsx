@@ -8,7 +8,7 @@ import { getContentForRound } from '@/lib/meeting-utils';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 import MeetingCompletionCard from './MeetingCompletionCard';
 import MeetingSummaryCard from './MeetingSummaryCard';
-import { formatType, formatDuration, ProjectBadge } from './MeetingListCard';
+import { formatType, formatDuration } from './MeetingListCard';
 import { useToast } from '@/app/components/Toast';
 import type { MeetingData } from './useMeetingData';
 
@@ -79,6 +79,8 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     scrollToBottom,
     sendMessage,
     windowFind,
+    highlightText,
+    setHighlightText,
   } = props;
 
   const isLive = detail?.status === 'in-progress';
@@ -113,6 +115,37 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     }
   }, [justCompleted, toast]);
 
+  // Scroll to highlighted decision text when navigating from decision search
+  useEffect(() => {
+    if (!highlightText || !detail?.content || !contentRef.current) return;
+    // Defer to let content render
+    const timer = setTimeout(() => {
+      const container = contentRef.current;
+      if (!container) return;
+      // Search for the text in the rendered content
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      const needle = highlightText.slice(0, 80).toLowerCase();
+      let node: Text | null;
+      while ((node = walker.nextNode() as Text | null)) {
+        if (node.textContent && node.textContent.toLowerCase().includes(needle)) {
+          const parent = node.parentElement;
+          if (parent) {
+            parent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Flash highlight
+            const prev = parent.style.background;
+            parent.style.background = 'rgba(251,191,36,0.25)';
+            parent.style.borderRadius = '4px';
+            parent.style.transition = 'background 1.5s ease-out';
+            setTimeout(() => { parent.style.background = prev; }, 2000);
+          }
+          break;
+        }
+      }
+      setHighlightText(null);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightText, detail?.content, contentRef, setHighlightText]);
+
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -146,11 +179,13 @@ export default function MeetingDetail(props: MeetingDetailProps) {
 
         {detail && (
           <>
-            {detail.project && (
-              <ProjectBadge project={detail.project} />
-            )}
-
             <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
+              {detail.project && (
+                <span className="font-normal" style={{ color: 'var(--text-muted)' }}>
+                  {detail.project}
+                  <span className="mx-1" style={{ opacity: 0.5 }}>&rsaquo;</span>
+                </span>
+              )}
               {detail.title || formatType(detail.type)}
             </span>
 

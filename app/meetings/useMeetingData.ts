@@ -68,6 +68,13 @@ export interface MeetingData {
   showPlanForm: boolean;
   planTopic: string;
   planType: string;
+  showRunForm: boolean;
+  runningMeeting: boolean;
+  runError: string | null;
+
+  // Decision highlight (from decision search → scroll to specific text in meeting)
+  highlightText: string | null;
+  setHighlightText: (v: string | null) => void;
 
   // In-meeting search
   meetingSearchOpen: boolean;
@@ -122,6 +129,9 @@ export interface MeetingData {
   setShowPlanForm: (v: boolean) => void;
   setPlanTopic: (v: string) => void;
   setPlanType: (v: string) => void;
+  setShowRunForm: (v: boolean) => void;
+  setRunningMeeting: (v: boolean) => void;
+  setRunError: (v: string | null) => void;
   setMeetingSearchOpen: (v: boolean) => void;
   setMeetingSearch: (v: string) => void;
   setMeetingSearchIndex: (v: number) => void;
@@ -201,6 +211,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const [noteText, setNoteText] = useState('');
   const noteTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+  const [highlightText, setHighlightText] = useState<string | null>(null);
   const [meetingSearchOpen, setMeetingSearchOpen] = useState(false);
   const [meetingSearch, setMeetingSearch] = useState('');
   const [meetingSearchIndex, setMeetingSearchIndex] = useState(0);
@@ -223,6 +234,9 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planTopic, setPlanTopic] = useState('');
   const [planType, setPlanType] = useState('auto');
+  const [showRunForm, setShowRunForm] = useState(false);
+  const [runningMeeting, setRunningMeeting] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
 
   // URL-syncing wrappers for viewMode and decisionQuery
   const setViewMode = useCallback((v: 'meetings' | 'decisions') => {
@@ -285,12 +299,27 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     const params = new URLSearchParams(window.location.search);
     if (filename) {
       params.set('file', filename);
+      // Save per-project meeting position
+      if (activeProject) {
+        try { sessionStorage.setItem(`council:lastFile:${activeProject}`, filename); } catch { /* quota */ }
+      }
     } else {
       params.delete('file');
     }
     const newUrl = params.toString() ? `/meetings?${params}` : '/meetings';
     router.replace(newUrl, { scroll: false });
-  }, [router]);
+  }, [router, activeProject]);
+
+  // Restore per-project meeting position when switching projects (if no file in URL)
+  useEffect(() => {
+    if (!activeProject) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('file')) return; // URL already specifies a file
+    try {
+      const lastFile = sessionStorage.getItem(`council:lastFile:${activeProject}`);
+      if (lastFile) selectMeeting(lastFile);
+    } catch { /* no sessionStorage */ }
+  }, [activeProject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep refs in sync
   useEffect(() => { selectedRef.current = selected; }, [selected]);
@@ -892,6 +921,14 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     showPlanForm,
     planTopic,
     planType,
+    showRunForm,
+    setShowRunForm,
+    runningMeeting,
+    setRunningMeeting,
+    runError,
+    setRunError,
+    highlightText,
+    setHighlightText,
     meetingSearchOpen,
     meetingSearch,
     meetingSearchIndex,

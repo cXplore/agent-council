@@ -89,6 +89,9 @@ export default function MeetingList(props: MeetingListProps) {
     showPlanForm,
     planTopic,
     planType,
+    showRunForm,
+    runningMeeting,
+    runError,
     sortedMeetings,
     tagCountsByMeeting,
     hasMultipleProjects,
@@ -116,11 +119,28 @@ export default function MeetingList(props: MeetingListProps) {
     setShowPlanForm,
     setPlanTopic,
     setPlanType,
+    setShowRunForm,
+    setRunningMeeting,
+    setRunError,
     togglePin,
     deleteMeeting,
     bulkDeleteCompleted,
     projectParam,
+    setHighlightText,
   } = props;
+
+  const AGENT_OPTIONS = [
+    { id: 'project-manager', label: 'PM' },
+    { id: 'critic', label: 'Critic' },
+    { id: 'north-star', label: 'North Star' },
+    { id: 'architect', label: 'Architect' },
+    { id: 'developer', label: 'Developer' },
+    { id: 'designer', label: 'Designer' },
+  ];
+  const [runTopic, setRunTopic] = useState('');
+  const [runType, setRunType] = useState('auto');
+  const [runAgents, setRunAgents] = useState<Set<string>>(new Set(['project-manager', 'critic', 'north-star']));
+  const [runRounds, setRunRounds] = useState(2);
 
   const handlePlanSubmit = () => {
     if (!planTopic.trim()) return;
@@ -135,6 +155,48 @@ export default function MeetingList(props: MeetingListProps) {
       setShowPlanForm(false);
       fetch('/api/council/planned').then(r => r.json()).then(d => setPlannedMeetings(d.meetings || [])).catch(() => {});
     }).catch(() => {});
+  };
+
+  const handleRunSubmit = async () => {
+    const topic = runTopic.trim();
+    if (!topic || runAgents.size < 2) return;
+    const resolvedType = runType === 'auto' ? inferMeetingType(topic) : runType;
+    setRunningMeeting(true);
+    setRunError(null);
+    setShowRunForm(false);
+    // Fire and forget — the API creates the meeting file immediately,
+    // and the viewer's 2-second polling picks it up and auto-navigates.
+    try {
+      const res = await fetch('/api/council/multi-consult', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic,
+          agents: [...runAgents],
+          type: resolvedType,
+          rounds: runRounds,
+          writeMeeting: true,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setRunError(data.error || `Failed (${res.status})`);
+      }
+    } catch {
+      setRunError('Could not reach the server');
+    } finally {
+      setRunningMeeting(false);
+      setRunTopic('');
+    }
+  };
+
+  const toggleRunAgent = (id: string) => {
+    setRunAgents(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
@@ -162,13 +224,23 @@ export default function MeetingList(props: MeetingListProps) {
               </button>
             )}
             {hasProject && hasFacilitator && (
-              <button
-                onClick={() => setShowPlanForm(!showPlanForm)}
-                className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
-                style={{ background: 'var(--accent)', color: 'white' }}
-              >
-                + Plan meeting
-              </button>
+              <>
+                <button
+                  onClick={() => { setShowPlanForm(!showPlanForm); setShowRunForm(false); }}
+                  className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+                  style={{ background: showPlanForm ? 'var(--bg-card)' : 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+                >
+                  + Plan meeting
+                </button>
+                <button
+                  onClick={() => { setShowRunForm(!showRunForm); setShowPlanForm(false); setRunError(null); }}
+                  disabled={runningMeeting}
+                  className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
+                  style={{ background: runningMeeting ? 'rgba(124, 109, 216, 0.4)' : 'var(--accent)', color: 'white', opacity: runningMeeting ? 0.7 : 1 }}
+                >
+                  {runningMeeting ? '⏳ Running...' : '▶ Run meeting'}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -427,6 +499,116 @@ export default function MeetingList(props: MeetingListProps) {
           </div>
         )}
 
+        {/* Run meeting form -- toggled by header button */}
+        {showRunForm && (
+          <div
+            className="rounded-lg p-4 space-y-3 mb-4"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+          >
+            <div className="flex gap-2">
+              <select
+                value={runType}
+                onChange={(e) => setRunType(e.target.value)}
+                className="text-sm px-3 py-2 rounded outline-none"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              >
+                <option value="auto">Auto-detect type</option>
+                <option value="design-review">Design Review</option>
+                <option value="strategy">Strategy Session</option>
+                <option value="architecture">Architecture Review</option>
+                <option value="retrospective">Retrospective</option>
+                <option value="sprint-planning">Sprint Planning</option>
+                <option value="direction-check">Direction Check</option>
+              </select>
+              <input
+                type="text"
+                value={runTopic}
+                onChange={(e) => setRunTopic(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && runTopic.trim() && runAgents.size >= 2) handleRunSubmit();
+                  if (e.key === 'Escape') setShowRunForm(false);
+                }}
+                placeholder="What should the agents discuss?"
+                className="flex-1 text-sm px-3 py-2 rounded outline-none"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                autoFocus
+              />
+            </div>
+            {/* Agent picker */}
+            <div className="flex flex-wrap gap-1.5">
+              {AGENT_OPTIONS.map(a => (
+                <button
+                  key={a.id}
+                  onClick={() => toggleRunAgent(a.id)}
+                  className="text-xs px-2.5 py-1 rounded-full transition-colors"
+                  style={{
+                    background: runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
+                    color: runAgents.has(a.id) ? '#a78bfa' : 'var(--text-muted)',
+                    border: `1px solid ${runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+            {/* Rounds + actions */}
+            <div className="flex items-center gap-3 justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Rounds:</span>
+                {[1, 2, 3].map(n => (
+                  <button
+                    key={n}
+                    onClick={() => setRunRounds(n)}
+                    className="text-xs w-6 h-6 rounded transition-colors"
+                    style={{
+                      background: runRounds === n ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
+                      color: runRounds === n ? '#a78bfa' : 'var(--text-muted)',
+                      border: `1px solid ${runRounds === n ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowRunForm(false)}
+                  className="text-sm px-3 py-1.5 rounded"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRunSubmit}
+                  disabled={!runTopic.trim() || runAgents.size < 2}
+                  className="text-sm px-4 py-1.5 rounded transition-colors"
+                  style={{
+                    background: (!runTopic.trim() || runAgents.size < 2) ? 'rgba(124, 109, 216, 0.3)' : 'var(--accent)',
+                    color: 'white',
+                    opacity: (!runTopic.trim() || runAgents.size < 2) ? 0.5 : 1,
+                  }}
+                >
+                  Run now
+                </button>
+              </div>
+            </div>
+            {runAgents.size < 2 && (
+              <p className="text-xs" style={{ color: '#f87171' }}>Select at least 2 agents</p>
+            )}
+          </div>
+        )}
+
+        {/* Run error display */}
+        {runError && (
+          <div
+            className="rounded-lg p-3 mb-4 flex items-center justify-between"
+            style={{ background: 'rgba(248, 113, 113, 0.1)', border: '1px solid rgba(248, 113, 113, 0.3)', color: '#f87171' }}
+          >
+            <span className="text-sm">{runError}</span>
+            <button onClick={() => setRunError(null)} className="text-xs px-2 py-1 rounded" style={{ color: '#f87171' }}>✕</button>
+          </div>
+        )}
+
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
@@ -651,10 +833,11 @@ export default function MeetingList(props: MeetingListProps) {
               <DecisionSearch
                 query={decisionQuery}
                 onQueryChange={setDecisionQuery}
-                onSelectMeeting={(filename) => {
+                onSelectMeeting={(filename, highlight) => {
                   setViewMode('meetings');
                   selectMeeting(filename);
                   setUserExplicitlyBack(false);
+                  if (highlight) setHighlightText(highlight);
                 }}
                 projectParam={projectParam}
               />

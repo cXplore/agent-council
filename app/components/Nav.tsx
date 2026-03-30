@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
@@ -54,6 +54,8 @@ interface ProjectStatusItem {
   totalMeetings: number;
   status: 'meeting' | 'working' | 'idle';
   latestMeetingTitle?: string;
+  recentMeetings: number;
+  recentActivity: number;
 }
 
 function StatusIndicator({ status }: { status: ProjectStatusItem['status'] }) {
@@ -82,7 +84,55 @@ function StatusIndicator({ status }: { status: ProjectStatusItem['status'] }) {
   );
 }
 
-function ProjectTabs({ projects, onSwitch }: { projects: ProjectStatusItem[]; onSwitch: (name: string) => void }) {
+/** Badge for inactive project tabs — numeric for recent meetings, dot for activity */
+function ActivityBadge({ project }: { project: ProjectStatusItem }) {
+  // Numeric badge: recent meetings on inactive tab
+  if (project.recentMeetings > 0) {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minWidth: 16,
+          height: 16,
+          padding: '0 4px',
+          borderRadius: 8,
+          background: 'var(--accent)',
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: 600,
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+        title={`${project.recentMeetings} recent meeting${project.recentMeetings !== 1 ? 's' : ''}`}
+      >
+        {project.recentMeetings > 9 ? '9+' : project.recentMeetings}
+      </span>
+    );
+  }
+
+  // Dot badge: recent activity (worker runs, code changes) but no new meetings
+  if (project.recentActivity > 0) {
+    return (
+      <span
+        style={{
+          display: 'inline-block',
+          width: 5,
+          height: 5,
+          borderRadius: '50%',
+          background: 'var(--text-muted)',
+          flexShrink: 0,
+        }}
+        title={`${project.recentActivity} recent activit${project.recentActivity !== 1 ? 'ies' : 'y'}`}
+      />
+    );
+  }
+
+  return null;
+}
+
+function ProjectTabs({ projects, activeProjectName, onSwitch }: { projects: ProjectStatusItem[]; activeProjectName?: string; onSwitch: (name: string) => void }) {
   if (projects.length === 0) {
     return (
       <a
@@ -98,25 +148,29 @@ function ProjectTabs({ projects, onSwitch }: { projects: ProjectStatusItem[]; on
 
   return (
     <div className="flex items-center gap-1">
-      {projects.map(project => (
-        <button
-          key={project.name}
-          onClick={() => onSwitch(project.name)}
-          className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
-          style={{
-            background: project.active ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-            color: project.active ? 'var(--accent)' : 'var(--text-muted)',
-            border: project.active ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
-            fontWeight: project.active ? 600 : 400,
-          }}
-          title={`${project.name} — ${project.totalMeetings} meetings${project.status === 'meeting' ? ' (live)' : ''}`}
-        >
-          <StatusIndicator status={project.status} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-            {project.name}
-          </span>
-        </button>
-      ))}
+      {projects.map(project => {
+        const isActive = project.name === activeProjectName;
+        return (
+          <button
+            key={project.name}
+            onClick={() => onSwitch(project.name)}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md transition-colors"
+            style={{
+              background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+              color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+              border: isActive ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
+              fontWeight: isActive ? 600 : 400,
+            }}
+            title={`${project.name} — ${project.totalMeetings} meetings${project.status === 'meeting' ? ' (live)' : ''}`}
+          >
+            <StatusIndicator status={project.status} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+              {project.name}
+            </span>
+            {!isActive && <ActivityBadge project={project} />}
+          </button>
+        );
+      })}
       <a
         href="/setup"
         className="flex items-center justify-center text-xs rounded-md transition-colors"
@@ -136,33 +190,58 @@ function ProjectTabs({ projects, onSwitch }: { projects: ProjectStatusItem[]; on
 
 export default function Nav() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [projects, setProjects] = useState<ProjectStatusItem[]>([]);
   const [connectionHealth, setConnectionHealth] = useState<ConnectionHealth>('online');
   const consecutiveFailures = useRef(0);
+  const serverSyncedRef = useRef<string | null>(null);
 
   // Close mobile menu on route change
   useEffect(() => { setOpen(false); }, [pathname]);
 
-  // Derive meeting info from active project status
-  const activeProject = projects.find(p => p.active);
+  // URL-driven project selection: ?project=name determines active project
+  const urlProject = searchParams.get('project');
+
+  // Derive active project: URL param takes precedence, then server state
+  const activeProject = urlProject
+    ? projects.find(p => p.name === urlProject) ?? projects.find(p => p.active)
+    : projects.find(p => p.active);
   const hasLiveMeeting = activeProject?.liveMeetings ? activeProject.liveMeetings > 0 : false;
   const meetingCount = activeProject?.totalMeetings ?? 0;
 
-  const handleSwitch = useCallback(async (name: string) => {
-    const current = projects.find(p => p.active);
-    if (current?.name === name) return;
-    try {
-      await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'switch', name }),
-      });
-      window.location.reload();
-    } catch {
-      // silent
-    }
-  }, [projects]);
+  // Sync server state when URL project differs from server's activeProject
+  useEffect(() => {
+    if (!urlProject || projects.length === 0) return;
+    const serverActive = projects.find(p => p.active);
+    if (serverActive?.name === urlProject) return;
+    if (serverSyncedRef.current === urlProject) return; // already synced
+    // Valid project name — sync server
+    const exists = projects.find(p => p.name === urlProject);
+    if (!exists) return;
+    serverSyncedRef.current = urlProject;
+    fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'switch', name: urlProject }),
+    }).catch(() => { /* silent */ });
+  }, [urlProject, projects]);
+
+  const handleSwitch = useCallback((name: string) => {
+    if (activeProject?.name === name) return;
+    // Update URL with project param — no page reload
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('project', name);
+    router.push(`${pathname}?${params.toString()}`);
+    // Also sync server state in the background
+    fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'switch', name }),
+    }).catch(() => { /* silent */ });
+    serverSyncedRef.current = name;
+  }, [activeProject, searchParams, pathname, router]);
 
   // Poll project status every 10s — replaces the old /api/meetings poll
   useEffect(() => {
@@ -220,7 +299,7 @@ export default function Nav() {
         {/* Desktop project tabs */}
         <div className="hidden sm:flex items-center gap-1">
           <ConnectionDot health={connectionHealth} />
-          <ProjectTabs projects={projects} onSwitch={handleSwitch} />
+          <ProjectTabs projects={projects} activeProjectName={activeProject?.name} onSwitch={handleSwitch} />
         </div>
 
         <div className="flex-1" />
@@ -318,7 +397,7 @@ export default function Nav() {
         <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
           {/* Mobile project tabs — above nav items */}
           <div style={{ marginBottom: 8, padding: '4px 8px' }}>
-            <ProjectTabs projects={projects} onSwitch={handleSwitch} />
+            <ProjectTabs projects={projects} activeProjectName={activeProject?.name} onSwitch={handleSwitch} />
           </div>
 
           {NAV_ITEMS.map(item => {

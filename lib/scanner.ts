@@ -60,10 +60,11 @@ interface WalkResult {
   files: string[];    // relative file paths
   dirs: Set<string>;  // relative directory paths
   skippedDirs: string[];  // top-level dirs that were skipped
+  truncated: boolean;  // true if MAX_FILES cap was hit
 }
 
 async function walk(root: string, rel: string = '', depth: number = 0): Promise<WalkResult> {
-  const result: WalkResult = { files: [], dirs: new Set(), skippedDirs: [] };
+  const result: WalkResult = { files: [], dirs: new Set(), skippedDirs: [], truncated: false };
   if (depth > MAX_DEPTH) return result;
 
   let entries;
@@ -74,7 +75,10 @@ async function walk(root: string, rel: string = '', depth: number = 0): Promise<
   }
 
   for (const entry of entries) {
-    if (result.files.length >= MAX_FILES) break;
+    if (result.files.length >= MAX_FILES) {
+      result.truncated = true;
+      break;
+    }
 
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
 
@@ -88,8 +92,12 @@ async function walk(root: string, rel: string = '', depth: number = 0): Promise<
       const sub = await walk(root, relPath, depth + 1);
       for (const f of sub.files) {
         result.files.push(f);
-        if (result.files.length >= MAX_FILES) break;
+        if (result.files.length >= MAX_FILES) {
+          result.truncated = true;
+          break;
+        }
       }
+      if (sub.truncated) result.truncated = true;
       for (const d of sub.dirs) result.dirs.add(d);
       for (const s of sub.skippedDirs) result.skippedDirs.push(s);
     } else if (entry.isFile()) {
@@ -770,7 +778,7 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     throw new Error(`Path is not a directory: ${dirPath}`);
   }
 
-  const { files, dirs, skippedDirs } = await walk(dirPath);
+  const { files, dirs, skippedDirs, truncated } = await walk(dirPath);
   const languages = detectLanguages(files);
   const frameworks = await detectFrameworks(dirPath, files, dirs);
   const structure = detectStructure(files, dirs);
@@ -811,5 +819,6 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     suggestedAgents,
     scanQuality,
     coverageBoundaries,
+    truncated,
   };
 }

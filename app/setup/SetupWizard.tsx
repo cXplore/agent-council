@@ -39,6 +39,38 @@ const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> 
   'domain-expert': { description: 'Custom domain knowledge specialist', defaultModel: 'sonnet' },
 };
 
+/** Copyable first-meeting prompt — uses project name for personalization */
+function FirstMeetingPrompt({ projectPath }: { projectPath: string }) {
+  const [copied, setCopied] = useState(false);
+  const projectName = projectPath.split(/[/\\]/).filter(Boolean).pop() || 'this project';
+  const prompt = `Let's do a quick direction check on ${projectName} — what should we focus on?`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      className="px-3 py-2 rounded cursor-pointer group relative"
+      style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+      onClick={handleCopy}
+      title="Click to copy"
+    >
+      <code className="text-xs" style={{ color: 'var(--accent)' }}>
+        &quot;{prompt}&quot;
+      </code>
+      <span
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs transition-opacity"
+        style={{ color: copied ? 'var(--live-green)' : 'var(--text-muted)', opacity: copied ? 1 : undefined }}
+      >
+        {copied ? 'Copied!' : <span className="opacity-0 group-hover:opacity-100 transition-opacity">click to copy</span>}
+      </span>
+    </div>
+  );
+}
+
 function SetupWizardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,7 +88,7 @@ function SetupWizardInner() {
   const [connectError, setConnectError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean; generatedAgents?: string[]; profile?: ProjectProfile } | null>(null);
+  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean; generatedAgents?: string[]; profile?: ProjectProfile; scanWarning?: string } | null>(null);
   const [generateError, setGenerateError] = useState('');
   const [mcpTargets, setMcpTargets] = useState<Record<string, McpTarget> | null>(null);
   const [mcpConfiguring, setMcpConfiguring] = useState(false);
@@ -132,8 +164,16 @@ function SetupWizardInner() {
       .replace(/^["']+|["']+$/g, '')  // strip quotes from terminal paste
       .replace(/[/\\]+$/g, '');        // strip trailing slashes
 
+    // Basic client-side path validation
+    const isAbsolute = /^[A-Za-z]:[/\\]/.test(cleanPath) || cleanPath.startsWith('/');
+    if (!isAbsolute) {
+      setConnectError('Please enter an absolute path (e.g. C:\\Projects\\my-app or /home/user/my-app)');
+      setConnecting(false);
+      return;
+    }
+
     try {
-      // Try to update the config with this project's meetings dir
+      // Validate that path exists and is a directory on the server
       const res = await fetch('/api/setup/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -196,6 +236,7 @@ function SetupWizardInner() {
         hasFacilitator: connectData.hasFacilitator ?? false,
         generatedAgents: connectData.generatedAgents,
         profile: connectData.profile,
+        scanWarning: connectData.scanWarning,
       });
       setConnected(true);
       // Refresh the nav to show the newly active project
@@ -568,6 +609,12 @@ function SetupWizardInner() {
                       )}.
                     </p>
                   )}
+                  {/* Scan warning — surfaces scan failures, truncation, or low quality */}
+                  {connectInfo.scanWarning && (
+                    <p className="px-3 py-2 rounded text-xs" style={{ background: 'color-mix(in srgb, var(--warning) 10%, transparent)', border: '1px solid var(--warning)', color: 'var(--warning)' }}>
+                      {connectInfo.scanWarning}
+                    </p>
+                  )}
                   {/* Agent status */}
                   {connectInfo.generatedAgents && connectInfo.generatedAgents.length > 0 ? (
                     <p>
@@ -590,30 +637,21 @@ function SetupWizardInner() {
                     </p>
                   )}
                   <p>The meeting viewer is now watching your project&apos;s meetings directory.</p>
+                  {/* Connection verification indicator */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--live-green)' }} />
+                    <span className="text-xs" style={{ color: 'var(--live-green)' }}>Viewer connected</span>
+                  </div>
                 </div>
               )}
-              {/* What's Next guidance */}
+              {/* First meeting prompt — personalized with project name */}
               <div className="space-y-3 mb-4">
                 <h4 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-                  What&apos;s next
+                  Run your first meeting
                 </h4>
                 <div className="space-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <p>Open your project in Claude Code and try:</p>
-                  <div
-                    className="px-3 py-2 rounded cursor-pointer group relative"
-                    style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
-                    onClick={() => {
-                      navigator.clipboard.writeText("Let's do a quick direction check on this project — what should we focus on?");
-                    }}
-                    title="Click to copy"
-                  >
-                    <code className="text-xs" style={{ color: 'var(--accent)' }}>
-                      &quot;Let&apos;s do a quick direction check on this project — what should we focus on?&quot;
-                    </code>
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-muted)' }}>
-                      click to copy
-                    </span>
-                  </div>
+                  <p>Open your project in Claude Code and paste this prompt:</p>
+                  <FirstMeetingPrompt projectPath={projectPath} />
                   <p style={{ color: 'var(--text-muted)' }}>
                     The facilitator will pick the right format and assemble your team. Watch it live in the meeting viewer.
                   </p>
@@ -859,6 +897,12 @@ function SetupWizardInner() {
                   {profile.scanQuality.missingSignals.length > 0 && (
                     <span style={{ color: 'var(--text-muted)' }}> Missing: {profile.scanQuality.missingSignals.slice(0, 3).join(', ')}.</span>
                   )}
+                </div>
+              )}
+              {/* Truncation warning */}
+              {profile.truncated && (
+                <div className="mb-4 px-3 py-2 rounded text-xs" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', color: 'var(--warning)' }}>
+                  Large repository — scan was capped at 50,000 files. Some parts of the codebase may not be reflected in agent context.
                 </div>
               )}
               {/* Basic scan notice */}
