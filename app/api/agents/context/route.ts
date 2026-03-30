@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import path from 'path';
+import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
 import { appendContextLearnings, trimContextFile } from '@/lib/context-files';
 

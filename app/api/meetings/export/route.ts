@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     let files: string[];
     try {
       const entries = await readdir(meetingsDir);
-      files = entries.filter(f => f.endsWith('.md'));
+      files = entries.filter(f => f.endsWith('.md') && !f.startsWith('.'));
     } catch {
       return NextResponse.json({ error: 'Meetings directory not found' }, { status: 404 });
     }

@@ -6,6 +6,7 @@ import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType } from './MeetingListCard';
 import { inferMeetingType } from '@/lib/meeting-type-inference';
+import { renderInline } from './render-inline';
 
 /** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
 function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
@@ -500,7 +501,7 @@ export default function MeetingList(props: MeetingListProps) {
                               className="block w-full text-left text-xs mb-1.5 pl-3 py-1.5 rounded hover:brightness-110 transition-colors"
                               style={{ color: 'var(--text-secondary)', borderLeft: `2px solid ${border}` }}
                             >
-                              <span className="block">{item.text}</span>
+                              <span className="block">{renderInline(item.text)}</span>
                               <span className="flex items-center gap-1.5 mt-0.5">
                                 {item.meetingStatus === 'in-progress' && (
                                   <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--live-green)' }} />

@@ -13,15 +13,24 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
  * about recent project activity — what's been happening, what matters, and
  * what to focus on next. More insightful than the structured session brief.
  *
- * Optional body: { maxMeetings?: number } — how many recent meetings to analyze (default: 4)
+ * Optional body: {
+ *   maxMeetings?: number  — how many recent meetings to analyze (default: 4)
+ *   codeAware?: boolean   — when true, the AI can inspect the project codebase
+ *                            using Read/Glob/Grep tools to ground its narrative
+ *                            in actual code state (default: false)
+ * }
  */
 export async function POST(req: NextRequest) {
   try {
     let maxMeetings = 4;
+    let codeAware = false;
     try {
       const body = await req.json();
       if (typeof body?.maxMeetings === 'number') {
         maxMeetings = Math.min(Math.max(1, body.maxMeetings), 8);
+      }
+      if (body?.codeAware === true) {
+        codeAware = true;
       }
     } catch {
       // Missing body is fine — use defaults
@@ -42,7 +51,7 @@ export async function POST(req: NextRequest) {
     try {
       const entries = await readdir(meetingsDir);
       files = entries
-        .filter(f => f.endsWith('.md'))
+        .filter(f => f.endsWith('.md') && !f.startsWith('.'))
         .sort()
         .reverse(); // newest first
     } catch {
@@ -106,6 +115,10 @@ export async function POST(req: NextRequest) {
       recentDecisions && `Recent decisions:\n${recentDecisions}`,
     ].filter(Boolean).join('\n\n');
 
+    const codeAwareInstructions = codeAware
+      ? `\n\nYou have access to the project's codebase. Before writing the narrative, inspect the code to verify the current state — check if recent decisions have been implemented, look at recent file changes, and ground your analysis in what the code actually shows. Use Read, Glob, and Grep tools to look at relevant files. Be specific about what you find.`
+      : '';
+
     const prompt = `You are analyzing recent project activity for the "${active.name ?? 'current project'}" project.
 
 Here are the most recent meeting summaries:
@@ -113,6 +126,7 @@ Here are the most recent meeting summaries:
 ${meetingSections.map((s, i) => `--- Meeting ${i + 1} ---\n${s}`).join('\n\n')}
 
 ${workContext ? `Current work state:\n${workContext}` : ''}
+${codeAwareInstructions}
 
 Write a concise narrative context (3-5 sentences) that:
 1. Describes what the team has been working on recently and why
@@ -124,14 +138,25 @@ Be specific and direct. Don't summarize — synthesize. Focus on what would help
 
 Return only the narrative paragraph. No headings, no bullet points, no preamble.`;
 
+    // Code-aware mode: enable read-only tools and multiple turns
+    const tools = codeAware ? ['Read', 'Glob', 'Grep'] : [];
+    const maxTurns = codeAware ? 5 : 1;
+    const queryOptions: Record<string, unknown> = {
+      tools,
+      maxTurns,
+    };
+
+    // Set working directory to the project path for code-aware queries
+    if (codeAware && active.projectPath) {
+      queryOptions.cwd = active.projectPath;
+      queryOptions.permissionMode = 'acceptEdits'; // read-only tools are safe
+    }
+
     let narrative = '';
 
     for await (const message of query({
       prompt,
-      options: {
-        tools: [],  // No tools needed — pure text generation
-        maxTurns: 1,
-      },
+      options: queryOptions,
     })) {
       if (message.type === 'assistant' && message.message?.content) {
         for (const block of message.message.content) {
@@ -152,6 +177,7 @@ Return only the narrative paragraph. No headings, no bullet points, no preamble.
       narrative,
       meetingsAnalyzed: meetingSections.length,
       inProgressMeetings: inProgressCount,
+      codeAware,
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {

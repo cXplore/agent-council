@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const mdFiles = files.filter(f => f.endsWith('.md'));
+    const mdFiles = files.filter(f => f.endsWith('.md') && !f.startsWith('.'));
 
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;

@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'fs/promises';
-import path from 'path';
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 const MAX_LEARNING_LINES = 50;
 

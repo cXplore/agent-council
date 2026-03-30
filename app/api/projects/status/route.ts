@@ -57,7 +57,7 @@ export async function GET() {
 
         try {
           const entries = await readdir(proj.meetingsDir);
-          const mdFiles = entries.filter(f => f.endsWith('.md'));
+          const mdFiles = entries.filter(f => f.endsWith('.md') && !f.startsWith('.'));
           totalMeetings = mdFiles.length;
 
           // Check each meeting file for status (parallel reads)
