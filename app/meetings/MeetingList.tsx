@@ -296,7 +296,10 @@ export default function MeetingList(props: MeetingListProps) {
         )}
 
         {/* Activity feed — shared log of worker, meeting, and interactive activity */}
-        <ActivityFeed />
+        <ActivityFeed onSelectMeeting={(filename) => {
+          selectMeeting(filename);
+          setUserExplicitlyBack(false);
+        }} />
 
         {/* Planned meetings */}
         {plannedMeetings.length > 0 && (

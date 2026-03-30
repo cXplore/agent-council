@@ -30,6 +30,10 @@ When the worker encounters something it cannot resolve:
 
 ## Activity Log Contract
 
+Write verbose detail to `.council-worker-log.md` (worker reads this for continuity).
+Write a one-line summary of any user-visible change to the activity feed (user reads this between sessions).
+When nothing user-visible changed, write nothing to the activity feed.
+
 Every run MUST write at least one entry to `/api/activity`:
 ```json
 {
