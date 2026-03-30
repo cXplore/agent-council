@@ -8,6 +8,7 @@ import MeetingListCard, { formatType, getTypeColor } from './MeetingListCard';
 import { inferMeetingType } from '@/lib/meeting-type-inference';
 import { renderInline } from './render-inline';
 import ActivityFeed from './ActivityFeed';
+import DecisionSearch from './DecisionSearch';
 
 /** Status-aware banner that shows counts from the roadmap API (respects done/stale status) */
 function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
@@ -76,6 +77,8 @@ export default function MeetingList(props: MeetingListProps) {
     plannedMeetings,
     dismissedSuggestions,
     error,
+    viewMode,
+    decisionQuery,
     statusFilter,
     typeFilter,
     searchQuery,
@@ -94,6 +97,8 @@ export default function MeetingList(props: MeetingListProps) {
     hasFacilitator,
     selectMeeting,
     setError,
+    setViewMode,
+    setDecisionQuery,
     setStatusFilter,
     setTypeFilter,
     setSearchQuery,
@@ -621,6 +626,39 @@ export default function MeetingList(props: MeetingListProps) {
               );
             })()}
 
+            {/* View mode toggle — Meetings | Decisions */}
+            {meetings.length > 1 && (
+              <div className="flex gap-1 mb-3 p-0.5 rounded-lg" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                {(['meetings', 'decisions'] as const).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className="flex-1 text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
+                    style={{
+                      background: viewMode === mode ? 'var(--bg-card)' : 'transparent',
+                      color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
+                      boxShadow: viewMode === mode ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                    }}
+                  >
+                    {mode === 'meetings' ? 'Meetings' : 'Decisions'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Decision search mode */}
+            {viewMode === 'decisions' ? (
+              <DecisionSearch
+                query={decisionQuery}
+                onQueryChange={setDecisionQuery}
+                onSelectMeeting={(filename) => {
+                  setViewMode('meetings');
+                  selectMeeting(filename);
+                  setUserExplicitlyBack(false);
+                }}
+                projectParam={projectParam}
+              />
+            ) : (<>
             {/* Search and filter */}
             {meetings.length > 1 && (
               <input
@@ -758,6 +796,7 @@ export default function MeetingList(props: MeetingListProps) {
                 );
               });
             })()}
+            </>)}
           </div>
         )}
 

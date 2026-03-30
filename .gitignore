@@ -55,6 +55,7 @@ next-env.d.ts
 /meetings/.council-*.json
 .council-activity.jsonl
 .council-worker-log.md
+.council-worker-state.json
 
 # tool caches
 .playwright-mcp/
@@ -67,4 +68,3 @@ page-*.png
 # claude
 .claude/
 .env.local
-meetings/

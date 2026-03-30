@@ -37,6 +37,8 @@ export interface MeetingData {
 
   // UI state
   error: string | null;
+  viewMode: 'meetings' | 'decisions';
+  decisionQuery: string;
   statusFilter: 'all' | 'in-progress' | 'complete';
   typeFilter: string | null;
   searchQuery: string;
@@ -85,6 +87,8 @@ export interface MeetingData {
 
   // Setters needed by children
   setError: (v: string | null) => void;
+  setViewMode: (v: 'meetings' | 'decisions') => void;
+  setDecisionQuery: (v: string) => void;
   setStatusFilter: (v: 'all' | 'in-progress' | 'complete') => void;
   setTypeFilter: (v: string | null) => void;
   setSearchQuery: (v: string) => void;
@@ -162,6 +166,10 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const [outcomesOpen, setOutcomesOpen] = useState(false);
   const [addingFacilitator, setAddingFacilitator] = useState(false);
   const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
+  const [viewMode, setViewModeState] = useState<'meetings' | 'decisions'>(
+    (searchParams.get('mode') === 'decisions') ? 'decisions' : 'meetings'
+  );
+  const [decisionQuery, setDecisionQueryState] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,6 +223,30 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [planTopic, setPlanTopic] = useState('');
   const [planType, setPlanType] = useState('auto');
+
+  // URL-syncing wrappers for viewMode and decisionQuery
+  const setViewMode = useCallback((v: 'meetings' | 'decisions') => {
+    setViewModeState(v);
+    const url = new URL(window.location.href);
+    if (v === 'decisions') {
+      url.searchParams.set('mode', 'decisions');
+    } else {
+      url.searchParams.delete('mode');
+      url.searchParams.delete('q');
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
+
+  const setDecisionQuery = useCallback((v: string) => {
+    setDecisionQueryState(v);
+    const url = new URL(window.location.href);
+    if (v) {
+      url.searchParams.set('q', v);
+    } else {
+      url.searchParams.delete('q');
+    }
+    router.replace(url.pathname + url.search, { scroll: false });
+  }, [router]);
 
   const [connectionLost, setConnectionLost] = useState(false);
   const [pollPaused, setPollPaused] = useState(false);
@@ -831,6 +863,8 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     dismissedSuggestions,
     queuedSuggestions,
     error,
+    viewMode,
+    decisionQuery,
     statusFilter,
     typeFilter,
     searchQuery,
@@ -869,6 +903,8 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     fetchTagSummary,
     projectParam,
     setError,
+    setViewMode,
+    setDecisionQuery,
     setStatusFilter,
     setTypeFilter,
     setSearchQuery,
