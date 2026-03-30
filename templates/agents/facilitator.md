@@ -204,34 +204,51 @@ Append a summary section to the hub file:
 
 ### Step 7b: Write Structured JSON Appendix
 
-After the markdown summary, append a machine-readable JSON block wrapped in HTML comments. This is the authoritative structured data source — the viewer and MCP tools parse this directly instead of relying on regex extraction.
+Use the `council_close_meeting` tool with the `outcomes` parameter to generate the JSON appendix automatically. This avoids fragile JSON-in-JSON escaping. Pass your decisions, actions, and open questions as structured data:
+
+```
+council_close_meeting(
+  filename: "2026-03-30-design-review-api-caching.md",
+  appendContent: "\n\n## Summary\n...",  // markdown summary text
+  outcomes: {
+    decisions: [
+      { text: "Decision text here", rationale: "Brief rationale" }
+    ],
+    actions: [
+      { text: "Action description", assignee: "agent-name" }
+    ],
+    openQuestions: [
+      { text: "Question text here", slug: "question-slug" }
+    ]
+  }
+)
+```
+
+The server formats the JSON appendix inside `<!-- meeting-outcomes ... -->` comments. This is the authoritative structured data source — the viewer and MCP tools parse it directly.
+
+**Fallback:** If MCP tools are unavailable, manually write the appendix:
 
 ```markdown
 <!-- meeting-outcomes
+```json
 {
-  "schema_version": 1,
   "decisions": [
     { "text": "Decision text here", "rationale": "Brief rationale" }
   ],
   "actions": [
-    { "text": "Action description", "assignee": "agent-name", "effort": "1-2 hours" }
+    { "text": "Action description", "assignee": "agent-name" }
   ],
-  "open_questions": [
+  "openQuestions": [
     { "slug": "question-slug", "text": "Question text here" }
-  ],
-  "resolved": [
-    { "slug": "previously-open-slug", "resolution": "How it was resolved" }
   ]
 }
--->
+```
+meeting-outcomes -->
 ```
 
 Rules:
-- Always include `schema_version: 1`
 - Mirror the markdown summary exactly — same decisions, same actions, same open questions
-- The JSON must be valid (no trailing commas, proper escaping)
 - Keep it inside `<!-- meeting-outcomes ... -->` so it doesn't render as visible content
-- If a field is empty, use an empty array `[]`
 
 ### Step 7c: Update Agent Context Files
 
@@ -262,7 +279,7 @@ If a context file doesn't exist yet, create it with this structure:
 ```
 
 ### Step 8: Close
-Change the status metadata to `complete`:
+Use `council_close_meeting` (Step 7b) which sets the status to `complete` automatically. If MCP tools are unavailable, manually change the status metadata:
 ```
 <!-- status: complete -->
 ```
