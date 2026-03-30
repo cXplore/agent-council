@@ -378,6 +378,47 @@ meeting-outcomes -->`;
   });
 });
 
+describe('Future considerations section', () => {
+  it('skips tags inside Future considerations section', () => {
+    const content = `# Test Meeting
+
+## Summary
+
+### Decisions Made
+- [DECISION] Real decision that should be indexed
+
+### Future considerations
+- [OPEN:speculative] Some speculative question that should NOT be indexed
+- [ACTION] Speculative action that should NOT be indexed
+
+### Recommended Next Meetings
+- [ACTION] This action is after future considerations and SHOULD be indexed`;
+
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags.some(t => t.text.includes('Real decision'))).toBe(true);
+    expect(tags.some(t => t.text.includes('speculative'))).toBe(false);
+    expect(tags.some(t => t.text.includes('after future considerations'))).toBe(true);
+  });
+
+  it('handles ## Future considerations heading level', () => {
+    const content = `# Test Meeting
+
+## Summary
+
+- [DECISION] Keep this
+
+## Future considerations
+- [OPEN:skip-me] Should be skipped
+
+## Other Section
+- [ACTION] Keep this too`;
+
+    const tags = extractTags(content, '2026-03-31-test2.md');
+    expect(tags).toHaveLength(2);
+    expect(tags.some(t => t.id === 'skip-me')).toBe(false);
+  });
+});
+
 describe('recallByTopic', () => {
   let tmpDir: string;
 
