@@ -32,9 +32,9 @@ interface CacheFile {
 
 interface MeetingOutcomesJSON {
   schema_version: number;
-  decisions?: { text: string; rationale?: string }[];
-  actions?: { text: string; assignee?: string; effort?: string }[];
-  open_questions?: { slug?: string; text: string }[];
+  decisions?: (string | { text: string; rationale?: string })[];
+  actions?: (string | { text: string; assignee?: string; effort?: string })[];
+  open_questions?: (string | { slug?: string; text: string })[];
   resolved?: { slug: string; resolution: string }[];
 }
 
@@ -55,14 +55,23 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
     const date = dateMatch?.[1] ?? null;
 
     for (const d of data.decisions ?? []) {
-      entries.push({ type: 'DECISION', id: null, text: d.text + (d.rationale ? ` — ${d.rationale}` : ''), meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      const text = typeof d === 'string' ? d : d.text;
+      const rationale = typeof d === 'string' ? undefined : d.rationale;
+      if (!text) continue;
+      entries.push({ type: 'DECISION', id: null, text: text + (rationale ? ` — ${rationale}` : ''), meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const a of data.actions ?? []) {
-      const suffix = a.assignee ? ` — assigned to ${a.assignee}` : '';
-      entries.push({ type: 'ACTION', id: null, text: a.text + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      const text = typeof a === 'string' ? a : a.text;
+      const assignee = typeof a === 'string' ? undefined : a.assignee;
+      if (!text) continue;
+      const suffix = assignee ? ` — assigned to ${assignee}` : '';
+      entries.push({ type: 'ACTION', id: null, text: text + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const o of data.open_questions ?? []) {
-      entries.push({ type: 'OPEN', id: o.slug ?? null, text: o.text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      const text = typeof o === 'string' ? o : o.text;
+      const slug = typeof o === 'string' ? null : (o.slug ?? null);
+      if (!text) continue;
+      entries.push({ type: 'OPEN', id: slug, text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const r of data.resolved ?? []) {
       entries.push({ type: 'RESOLVED', id: r.slug, text: r.resolution, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
@@ -79,7 +88,7 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
 // Matches both formats: "DECISION: text" and "[DECISION] text" and "[OPEN:slug] text"
 const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
-function extractTags(content: string, filename: string): TagEntry[] {
+export function extractTags(content: string, filename: string): TagEntry[] {
   // Try JSON appendix first (preferred, structured)
   const jsonEntries = extractFromJSON(content, filename);
   if (jsonEntries !== null && jsonEntries.length > 0) return jsonEntries;

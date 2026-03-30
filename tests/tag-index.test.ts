@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hashItem } from '@/lib/utils';
+import { extractTags } from '@/lib/tag-index';
 
 // Test the tag extraction logic directly
 // These are the 4 targeted integration tests from the sprint planning meeting
@@ -88,6 +89,34 @@ describe('JSON appendix parsing', () => {
     expect(data.open_questions).toHaveLength(1);
     expect(data.open_questions[0].slug).toBe('token-refresh');
     expect(data.resolved).toHaveLength(0);
+  });
+
+  it('handles plain string entries in decisions/actions/open_questions', () => {
+    const content = `<!-- status: complete -->
+# Design Review: Navigation
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [
+    "Use filter chips for type filtering",
+    "Defer outcome-aware search"
+  ],
+  "actions": [
+    "Implement filter chips in MeetingList.tsx"
+  ],
+  "open_questions": [
+    { "slug": "outcome-search", "text": "Build when type filter alone proves insufficient" }
+  ]
+}
+meeting-outcomes -->`;
+
+    const tags = extractTags(content, '2026-03-30-design-review-navigation.md');
+    expect(tags).toHaveLength(4);
+    expect(tags[0]).toMatchObject({ type: 'DECISION', text: 'Use filter chips for type filtering' });
+    expect(tags[1]).toMatchObject({ type: 'DECISION', text: 'Defer outcome-aware search' });
+    expect(tags[2]).toMatchObject({ type: 'ACTION', text: 'Implement filter chips in MeetingList.tsx' });
+    expect(tags[3]).toMatchObject({ type: 'OPEN', id: 'outcome-search' });
   });
 });
 

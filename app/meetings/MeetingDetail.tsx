@@ -692,6 +692,87 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-6 py-8 relative"
       >
+        {/* Round navigation bar */}
+        {detail && detail.content && (() => {
+          const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);
+          const hasSummary = detail.content.includes('## Summary');
+          if (!rounds && !hasSummary) return null;
+          const agentsByRound: Record<number, string[]> = {};
+          for (const m of detail.content.matchAll(/^### (.+?) \(Round (\d+)\)/gm)) {
+            const rn = parseInt(m[2], 10);
+            if (!agentsByRound[rn]) agentsByRound[rn] = [];
+            agentsByRound[rn].push(m[1]);
+          }
+          const abbrev = (name: string) => {
+            const map: Record<string, string> = { 'project-manager': 'PM', 'north-star': 'NS', facilitator: 'Fac' };
+            return map[name.toLowerCase()] || name.charAt(0).toUpperCase() + name.slice(1, 4);
+          };
+          return (
+            <div
+              className="sticky top-0 z-20 flex items-center gap-1 px-3 py-2 mb-4 -mx-6 -mt-8 rounded-b-lg"
+              style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+            >
+              {viewRound !== null && (
+                <button
+                  onClick={() => setViewRound(null)}
+                  className="text-xs px-2.5 py-1.5 rounded-md transition-colors mr-1"
+                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                  aria-label="Show all rounds"
+                >
+                  All
+                </button>
+              )}
+              {rounds?.map((_r, i) => {
+                const roundNum = i + 1;
+                const agents = agentsByRound[roundNum] || [];
+                const isActive = viewRound === roundNum;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (isActive) { setViewRound(null); } else {
+                        setViewRound(roundNum);
+                        contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    className="text-xs px-2.5 py-1.5 rounded-md transition-colors"
+                    style={isActive
+                      ? { background: 'var(--accent)', color: 'white' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
+                    }
+                    title={isActive ? `Showing Round ${roundNum} only` : `Round ${roundNum}: ${agents.join(', ')}`}
+                    aria-label={`${isActive ? 'Viewing' : 'View'} Round ${roundNum} (${agents.length} agents)`}
+                  >
+                    <span className="font-medium" style={{ color: isActive ? 'white' : 'var(--text)' }}>R{roundNum}</span>
+                    {agents.length > 0 && (
+                      <span style={{ opacity: 0.7, marginLeft: 4 }}>
+                        {agents.map(a => abbrev(a)).join(', ')}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              {hasSummary && (
+                <button
+                  onClick={() => {
+                    setViewRound(null);
+                    requestAnimationFrame(() => {
+                      const headings = contentRef.current?.querySelectorAll('h2');
+                      Array.from(headings || []).find(h => h.textContent?.trim() === 'Summary')
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    });
+                  }}
+                  className="text-xs px-2.5 py-1.5 rounded-md transition-colors"
+                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
+                  aria-label="Jump to Summary"
+                >
+                  Summary
+                </button>
+              )}
+            </div>
+          );
+        })()}
+
         {/* In-meeting text search bar */}
         {meetingSearchOpen && detail && (
           <div
@@ -827,82 +908,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           </div>
         )}
 
-        {/* Round jump markers */}
-        {detail && detail.content && (() => {
-          const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);
-          const hasSummary = detail.content.includes('## Summary');
-          if (!rounds && !hasSummary) return null;
-          const agentsByRound: Record<number, string[]> = {};
-          const agentMatches = detail.content.matchAll(/^### (.+?) \(Round (\d+)\)/gm);
-          for (const m of agentMatches) {
-            const roundNum = parseInt(m[2], 10);
-            if (!agentsByRound[roundNum]) agentsByRound[roundNum] = [];
-            agentsByRound[roundNum].push(m[1]);
-          }
-          return (
-            <div className="fixed top-1/2 -translate-y-1/2 z-10 hidden lg:flex flex-col gap-2" style={{ right: outcomesOpen ? '328px' : '16px', transition: 'right 0.2s ease' }}>
-              {viewRound !== null && (
-                <button
-                  onClick={() => setViewRound(null)}
-                  className="text-xs px-2 py-1 rounded transition-colors"
-                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-                  title="Show all rounds"
-                  aria-label="Show all rounds"
-                >
-                  All
-                </button>
-              )}
-              {rounds?.map((_r, i) => {
-                const roundNum = i + 1;
-                const agents = agentsByRound[roundNum] || [];
-                const tooltip = agents.length > 0
-                  ? `Round ${roundNum}: ${agents.join(', ')}`
-                  : `Round ${roundNum}`;
-                const isActive = viewRound === roundNum;
-                return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (isActive) {
-                      setViewRound(null);
-                    } else {
-                      setViewRound(roundNum);
-                      contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }}
-                  className="text-xs px-2 py-1 rounded transition-colors"
-                  style={isActive
-                    ? { background: 'var(--accent)', border: '1px solid var(--accent)', color: 'white' }
-                    : { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
-                  }
-                  title={isActive ? `Showing Round ${roundNum} only \u2014 click to show all` : tooltip}
-                  aria-label={`${isActive ? 'Viewing' : 'View'} Round ${roundNum} (${agents.length} agents)`}
-                >
-                  R{roundNum}{agents.length > 0 && <span style={{ opacity: 0.6 }}>{` (${agents.length})`}</span>}
-                </button>
-                );
-              })}
-              {hasSummary && (
-                <button
-                  onClick={() => {
-                    setViewRound(null);
-                    requestAnimationFrame(() => {
-                      const headings = contentRef.current?.querySelectorAll('h2');
-                      Array.from(headings || []).find(h => h.textContent?.trim() === 'Summary')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
-                  }}
-                  className="text-xs px-2 py-1 rounded transition-colors"
-                  style={{ background: 'var(--accent-muted)', border: '1px solid var(--accent)', color: 'var(--accent)' }}
-                  title="Jump to Summary"
-                  aria-label="Jump to Summary"
-                >
-                  S
-                </button>
-              )}
-            </div>
-          );
-        })()}
+        {/* Round navigation bar removed — now inline above content */}
         <div className="max-w-3xl mx-auto">
           {!detail ? (
             <div className="space-y-4">
@@ -934,21 +940,6 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             </div>
           ) : (
             <div className="prose prose-sm prose-invert max-w-none">
-              {viewRound !== null && (
-                <div
-                  className="mb-4 flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', color: 'var(--text-secondary)' }}
-                >
-                  <span>Viewing <strong style={{ color: 'var(--accent)' }}>Round {viewRound}</strong> only</span>
-                  <button
-                    onClick={() => setViewRound(null)}
-                    className="ml-auto text-xs px-2 py-0.5 rounded transition-colors"
-                    style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
-                  >
-                    Show all
-                  </button>
-                </div>
-              )}
               {(() => {
                 const fullClean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
                 const clean = viewRound !== null ? getContentForRound(fullClean, viewRound) : fullClean;
