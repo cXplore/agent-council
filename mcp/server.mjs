@@ -806,7 +806,7 @@ server.tool(
         const d = recentDecisions[0].text.split(' — ')[0].trim();
         focusText = d.length > 100 ? d.slice(0, 97) + '...' : d;
       } else {
-        focusText = 'No active items. Try: council_quick_consult to ask an agent, or council_schedule_meeting to plan a discussion.';
+        focusText = 'No active items. Try: council_list_agents to see available agents, council_quick_consult to ask one, or council_schedule_meeting to plan a discussion.';
       }
 
       const lines = [];
@@ -838,7 +838,7 @@ server.tool(
           lines.push(`  • ${text}`);
         }
       } else {
-        lines.push('  None active. Use council_get_work_items for full history or council_schedule_meeting to discuss next steps.');
+        lines.push('  None active. Use council_list_agents to discover agents, council_get_work_items for full history, or council_schedule_meeting to discuss next steps.');
       }
 
       if (recentOpen.length > 0) {
@@ -979,6 +979,43 @@ server.tool(
 );
 
 // Tool: Quick consult — ask a single agent one question, get one answer
+server.tool(
+  'council_list_agents',
+  'List all available agents with their roles, teams, and descriptions. Use to discover which agents exist before consulting them with council_quick_consult or referencing them in meetings.',
+  {},
+  async () => {
+    try {
+      const data = await councilRequest('/api/agents');
+      const agents = data.agents || data || [];
+      if (agents.length === 0) {
+        return { content: [{ type: 'text', text: 'No agents found. Set up agents through the Agent Council viewer.' }] };
+      }
+
+      const lines = [`Available agents (${agents.length}):\n`];
+      // Group by team
+      const teams = {};
+      for (const a of agents) {
+        const team = a.team || 'unassigned';
+        if (!teams[team]) teams[team] = [];
+        teams[team].push(a);
+      }
+      for (const [team, members] of Object.entries(teams)) {
+        lines.push(`[${team}]`);
+        for (const a of members) {
+          const model = a.model ? ` (${a.model})` : '';
+          const required = a.required ? ' *required*' : '';
+          lines.push(`  ${a.name || a.filename.replace('.md', '')} — ${a.description || a.role || 'no description'}${model}${required}`);
+        }
+        lines.push('');
+      }
+
+      return { content: [{ type: 'text', text: lines.join('\n').trim() }] };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Could not list agents: ${err.message}` }] };
+    }
+  }
+);
+
 server.tool(
   'council_quick_consult',
   'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting.',
