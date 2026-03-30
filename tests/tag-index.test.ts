@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { hashItem } from '@/lib/utils';
-import { extractTags } from '@/lib/tag-index';
+import { extractTags, recallByTopic } from '@/lib/tag-index';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 // Test the tag extraction logic directly
 // These are the 4 targeted integration tests from the sprint planning meeting
@@ -372,5 +375,94 @@ meeting-outcomes -->`;
     expect(result).not.toBeNull();
     expect(result!.decisions).toBe(1);
     expect(result!.open).toBe(1);
+  });
+});
+
+describe('recallByTopic', () => {
+  let tmpDir: string;
+
+  beforeAll(async () => {
+    tmpDir = await mkdtemp(path.join(tmpdir(), 'recall-test-'));
+
+    // Create a meeting with decisions about authentication
+    await writeFile(path.join(tmpDir, '2026-03-30-auth-review.md'), `---
+type: design-review
+status: complete
+---
+
+# Design Review: Authentication Strategy
+
+## Round 1
+
+The team discussed authentication approaches for the API.
+
+## Summary
+
+- [DECISION] Use JWT tokens with 15-minute expiry for API authentication — balances security and UX
+- [DECISION] Store refresh tokens in HTTP-only cookies — prevents XSS attacks
+- [OPEN:auth-logout] How should logout invalidate tokens across all devices?
+`);
+
+    // Create a meeting with decisions about caching
+    await writeFile(path.join(tmpDir, '2026-03-29-cache-strategy.md'), `---
+type: strategy
+status: complete
+---
+
+# Strategy: Caching Strategy
+
+## Summary
+
+- [DECISION] Use Redis for session caching with 1-hour TTL
+- [ACTION] Implement cache invalidation on user profile update
+`);
+  });
+
+  afterAll(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('finds decisions matching a topic keyword', async () => {
+    const results = await recallByTopic(tmpDir, 'authentication');
+    expect(results.length).toBeGreaterThan(0);
+    // Should find JWT and refresh token decisions
+    const texts = results.map(r => r.text);
+    expect(texts.some(t => t.includes('JWT'))).toBe(true);
+  });
+
+  it('returns open questions in recall results', async () => {
+    const results = await recallByTopic(tmpDir, 'auth logout');
+    const openItems = results.filter(r => r.type === 'OPEN');
+    expect(openItems.length).toBeGreaterThan(0);
+    expect(openItems[0].text).toContain('logout');
+  });
+
+  it('does not return actions (only decisions and open questions)', async () => {
+    const results = await recallByTopic(tmpDir, 'cache invalidation');
+    const actions = results.filter(r => r.type === 'ACTION');
+    expect(actions.length).toBe(0);
+  });
+
+  it('ranks direct text matches higher than title matches', async () => {
+    const results = await recallByTopic(tmpDir, 'JWT');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].text).toContain('JWT');
+  });
+
+  it('returns empty array for unmatched topic', async () => {
+    const results = await recallByTopic(tmpDir, 'blockchain quantum');
+    expect(results).toEqual([]);
+  });
+
+  it('respects the limit parameter', async () => {
+    const results = await recallByTopic(tmpDir, 'authentication', 1);
+    expect(results.length).toBeLessThanOrEqual(1);
+  });
+
+  it('includes context snippets from the meeting file', async () => {
+    const results = await recallByTopic(tmpDir, 'JWT');
+    expect(results.length).toBeGreaterThan(0);
+    // Context should include nearby lines from the meeting
+    expect(results[0].context).toBeTruthy();
   });
 });

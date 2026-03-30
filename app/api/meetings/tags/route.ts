@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfig, getActiveProjectConfig, getProjectConfig } from '@/lib/config';
-import { buildTagIndex, getUnresolved } from '@/lib/tag-index';
+import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,6 +29,18 @@ export async function GET(req: NextRequest) {
     if (mode === 'unresolved') {
       const unresolved = await getUnresolved(meetingsDir);
       return NextResponse.json(unresolved, {
+        headers: { 'Cache-Control': 'no-cache, no-store' },
+      });
+    }
+
+    // Handle recall mode — topic-based decision/open-question search with context
+    if (mode === 'recall') {
+      const topic = query || searchParams.get('topic') || '';
+      if (!topic) {
+        return NextResponse.json({ error: 'query or topic parameter required for recall mode' }, { status: 400 });
+      }
+      const results = await recallByTopic(meetingsDir, topic);
+      return NextResponse.json({ results, total: results.length }, {
         headers: { 'Cache-Control': 'no-cache, no-store' },
       });
     }

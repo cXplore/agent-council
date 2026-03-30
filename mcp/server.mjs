@@ -561,18 +561,21 @@ server.tool(
 // Tool: Query tagged items across meetings
 server.tool(
   'council_query',
-  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items.',
+  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items. Use mode=recall with a topic to find relevant decisions during coding — returns decisions and open questions with surrounding context.',
   {
-    mode: z.enum(['summary', 'unresolved', 'search']).describe('Query mode: summary (counts), unresolved (open items), search (text query)'),
-    query: z.string().optional().describe('Search text (only for search mode)'),
-    type: z.enum(['decision', 'open', 'action']).optional().describe('Filter by tag type'),
+    mode: z.enum(['summary', 'unresolved', 'search', 'recall']).describe('Query mode: summary (counts), unresolved (open items), search (text query), recall (topic-based decision search with context)'),
+    query: z.string().optional().describe('Search text (for search and recall modes)'),
+    type: z.enum(['decision', 'open', 'action']).optional().describe('Filter by tag type (search mode only)'),
   },
   async ({ mode, query, type }) => {
     try {
       const params = new URLSearchParams();
       if (mode === 'summary') params.set('mode', 'summary');
       else if (mode === 'unresolved') params.set('mode', 'unresolved');
-      else {
+      else if (mode === 'recall') {
+        params.set('mode', 'recall');
+        if (query) params.set('q', query);
+      } else {
         if (query) params.set('q', query);
         if (type) params.set('type', type);
       }
@@ -604,6 +607,21 @@ server.tool(
         }
         return {
           content: [{ type: 'text', text: items.length ? items.join('\n') : 'No unresolved items found.' }],
+        };
+      }
+
+      if (mode === 'recall') {
+        const results = data.results || [];
+        if (results.length === 0) {
+          return { content: [{ type: 'text', text: `No decisions or open questions found for topic "${query || '(none)'}"` }] };
+        }
+        const lines = results.map(r => {
+          const typeLabel = r.type === 'OPEN' ? 'OPEN QUESTION' : 'DECISION';
+          const ctx = r.context ? `\n  Context: ${r.context.replace(/\n/g, '\n  ')}` : '';
+          return `[${typeLabel}] ${r.text}\n  From: ${r.meetingTitle ?? r.meeting} (${r.date ?? 'unknown date'})${ctx}`;
+        });
+        return {
+          content: [{ type: 'text', text: `Found ${results.length} relevant item${results.length !== 1 ? 's' : ''} for "${query}":\n\n${lines.join('\n\n')}` }],
         };
       }
 
@@ -1148,7 +1166,7 @@ server.tool(
 
 server.tool(
   'council_quick_consult',
-  'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting.',
+  'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting. Use topic to ground the agent in relevant past decisions.',
   {
     question: z.string().describe('The question to ask'),
     agent: z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'])
@@ -1156,14 +1174,19 @@ server.tool(
       .describe('Which agent to consult (default: critic)'),
     codeAware: z.boolean().optional()
       .describe('When true, the agent can read the project codebase (Read/Glob/Grep) to ground its answer in actual code. Slower but more accurate for technical questions. Default: false.'),
+    topic: z.string().optional()
+      .describe('When provided, auto-searches relevant decisions and open questions from past meetings and injects them into the agent context. Grounds the response in institutional memory. Example: "error handling", "MCP tools", "meeting viewer".'),
   },
-  async ({ question, agent = 'critic', codeAware = false }) => {
+  async ({ question, agent = 'critic', codeAware = false, topic }) => {
     try {
-      const result = await councilRequest('/api/council/quick-consult', 'POST', { question, agent, codeAware });
+      const body = { question, agent, codeAware };
+      if (topic) body.topic = topic;
+      const result = await councilRequest('/api/council/quick-consult', 'POST', body);
       if (result.error) {
         return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }] };
       }
-      const label = codeAware ? `${result.agent} (code-aware)` : result.agent;
+      const parts = [codeAware ? 'code-aware' : '', topic ? `topic: ${topic}` : ''].filter(Boolean).join(', ');
+      const label = parts ? `${result.agent} (${parts})` : result.agent;
       return {
         content: [{
           type: 'text',

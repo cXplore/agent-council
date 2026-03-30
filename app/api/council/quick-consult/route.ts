@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
-import { buildTagIndex, getUnresolved } from '@/lib/tag-index';
+import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
@@ -52,11 +52,14 @@ async function loadWorkContext(meetingsDir: string): Promise<string> {
  * Uses the Agent SDK with the agent's own system prompt from their .md file.
  * Enriches agents with their context file and recent project decisions.
  *
- * Body: { question: string, agent?: string, codeAware?: boolean }
+ * Body: { question: string, agent?: string, codeAware?: boolean, topic?: string }
  *   - codeAware: when true, allows the agent to read the project's codebase
  *     using Read/Glob/Grep tools (up to 5 turns). Default: false.
+ *   - topic: when provided, auto-searches relevant decisions and open questions
+ *     and injects them into the agent's context. Grounds the response in
+ *     institutional memory from past meetings.
  *
- * Response: { answer: string, agent: string, codeAware: boolean, generatedAt: string }
+ * Response: { answer: string, agent: string, codeAware: boolean, topic?: string, generatedAt: string }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -64,6 +67,7 @@ export async function POST(req: NextRequest) {
     const question: string = typeof body?.question === 'string' ? body.question.trim() : '';
     const agentName: string = typeof body?.agent === 'string' ? body.agent.trim() : 'critic';
     const codeAware: boolean = body?.codeAware === true;
+    const topic: string = typeof body?.topic === 'string' ? body.topic.trim() : '';
 
     if (!question) {
       return NextResponse.json({ error: 'question is required' }, { status: 400 });
@@ -108,6 +112,26 @@ export async function POST(req: NextRequest) {
       promptParts.push('---\n\n## Current Project State\n\n' + workContext);
     }
 
+    // Enrich with topic-specific decisions if topic provided
+    if (topic) {
+      try {
+        const recalled = await recallByTopic(active.meetingsDir, topic, 5);
+        if (recalled.length > 0) {
+          const recallLines = recalled.map(r => {
+            const label = r.type === 'OPEN' ? 'OPEN QUESTION' : 'DECISION';
+            return `- [${label}] ${r.text}\n  From: ${r.meetingTitle} (${r.date ?? 'unknown'})`;
+          });
+          promptParts.push(
+            '---\n\n## Relevant Team Decisions\n\n' +
+            `The following decisions and open questions are relevant to the topic "${topic}":\n\n` +
+            recallLines.join('\n\n')
+          );
+        }
+      } catch {
+        // Recall failed — proceed without topic context
+      }
+    }
+
     const systemPrompt = promptParts.length > 0 ? promptParts.join('\n\n') : undefined;
 
     // Code-aware mode: enable read-only tools and multiple turns
@@ -150,6 +174,7 @@ export async function POST(req: NextRequest) {
       answer,
       agent: agentName,
       codeAware,
+      ...(topic ? { topic } : {}),
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {

@@ -284,6 +284,78 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
  * Returns OPEN and ACTION items that haven't been resolved in later meetings,
  * and aren't marked done/stale in the roadmap status store.
  */
+/**
+ * Recall decisions and open questions relevant to a topic.
+ * Searches tag text, meeting titles, and surrounding paragraph context.
+ * Returns results with context snippets, sorted by recency, capped at limit.
+ */
+export async function recallByTopic(
+  meetingsDir: string,
+  topic: string,
+  limit = 10,
+): Promise<Array<TagEntry & { context: string }>> {
+  const index = await buildTagIndex(meetingsDir);
+  const query = topic.toLowerCase();
+  const keywords = query.split(/\s+/).filter(k => k.length >= 3);
+
+  // Score relevance: tag text match > meeting title match
+  type Scored = TagEntry & { context: string; score: number };
+  const scored: Scored[] = [];
+
+  // Only recall decisions and open questions (not actions — those are work items, not knowledge)
+  const candidates = [...index.decisions, ...index.open];
+
+  for (const entry of candidates) {
+    let score = 0;
+    const textLower = entry.text.toLowerCase();
+    const titleLower = entry.meetingTitle.toLowerCase();
+
+    // Full query match in tag text (strongest signal)
+    if (textLower.includes(query)) score += 10;
+    // Full query match in meeting title
+    if (titleLower.includes(query)) score += 5;
+    // Individual keyword matches in tag text
+    for (const kw of keywords) {
+      if (textLower.includes(kw)) score += 3;
+      if (titleLower.includes(kw)) score += 1;
+    }
+
+    if (score === 0) continue;
+
+    // Load surrounding context from the meeting file
+    let context = '';
+    try {
+      const filePath = path.join(meetingsDir, entry.meeting);
+      const content = await readFile(filePath, 'utf-8');
+      const lines = content.split('\n');
+
+      if (entry.lineNumber > 0) {
+        // Extract 2 lines before and after the tag for context
+        const start = Math.max(0, entry.lineNumber - 2);
+        const end = Math.min(lines.length, entry.lineNumber + 3);
+        context = lines.slice(start, end).join('\n').trim();
+      } else {
+        // JSON appendix entries have lineNumber=0 — search for the text in the file
+        const idx = lines.findIndex(l => l.includes(entry.text.slice(0, 60)));
+        if (idx >= 0) {
+          const start = Math.max(0, idx - 2);
+          const end = Math.min(lines.length, idx + 3);
+          context = lines.slice(start, end).join('\n').trim();
+        }
+      }
+    } catch {
+      // File read failed — proceed without context
+    }
+
+    scored.push({ ...entry, context, score });
+  }
+
+  // Sort by score desc, then by date desc (newest first)
+  scored.sort((a, b) => b.score - a.score || (b.date ?? '').localeCompare(a.date ?? ''));
+
+  return scored.slice(0, limit);
+}
+
 export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEntry[]; actions: TagEntry[] }> {
   const index = await buildTagIndex(meetingsDir);
 
