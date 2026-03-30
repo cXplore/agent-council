@@ -339,6 +339,34 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         )}
       </div>
 
+      {/* Live status banner — prominent phase indicator for in-progress meetings */}
+      {isLive && detail && (
+        <div
+          className="px-6 py-2 flex items-center gap-3"
+          style={{
+            background: connectionLost
+              ? 'rgba(234, 179, 8, 0.08)'
+              : 'rgba(34, 197, 94, 0.08)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
+          <span
+            className={`inline-block w-2 h-2 rounded-full shrink-0 ${connectionLost ? '' : 'animate-pulse'}`}
+            style={{ background: connectionLost ? 'var(--warning)' : 'var(--live-green)' }}
+          />
+          <span className="text-sm font-medium" style={{ color: connectionLost ? 'var(--warning)' : 'var(--live-green)' }}>
+            {connectionLost
+              ? 'Connection lost — retrying...'
+              : latestEvent || 'Meeting in progress'}
+          </span>
+          {pollPaused && (
+            <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
+              Auto-refresh paused
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Participants bar */}
       {detail && detail.participants.length > 0 && (
         <div
@@ -438,7 +466,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             {/* Outcomes toggle */}
             {(() => {
               const count = detail?.content ? countOutcomes(detail.content) : 0;
-              if (count === 0) return null;
+              if (count === 0 && !isLive) return null;
               return (
                 <button
                   onClick={() => setOutcomesOpen(!outcomesOpen)}
@@ -448,8 +476,12 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                     color: outcomesOpen ? '#60a5fa' : 'var(--text-muted)',
                     border: `1px solid ${outcomesOpen ? 'rgba(96, 165, 250, 0.3)' : 'var(--border)'}`,
                   }}
+                  title={isLive ? 'Tags appear as agents write them. Final counts after meeting completes.' : undefined}
                 >
-                  Outcomes ({count})
+                  {isLive
+                    ? (count > 0 ? `Outcomes (${count}) — live` : 'Outcomes — live')
+                    : `Outcomes (${count})`
+                  }
                 </button>
               );
             })()}

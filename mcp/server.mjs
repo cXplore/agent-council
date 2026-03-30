@@ -23,8 +23,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import http from 'node:http';
-import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
@@ -92,41 +90,6 @@ function councilRequest(path, method = 'GET', body = null, retries = 1) {
 
     tryRequest();
   });
-}
-
-// Activity logging — capped JSONL file for observability
-// Decision: 2026-03-28 design review — max 200 entries, truncate oldest
-const ACTIVITY_LOG_MAX = 200;
-
-function getActivityLogPath() {
-  // Log lives next to meeting files — resolve via councilRequest would be async,
-  // so we use a fixed path relative to the project root
-  return join(process.cwd(), 'meetings', '.council-activity.jsonl');
-}
-
-function logActivity(tool, params, result) {
-  try {
-    const entry = JSON.stringify({
-      ts: new Date().toISOString(),
-      tool,
-      params,
-      result: typeof result === 'string' ? result : result?.slice?.(0, 200) || 'ok',
-    });
-    const logPath = getActivityLogPath();
-    appendFileSync(logPath, entry + '\n', 'utf8');
-
-    // Cap at max entries
-    try {
-      const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-      if (lines.length > ACTIVITY_LOG_MAX) {
-        writeFileSync(logPath, lines.slice(-ACTIVITY_LOG_MAX).join('\n') + '\n', 'utf8');
-      }
-    } catch {
-      // Truncation is best-effort
-    }
-  } catch {
-    // Logging is fire-and-forget — never fail a tool because of it
-  }
 }
 
 const server = new McpServer({
@@ -263,7 +226,6 @@ server.tool(
         detail,
         timestamp: new Date().toISOString(),
       });
-      logActivity('council_notify', { event, meeting, detail }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -271,7 +233,6 @@ server.tool(
         }],
       };
     } catch (err) {
-      logActivity('council_notify', { event, meeting }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not notify: ${err.message}` }],
       };
@@ -501,7 +462,6 @@ server.tool(
         source: 'claude-mcp',
       });
       const id = data.id || data.meeting?.id || 'unknown';
-      logActivity('council_schedule_meeting', { type, topic: topic.slice(0, 100) }, `id: ${id}`);
       return {
         content: [{
           type: 'text',
@@ -509,7 +469,6 @@ server.tool(
         }],
       };
     } catch (err) {
-      logActivity('council_schedule_meeting', { type, topic: topic.slice(0, 80) }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not schedule meeting: ${err.message}` }],
       };
@@ -623,7 +582,6 @@ server.tool(
         meeting,
         timestamp: new Date().toISOString(),
       });
-      logActivity('council_resolve_question', { slug, resolution: resolution.slice(0, 100) }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -631,7 +589,6 @@ server.tool(
         }],
       };
     } catch (err) {
-      logActivity('council_resolve_question', { slug }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not resolve question: ${err.message}` }],
       };
@@ -775,7 +732,7 @@ server.tool(
         const d = recentDecisions[0].text.split(' — ')[0].trim();
         focusText = d.length > 100 ? d.slice(0, 97) + '...' : d;
       } else {
-        focusText = 'No active direction. Run a meeting.';
+        focusText = 'No active items. Try: council_quick_consult to ask an agent, or council_schedule_meeting to plan a discussion.';
       }
 
       const lines = [];
@@ -807,7 +764,7 @@ server.tool(
           lines.push(`  • ${text}`);
         }
       } else {
-        lines.push('  None active.');
+        lines.push('  None active. Use council_get_work_items for full history or council_schedule_meeting to discuss next steps.');
       }
 
       if (recentOpen.length > 0) {
@@ -935,7 +892,6 @@ server.tool(
         ...(note ? { note } : {}),
       });
 
-      logActivity('council_mark_done', { text: match.text.slice(0, 100), note: note?.slice(0, 100) }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -943,7 +899,6 @@ server.tool(
         }],
       };
     } catch (err) {
-      logActivity('council_mark_done', { text: text.slice(0, 80) }, `error: ${err.message}`);
       return { content: [{ type: 'text', text: `Could not mark item done: ${err.message}` }] };
     }
   }
