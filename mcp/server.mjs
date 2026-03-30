@@ -710,26 +710,61 @@ server.tool(
 // Tool: Append learnings to agent context files (with rolling window)
 server.tool(
   'council_update_context',
-  'Append meeting learnings to an agent\'s context file. Auto-trims to 50-line rolling window to prevent unbounded growth. Use after meetings to record what each agent learned.',
+  'Append meeting learnings to an agent\'s context file. Auto-trims to 50-line rolling window to prevent unbounded growth. Use after meetings to record what each agent learned. Can also record corrections when an agent was wrong.',
   {
     agent: z.string().describe('Agent name (e.g., "developer", "architect")'),
-    entries: z.array(z.string()).describe('Array of learning entries to append (e.g., ["[2026-03-29 strategy] Key decision about X"])'),
+    entries: z.array(z.string()).optional().describe('Array of learning entries to append (e.g., ["[2026-03-29 strategy] Key decision about X"])'),
+    correction: z.string().optional().describe('A correction record when an agent was wrong. Format: "[date] [CORRECTION] In [meeting], claimed X. Actual: Y. Update: Z." Corrections persist separately and are not subject to the rolling window.'),
   },
-  async ({ agent, entries }) => {
+  async ({ agent, entries, correction }) => {
     try {
-      const data = await councilRequest('/api/agents/context', 'POST', {
-        agent,
-        entries,
-      });
+      const body = { agent };
+      if (entries) body.entries = entries;
+      if (correction) body.correction = correction;
+      await councilRequest('/api/agents/context', 'POST', body);
+      const parts = [];
+      if (entries?.length) parts.push(`Added ${entries.length} learning entries`);
+      if (correction) parts.push('Added 1 correction record');
       return {
         content: [{
           type: 'text',
-          text: `Added ${entries.length} entries to ${agent}'s context file (rolling window: 50 lines max).`,
+          text: `${parts.join('. ')} to ${agent}'s context file.`,
         }],
       };
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not update context: ${err.message}` }],
+      };
+    }
+  }
+);
+
+// Tool: Get context health report for all agents
+server.tool(
+  'council_context_health',
+  'Get a health/staleness report for all agent context files. Shows capacity usage, date ranges, stale entries, and correction counts. Use to assess whether agent context is fresh and reliable before production use.',
+  {},
+  async () => {
+    try {
+      const data = await councilRequest('/api/agents/context');
+      const agents = data.agents || [];
+      if (agents.length === 0) {
+        return {
+          content: [{ type: 'text', text: 'No agent context files found.' }],
+        };
+      }
+      const lines = ['# Agent Context Health Report\n'];
+      for (const a of agents) {
+        const status = a.staleEntries > 0 ? `⚠ ${a.staleEntries} stale (>${a.staleDays}d)` : '✓ fresh';
+        lines.push(`**${a.agent}** — ${a.totalLearnings} learnings (${a.capacityUsed}% capacity), ${a.totalCorrections} corrections`);
+        lines.push(`  Range: ${a.oldestEntryDate || 'n/a'} → ${a.newestEntryDate || 'n/a'} | ${status}`);
+      }
+      return {
+        content: [{ type: 'text', text: lines.join('\n') }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Could not get context health: ${err.message}` }],
       };
     }
   }
