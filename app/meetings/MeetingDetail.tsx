@@ -7,6 +7,7 @@ import { createMeetingComponents } from '@/lib/md-components';
 import { getContentForRound } from '@/lib/meeting-utils';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 import MeetingCompletionCard from './MeetingCompletionCard';
+import MeetingSummaryCard from './MeetingSummaryCard';
 import { formatType, formatDuration, ProjectBadge } from './MeetingListCard';
 import { useToast } from '@/app/components/Toast';
 import type { MeetingData } from './useMeetingData';
@@ -998,6 +999,14 @@ export default function MeetingDetail(props: MeetingDetailProps) {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
+        )}
+
+        {/* Summary card for completed meetings — outcomes-first orientation */}
+        {detail && !isLive && detail.content && (
+          <MeetingSummaryCard
+            content={detail.content}
+            onOpenOutcomes={() => setOutcomesOpen(true)}
+          />
         )}
 
         {/* Round navigation bar removed — now inline above content */}

@@ -461,6 +461,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     setMeetingTerms(null);
     setShowTerms(false);
     setContextCards([]);
+    setOutcomesOpen(false); // Reset — auto-open for completed meetings handled below
     fetchDetail(selected);
 
     // Don't poll static demo meeting
@@ -537,6 +538,15 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     const interval = setInterval(() => { if (isVisibleRef.current) { fetchEvents(); fetchContext(); } }, 3000);
     return () => clearInterval(interval);
   }, [selected, detail?.status]);
+
+  // Auto-open outcomes panel for completed meetings on first load
+  useEffect(() => {
+    if (detail && detail.status === 'complete') {
+      setOutcomesOpen(true);
+    }
+    // Only run when detail first loads (status changes from null to a value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.status]);
 
   // Load notes from localStorage when selected meeting changes
   useEffect(() => {

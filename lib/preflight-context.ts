@@ -63,7 +63,7 @@ const MAX_FILES = 5;
 const CHARS_PER_TOKEN = 4;
 
 const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'dist', 'build', '.next', '__pycache__',
+  'node_modules', '.git', 'dist', 'dist-electron', 'build', '.next', '__pycache__',
   'vendor', 'target', '.cache', '.turbo', '.vercel', '.output',
   'coverage', '.nyc_output', '.venv', 'venv', 'env', '.env',
   'out', 'tmp', 'temp',
