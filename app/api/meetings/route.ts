@@ -301,7 +301,14 @@ export async function PATCH(request: NextRequest) {
         /<!--\s*status:\s*[\w-]+\s*-->/,
         `<!-- status: ${status} -->`
       );
-      // Also update the frontmatter-style status if present
+      // Also update YAML frontmatter status if present
+      if (fileContent.startsWith('---\n')) {
+        fileContent = fileContent.replace(
+          /^(---\n[\s\S]*?)^status:\s*.+$/m,
+          `$1status: ${status}`
+        );
+      }
+      // Also update the bold-text status if present
       fileContent = fileContent.replace(
         /^\*\*Status:\*\*\s*.+$/m,
         `**Status:** ${status}`
