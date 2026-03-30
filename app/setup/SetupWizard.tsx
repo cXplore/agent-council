@@ -56,7 +56,7 @@ function SetupWizardInner() {
   const [connectError, setConnectError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean } | null>(null);
+  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean; generatedAgents?: string[]; profile?: ProjectProfile } | null>(null);
   const [generateError, setGenerateError] = useState('');
   const [mcpTargets, setMcpTargets] = useState<Record<string, McpTarget> | null>(null);
   const [mcpConfiguring, setMcpConfiguring] = useState(false);
@@ -192,6 +192,8 @@ function SetupWizardInner() {
         hasAgents: agentCount > 0,
         agentCount,
         hasFacilitator: connectData.hasFacilitator ?? false,
+        generatedAgents: connectData.generatedAgents,
+        profile: connectData.profile,
       });
       setConnected(true);
       // Refresh the nav to show the newly active project
@@ -545,7 +547,27 @@ function SetupWizardInner() {
               </div>
               {connectInfo && (
                 <div className="text-sm space-y-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
-                  {connectInfo.hasAgents ? (
+                  {/* Profile summary */}
+                  {connectInfo.profile && (
+                    <p>
+                      Detected{' '}
+                      <strong style={{ color: 'var(--text-primary)' }}>
+                        {connectInfo.profile.languages.slice(0, 3).map(l => l.name).join(', ')}
+                      </strong>
+                      {connectInfo.profile.frameworks.length > 0 && (
+                        <> with <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.profile.frameworks.map(f => f.name).join(', ')}</strong></>
+                      )}.
+                    </p>
+                  )}
+                  {/* Agent status */}
+                  {connectInfo.generatedAgents && connectInfo.generatedAgents.length > 0 ? (
+                    <p>
+                      Generated <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.generatedAgents.length} project-aware agents</strong> (architect, critic, developer, north-star, PM).
+                      {!connectInfo.hasFacilitator && (
+                        <span style={{ color: 'var(--warning)' }}> No facilitator — <button onClick={() => handleScan()} className="underline" style={{ color: 'var(--accent)' }}>set one up</button> to run meetings.</span>
+                      )}
+                    </p>
+                  ) : connectInfo.hasAgents ? (
                     <p>
                       Found <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.agentCount} agents</strong> in your project.
                       {connectInfo.hasFacilitator

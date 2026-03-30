@@ -3,6 +3,8 @@ import { readdir, stat, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig } from '@/lib/config';
 import { scanProject } from '@/lib/scanner';
+import { ensureGitignore, generateCoreAgents } from '@/lib/project-setup';
+import type { ProjectProfile } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {
@@ -66,11 +68,31 @@ export async function POST(req: NextRequest) {
     }
 
     // Run lightweight filesystem scan — pure file I/O, no AI tokens needed
-    let profile = undefined;
+    let profile: ProjectProfile | undefined = undefined;
     try {
       profile = await scanProject(projectPath);
     } catch {
       // Scan failure is non-fatal — connect still works without a profile
+    }
+
+    // Add meetingsDir to .gitignore if a .gitignore exists
+    try {
+      await ensureGitignore(projectPath, resolvedMeetingsDir);
+    } catch {
+      // Non-fatal — gitignore update is best-effort
+    }
+
+    // Auto-generate core agents if profile is available and agents are missing
+    let generatedAgents: string[] = [];
+    if (profile && agentCount === 0) {
+      try {
+        const result = await generateCoreAgents(projectPath, agentsDir, profile);
+        generatedAgents = result.generated;
+        agentCount = result.generated.length + result.skipped.length;
+        hasFacilitator = false; // Core agents don't include facilitator
+      } catch {
+        // Non-fatal — agent generation is best-effort
+      }
     }
 
     // Add project to config and make it active
@@ -91,6 +113,7 @@ export async function POST(req: NextRequest) {
       agentCount,
       hasFacilitator,
       profile,
+      generatedAgents,
     });
   } catch (err) {
     console.error('Connect project error:', err);
