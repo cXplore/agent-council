@@ -16,6 +16,22 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
 
+/**
+ * Emit a meeting event to the events API for the live viewer.
+ * Fire-and-forget — failures are silently ignored.
+ */
+async function emitEvent(event: string, meeting: string, detail?: string) {
+  try {
+    await fetch(`http://localhost:${process.env.PORT || 3003}/api/council/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, meeting, detail }),
+    });
+  } catch {
+    // Non-critical — don't fail the meeting
+  }
+}
+
 const MEETING_TYPES = [
   'standup', 'design-review', 'strategy', 'architecture',
   'sprint-planning', 'retrospective', 'incident-review', 'direction-check',
@@ -227,16 +243,73 @@ export async function POST(req: NextRequest) {
       }),
     );
 
+    // Generate meeting filename early so events reference the right file
+    const meetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
+    const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${topic}`;
+    let meetingFilePath: string | undefined;
+
+    // Helper to build/rebuild the meeting file content from current state
+    const buildMeetingContent = (
+      rounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+      status: 'in-progress' | 'complete',
+      outcomesAppendix?: string,
+    ): string => {
+      const lines: string[] = [];
+      lines.push('---');
+      lines.push(`type: ${type}`);
+      lines.push(`status: ${status}`);
+      lines.push(`date: ${new Date().toISOString().slice(0, 10)}`);
+      lines.push(`participants: [${agents.join(', ')}]`);
+      lines.push(`rounds: ${roundCount}`);
+      lines.push(`objective: "Multi-agent consult on: ${topic.replace(/"/g, '\\"')}"`);
+      lines.push('---');
+      lines.push('');
+      lines.push(`# ${meetingTitle}`);
+      lines.push('');
+      for (const { round, responses } of rounds) {
+        lines.push(`## Round ${round}`);
+        lines.push('');
+        for (const { agent, answer } of responses) {
+          const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+          lines.push(`### ${displayName}`);
+          lines.push('');
+          lines.push(answer || '*No response*');
+          lines.push('');
+        }
+      }
+      if (outcomesAppendix) lines.push(outcomesAppendix);
+      return lines.join('\n');
+    };
+
+    // Create the meeting file at the start so the viewer can pick it up
+    if (writeMeeting) {
+      const meetingsDir = active.meetingsDir;
+      await mkdir(meetingsDir, { recursive: true });
+      meetingFilePath = path.join(meetingsDir, meetingFilename);
+      await writeFile(meetingFilePath, buildMeetingContent([], 'in-progress'), 'utf-8');
+    }
+
     // Run rounds
     const allRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }> = [];
 
+    if (meetingFilename) {
+      await emitEvent('meeting_starting', meetingFilename, `${agents.length} agents, ${roundCount} round${roundCount > 1 ? 's' : ''}`);
+    }
+
     for (let round = 1; round <= roundCount; round++) {
+      if (meetingFilename) {
+        await emitEvent('round_starting', meetingFilename, `Round ${round} of ${roundCount}`);
+      }
+
       const question = round === 1
         ? topic
         : buildRoundPrompt(round, topic, allRounds);
 
       const responses = await Promise.all(
         agents.map(async (agentName) => {
+          if (meetingFilename) {
+            emitEvent('agent_speaking', meetingFilename, agentName);
+          }
           const systemPrompt = promptsMap.get(agentName) ?? '';
           const answer = await queryAgent(
             agentName, question, systemPrompt, codeAware, active.projectPath,
@@ -246,6 +319,15 @@ export async function POST(req: NextRequest) {
       );
 
       allRounds.push({ round, responses });
+
+      // Update meeting file after each round so the viewer shows progress
+      if (meetingFilePath) {
+        await writeFile(meetingFilePath, buildMeetingContent(allRounds, 'in-progress'), 'utf-8');
+      }
+
+      if (meetingFilename) {
+        await emitEvent('round_complete', meetingFilename, `Round ${round}`);
+      }
     }
 
     // Extract structured outcomes from agent responses
@@ -280,48 +362,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Write to meeting file if requested
+    // Finalize meeting file with outcomes and 'complete' status
     let meetingFile: string | undefined;
-    if (writeMeeting) {
-      const filename = generateMeetingFilename(type, topic);
-      const meetingsDir = active.meetingsDir;
-
-      await mkdir(meetingsDir, { recursive: true });
-
-      const lines: string[] = [];
-      lines.push('---');
-      lines.push(`type: ${type}`);
-      lines.push('status: complete');
-      lines.push(`date: ${new Date().toISOString().slice(0, 10)}`);
-      lines.push(`participants: [${agents.join(', ')}]`);
-      lines.push(`rounds: ${roundCount}`);
-      lines.push(`objective: "Multi-agent consult on: ${topic.replace(/"/g, '\\"')}"`);
-      lines.push('---');
-      lines.push('');
-      lines.push(`# ${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${topic}`);
-      lines.push('');
-
-      for (const { round, responses } of allRounds) {
-        lines.push(`## Round ${round}`);
-        lines.push('');
-        for (const { agent, answer } of responses) {
-          const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-          lines.push(`### ${displayName}`);
-          lines.push('');
-          lines.push(answer || '*No response*');
-          lines.push('');
-        }
-      }
-
-      // Append structured outcomes if any were extracted
+    if (meetingFilePath) {
       const outcomesAppendix = formatOutcomesAppendix(outcomes);
-      if (outcomesAppendix) {
-        lines.push(outcomesAppendix);
-      }
+      await writeFile(
+        meetingFilePath,
+        buildMeetingContent(allRounds, 'complete', outcomesAppendix || undefined),
+        'utf-8',
+      );
+      meetingFile = meetingFilename;
 
-      const filePath = path.join(meetingsDir, filename);
-      await writeFile(filePath, lines.join('\n'), 'utf-8');
-      meetingFile = filename;
+      await emitEvent('meeting_complete', meetingFilename, `${allRounds.length} round${allRounds.length > 1 ? 's' : ''} complete`);
     }
 
     // Build outcomes for response (only include non-empty arrays)

@@ -50,10 +50,11 @@ function extractOutcomes(content: string): OutcomeItem[] {
 interface MeetingOutcomesProps {
   content: string;
   open: boolean;
+  isLive?: boolean;
   onClose: () => void;
 }
 
-export default function MeetingOutcomes({ content, open, onClose }: MeetingOutcomesProps) {
+export default function MeetingOutcomes({ content, open, isLive, onClose }: MeetingOutcomesProps) {
   const [notFoundKey, setNotFoundKey] = useState<string | null>(null);
   const outcomes = useMemo(() => extractOutcomes(content), [content]);
 
@@ -134,8 +135,8 @@ export default function MeetingOutcomes({ content, open, onClose }: MeetingOutco
       >
         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
           Outcomes
-          <span className="ml-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-            {total} item{total !== 1 ? 's' : ''}
+          <span className="ml-2 text-xs" style={{ color: isLive ? 'var(--live-green)' : 'var(--text-muted)' }}>
+            {isLive ? 'updating live' : `${total} item${total !== 1 ? 's' : ''}`}
           </span>
         </span>
         <button

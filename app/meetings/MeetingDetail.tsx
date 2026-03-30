@@ -340,32 +340,44 @@ export default function MeetingDetail(props: MeetingDetailProps) {
       </div>
 
       {/* Live status banner — prominent phase indicator for in-progress meetings */}
-      {isLive && detail && (
-        <div
-          className="px-6 py-2 flex items-center gap-3"
-          style={{
-            background: connectionLost
-              ? 'rgba(234, 179, 8, 0.08)'
-              : 'rgba(34, 197, 94, 0.08)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <span
-            className={`inline-block w-2 h-2 rounded-full shrink-0 ${connectionLost ? '' : 'animate-pulse'}`}
-            style={{ background: connectionLost ? 'var(--warning)' : 'var(--live-green)' }}
-          />
-          <span className="text-sm font-medium" style={{ color: connectionLost ? 'var(--warning)' : 'var(--live-green)' }}>
-            {connectionLost
-              ? 'Connection lost — retrying...'
-              : latestEvent || 'Meeting in progress'}
-          </span>
-          {pollPaused && (
-            <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
-              Auto-refresh paused
-            </span>
-          )}
-        </div>
-      )}
+      {isLive && detail && (() => {
+        const phaseIcon = connectionLost ? null
+          : latestEvent?.includes('starting') ? '\u25B6'
+          : latestEvent?.includes('thinking') ? '\u270D'
+          : latestEvent?.includes('complete') ? '\u2714'
+          : '\u23F3';
+        return (
+          <div
+            className="px-6 py-2.5 flex items-center gap-3"
+            style={{
+              background: connectionLost
+                ? 'rgba(234, 179, 8, 0.08)'
+                : 'rgba(34, 197, 94, 0.08)',
+              borderBottom: '1px solid var(--border)',
+            }}
+          >
+            <span
+              className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${connectionLost ? '' : 'animate-pulse'}`}
+              style={{ background: connectionLost ? 'var(--warning)' : 'var(--live-green)' }}
+            />
+            {connectionLost ? (
+              <span className="text-sm font-medium" style={{ color: 'var(--warning)' }}>
+                Connection lost — retrying...
+              </span>
+            ) : (
+              <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--live-green)' }}>
+                {phaseIcon && <span className="text-xs">{phaseIcon}</span>}
+                {latestEvent || 'Meeting in progress'}
+              </span>
+            )}
+            {pollPaused && (
+              <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
+                Auto-refresh paused
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Participants bar */}
       {detail && detail.participants.length > 0 && (
@@ -476,10 +488,10 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                     color: outcomesOpen ? '#60a5fa' : 'var(--text-muted)',
                     border: `1px solid ${outcomesOpen ? 'rgba(96, 165, 250, 0.3)' : 'var(--border)'}`,
                   }}
-                  title={isLive ? 'Tags appear as agents write them. Final counts after meeting completes.' : undefined}
+                  title={isLive ? 'Tags appear as agents write them. Final counts shown after meeting completes.' : undefined}
                 >
                   {isLive
-                    ? (count > 0 ? `Outcomes (${count}) — live` : 'Outcomes — live')
+                    ? 'Outcomes — updating live'
                     : `Outcomes (${count})`
                   }
                 </button>
@@ -1051,6 +1063,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         <MeetingOutcomes
           content={detail.content}
           open={outcomesOpen}
+          isLive={isLive}
           onClose={() => setOutcomesOpen(false)}
         />
       )}
