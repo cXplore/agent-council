@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mkdir, readdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig, validateProjects } from '@/lib/config';
+import { generateSkeletonContext } from '@/lib/context-files';
+import type { ProjectProfile } from '@/lib/types';
 
 /** GET /api/projects — list all projects + active */
 export async function GET() {
@@ -59,7 +61,10 @@ export async function POST(req: NextRequest) {
 
     if (action === 'add') {
       // Add a new project
-      const { name, projectPath, meetingsDir, agentsDir } = body;
+      const { name, projectPath, meetingsDir, agentsDir, profile } = body as {
+        name?: string; projectPath?: string; meetingsDir?: string;
+        agentsDir?: string; profile?: ProjectProfile;
+      };
 
       if (!name || !projectPath) {
         return NextResponse.json(
@@ -127,6 +132,7 @@ export async function POST(req: NextRequest) {
         path: projectPath.replace(/\\/g, '/'),
         meetingsDir: resolvedMeetingsDir,
         agentsDir: resolvedAgentsDir,
+        ...(profile ? { profile } : {}),
       };
       config.activeProject = name;
       await saveConfig(config);
@@ -139,11 +145,29 @@ export async function POST(req: NextRequest) {
         mkdir(absAgents, { recursive: true }),
       ]);
 
+      // Write skeleton context files so agents immediately know the project's stack
+      let contextFilesWritten = 0;
+      if (profile?.suggestedAgents) {
+        const contextPromises = profile.suggestedAgents.map(async (agent) => {
+          const contextPath = path.join(absAgents, `${agent}.context.md`);
+          try {
+            await stat(contextPath);
+            // Context file already exists — don't overwrite
+          } catch {
+            // File doesn't exist — write skeleton
+            await writeFile(contextPath, generateSkeletonContext(agent, profile), 'utf-8');
+            contextFilesWritten++;
+          }
+        });
+        await Promise.all(contextPromises);
+      }
+
       return NextResponse.json({
         success: true,
         project: config.projects[name],
         agentCount,
         hasFacilitator,
+        contextFilesWritten,
       });
     }
 

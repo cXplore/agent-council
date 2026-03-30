@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { ProjectProfile } from './types';
 
 export const MAX_LEARNING_LINES = 50;
 const STALE_DAYS = 30;
@@ -273,4 +274,69 @@ export async function getContextHealth(
     staleDays: STALE_DAYS,
     capacityUsed: Math.round((sections.learnings.length / MAX_LEARNING_LINES) * 100),
   };
+}
+
+/**
+ * Generate a skeleton agent context file from a project scan profile.
+ * Written once at project connect time so agents immediately know
+ * the project's tech stack and structure.
+ */
+export function generateSkeletonContext(agentName: string, profile: ProjectProfile): string {
+  const lines: string[] = [];
+
+  lines.push(`# ${agentName} — Context`);
+  lines.push('');
+
+  // Domain knowledge section — the scanner output as project awareness
+  lines.push('## Domain Knowledge');
+  lines.push('');
+
+  // Tech stack
+  const langs = profile.languages.filter(l => l.percentage >= 5).map(l => l.name);
+  if (langs.length > 0) {
+    lines.push(`**Languages:** ${langs.join(', ')}`);
+  }
+
+  const fws = profile.frameworks.filter(f => f.confidence !== 'low');
+  if (fws.length > 0) {
+    const fwStrs = fws.map(f => f.version ? `${f.name} ${f.version}` : f.name);
+    lines.push(`**Frameworks:** ${fwStrs.join(', ')}`);
+  }
+
+  if (profile.packageManager !== 'unknown') {
+    lines.push(`**Package Manager:** ${profile.packageManager}`);
+  }
+
+  // Structure
+  const traits: string[] = [];
+  if (profile.structure.isMonorepo) traits.push('monorepo');
+  if (profile.structure.hasApi) traits.push('API');
+  if (profile.structure.hasFrontend) traits.push('frontend');
+  if (profile.structure.hasDatabase) traits.push('database');
+  if (profile.structure.hasTests) traits.push('tests');
+  if (profile.structure.hasCICD) traits.push('CI/CD');
+  if (profile.structure.hasDocker) traits.push('Docker');
+  if (traits.length > 0) {
+    lines.push(`**Structure:** ${traits.join(', ')}`);
+  }
+
+  // Libraries by category
+  const libEntries = Object.entries(profile.libraries).filter(([, libs]) => libs.length > 0);
+  if (libEntries.length > 0) {
+    lines.push('');
+    lines.push('**Key Libraries:**');
+    for (const [category, libs] of libEntries) {
+      lines.push(`- ${category}: ${libs.join(', ')}`);
+    }
+  }
+
+  lines.push('');
+  lines.push('## Meeting Learnings');
+  lines.push('');
+  lines.push('## Corrections');
+  lines.push('');
+  lines.push('## Project Conventions');
+  lines.push('');
+
+  return lines.join('\n');
 }

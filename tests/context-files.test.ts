@@ -5,6 +5,7 @@ import {
   trimContextFile,
   getContextHealth,
   parseLearningDate,
+  generateSkeletonContext,
   MAX_LEARNING_LINES,
 } from '../lib/context-files';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
@@ -320,5 +321,65 @@ describe('getContextHealth', () => {
     expect(health.totalLearnings).toBe(3);
     expect(health.oldestEntryDate).toBe('2026-03-01');
     expect(health.newestEntryDate).toBe('2026-03-01');
+  });
+});
+
+describe('generateSkeletonContext', () => {
+  it('should include tech stack from profile', () => {
+    const result = generateSkeletonContext('architect', {
+      languages: [
+        { name: 'TypeScript', fileCount: 80, percentage: 85 },
+        { name: 'JavaScript', fileCount: 10, percentage: 10 },
+        { name: 'CSS', fileCount: 3, percentage: 3 }, // below 5% threshold
+      ],
+      frameworks: [
+        { name: 'Next.js', confidence: 'high', version: '16.2.1' },
+        { name: 'TailwindCSS', confidence: 'high' },
+        { name: 'SomeLib', confidence: 'low' }, // filtered out
+      ],
+      structure: {
+        hasApi: true, hasFrontend: true, hasDatabase: false,
+        hasTests: true, hasCICD: false, isMonorepo: false, hasDocker: false,
+      },
+      packageManager: 'npm',
+      libraries: { testing: ['Vitest'], styling: ['TailwindCSS'], ai: [] },
+      suggestedPreset: 'full-stack',
+      suggestedAgents: ['architect', 'developer'],
+    });
+
+    expect(result).toContain('# architect — Context');
+    expect(result).toContain('TypeScript, JavaScript');
+    // CSS (3%) is below 5% threshold — should not appear in languages list
+    expect(result).not.toMatch(/\*\*Languages:\*\*.*CSS/);
+    expect(result).toContain('Next.js 16.2.1');
+    expect(result).toContain('TailwindCSS');
+    expect(result).not.toContain('SomeLib'); // low confidence
+    expect(result).toContain('npm');
+    expect(result).toContain('API, frontend, tests');
+    expect(result).toContain('testing: Vitest');
+    expect(result).not.toContain('ai:'); // empty category filtered
+    expect(result).toContain('## Meeting Learnings');
+    expect(result).toContain('## Corrections');
+    expect(result).toContain('## Project Conventions');
+  });
+
+  it('should handle minimal profile gracefully', () => {
+    const result = generateSkeletonContext('developer', {
+      languages: [],
+      frameworks: [],
+      structure: {
+        hasApi: false, hasFrontend: false, hasDatabase: false,
+        hasTests: false, hasCICD: false, isMonorepo: false, hasDocker: false,
+      },
+      packageManager: 'unknown',
+      libraries: {},
+      suggestedPreset: 'basic',
+      suggestedAgents: [],
+    });
+
+    expect(result).toContain('# developer — Context');
+    expect(result).toContain('## Domain Knowledge');
+    expect(result).not.toContain('**Languages:**');
+    expect(result).not.toContain('**Package Manager:**');
   });
 });
