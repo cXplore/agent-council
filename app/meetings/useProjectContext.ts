@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export interface ProjectContext {
   activeProject: string | null;
@@ -9,9 +10,15 @@ export interface ProjectContext {
 }
 
 export function useProjectContext(): ProjectContext {
-  const [activeProject, setActiveProject] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const urlProject = searchParams.get('project');
+
+  const [serverProject, setServerProject] = useState<string | null>(null);
   const [hasProject, setHasProject] = useState<boolean | null>(null);
   const [hasFacilitator, setHasFacilitator] = useState<boolean | null>(null);
+
+  // URL param takes precedence over server state (matches Nav behavior)
+  const activeProject = urlProject || serverProject;
 
   useEffect(() => {
     async function fetchProjectState() {
@@ -19,11 +26,11 @@ export function useProjectContext(): ProjectContext {
         const res = await fetch('/api/projects');
         if (!res.ok) return;
         const data = await res.json();
-        const active = data.activeProject ?? null;
-        setActiveProject(active);
+        setServerProject(data.activeProject ?? null);
         setHasProject(data.projects?.length > 0);
 
         // Check if active project has a facilitator
+        const active = urlProject || data.activeProject;
         if (active) {
           try {
             const agentsRes = await fetch('/api/agents');
@@ -39,7 +46,7 @@ export function useProjectContext(): ProjectContext {
       }
     }
     fetchProjectState();
-  }, []);
+  }, [urlProject]);
 
   return { activeProject, hasProject, hasFacilitator };
 }

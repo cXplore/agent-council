@@ -49,19 +49,33 @@ interface ActivityFeedProps {
 export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [newSinceLastVisit, setNewSinceLastVisit] = useState(0);
 
   useEffect(() => {
-    fetch('/api/activity?limit=10')
+    fetch('/api/activity?limit=20')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.entries) setEntries(data.entries);
+        if (data?.entries) {
+          setEntries(data.entries);
+          // Count entries newer than last visit
+          try {
+            const lastVisit = localStorage.getItem('council-last-visit');
+            if (lastVisit) {
+              const count = data.entries.filter((e: ActivityEntry) => e.timestamp > lastVisit).length;
+              setNewSinceLastVisit(count);
+            }
+          } catch { /* ignore */ }
+          // Update last visit timestamp
+          try { localStorage.setItem('council-last-visit', new Date().toISOString()); } catch { /* ignore */ }
+        }
       })
       .catch(() => {});
   }, []);
 
   if (entries.length === 0) return null;
 
-  const shown = expanded ? entries : entries.slice(0, 3);
+  const DEFAULT_SHOWN = 5;
+  const shown = expanded ? entries : entries.slice(0, DEFAULT_SHOWN);
 
   return (
     <div
@@ -69,10 +83,20 @@ export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
-        <span className="text-xs font-medium tracking-wide uppercase" style={{ color: 'var(--text-muted)' }}>
-          Recent Activity
-        </span>
-        {entries.length > 3 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium tracking-wide uppercase" style={{ color: 'var(--text-muted)' }}>
+            Recent Activity
+          </span>
+          {newSinceLastVisit > 0 && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(124, 109, 216, 0.2)', color: '#a78bfa' }}
+            >
+              {newSinceLastVisit} new
+            </span>
+          )}
+        </div>
+        {entries.length > DEFAULT_SHOWN && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="text-xs"
@@ -82,6 +106,19 @@ export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
           </button>
         )}
       </div>
+      {/* Worker heartbeat — shows last worker activity */}
+      {(() => {
+        const lastWorkerRun = entries.find(e => e.source === 'worker');
+        if (!lastWorkerRun) return null;
+        const ago = timeAgo(lastWorkerRun.timestamp);
+        const isRecent = (Date.now() - new Date(lastWorkerRun.timestamp).getTime()) < 15 * 60 * 1000; // 15 min
+        return (
+          <div className="px-4 py-1.5 flex items-center gap-2 text-xs" style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <span style={{ color: isRecent ? '#22c55e' : 'var(--text-muted)' }}>{isRecent ? '●' : '○'}</span>
+            <span>Worker {isRecent ? 'active' : 'last seen'} {ago}</span>
+          </div>
+        );
+      })()}
       <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
         {shown.map((entry) => {
           const typeConf = TYPE_CONFIG[entry.type] ?? { label: entry.type, color: 'var(--text-muted)', icon: '\u2022' };

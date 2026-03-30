@@ -462,8 +462,8 @@ function SetupWizardInner() {
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             {step === 'path' && !connected && 'Point us at your project and we\'ll get you set up.'}
             {step === 'path' && connected && 'Here\'s what we found.'}
-            {step === 'scan' && 'Here\'s what we found. Review the suggested team.'}
-            {step === 'customize' && 'Customize your agents before generating.'}
+            {step === 'scan' && 'Here\'s what we found. Hit Set Up Team to get started.'}
+            {step === 'customize' && 'Fine-tune agents before generating.'}
             {step === 'generate' && 'Your agents are ready.'}
           </p>
         </div>
@@ -999,7 +999,11 @@ function SetupWizardInner() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {generateError && (
+              <p className="text-sm" style={{ color: 'var(--error)' }}>{generateError}</p>
+            )}
+
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setStep('path')}
                 className="px-5 py-2.5 rounded-lg text-sm font-medium"
@@ -1008,11 +1012,24 @@ function SetupWizardInner() {
                 Back
               </button>
               <button
-                onClick={() => { setStep('customize'); setGenerateError(''); }}
-                className="px-5 py-2.5 rounded-lg text-sm font-medium"
+                onClick={handleGenerate}
+                disabled={generating || enabledCount === 0}
+                className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
                 style={{ background: 'var(--accent)', color: 'white' }}
               >
-                Customize ({enabledCount} agents)
+                {generating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Setting up...
+                  </span>
+                ) : `Set Up Team (${enabledCount} agents)`}
+              </button>
+              <button
+                onClick={() => { setStep('customize'); setGenerateError(''); }}
+                className="text-xs transition-colors"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Customize first&hellip;
               </button>
             </div>
           </div>
@@ -1134,8 +1151,9 @@ function SetupWizardInner() {
               <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                 Next: open your project in Claude Code and ask for a meeting
               </p>
-              <div className="space-y-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                <p>Just say something like <em style={{ color: 'var(--accent)' }}>&quot;what should we work on today?&quot;</em> or <em style={{ color: 'var(--accent)' }}>&quot;let&apos;s review the dashboard design&quot;</em></p>
+              <div className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <p>Open your project in Claude Code and paste this prompt:</p>
+                <FirstMeetingPrompt projectPath={projectPath} />
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   The facilitator picks the right format and assembles the team automatically. The meeting shows up live here.
                 </p>
