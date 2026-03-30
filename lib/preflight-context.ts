@@ -77,10 +77,28 @@ const CODE_EXTENSIONS = new Set([
   '.ex', '.exs', '.scala', '.php',
 ]);
 
-// Reserved for future use: config file detection in Pass 2
-// const CONFIG_FILES = new Set([
-//   'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js',
-// ]);
+/** Markdown and config files that are meaningful project artifacts (not just docs) */
+const DOC_EXTENSIONS = new Set(['.md', '.mdx']);
+
+/** Binary/media extensions to always skip — these are never useful context */
+const SKIP_EXTENSIONS = new Set([
+  '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.bmp',
+  '.woff', '.woff2', '.ttf', '.eot', '.otf',
+  '.mp3', '.mp4', '.wav', '.webm', '.ogg',
+  '.zip', '.tar', '.gz', '.br', '.map',
+  '.pdf', '.lock',
+]);
+
+/**
+ * Keywords that are too generic to be useful signals on their own.
+ * These only match if they appear as an exact basename match (score 10),
+ * not as partial path matches which produce false positives.
+ */
+const GENERIC_KEYWORDS = new Set([
+  'file', 'files', 'data', 'test', 'tests', 'index', 'config',
+  'type', 'types', 'util', 'utils', 'helper', 'helpers',
+  'app', 'src', 'lib', 'public', 'static', 'assets',
+]);
 
 // ---------------------------------------------------------------------------
 // Keyword extraction (Pass 1)
@@ -109,6 +127,10 @@ export function extractKeywords(topic: string): string[] {
     'meeting', 'discuss', 'review', 'design', 'should', 'currently',
     'proposal', 'question', 'answer', 'approach', 'strategy',
     'improve', 'better', 'make', 'existing', 'new', 'using',
+    // Common project-agnostic nouns
+    'way', 'part', 'work', 'thing', 'things', 'time', 'system',
+    'change', 'changes', 'specific', 'different', 'based',
+    'three', 'first', 'second', 'next', 'last',
   ]);
 
   // Split on whitespace and common separators, extract identifier-like tokens
@@ -181,7 +203,8 @@ async function walkFileTree(
   }
 
   for (const entry of entries) {
-    if (entry.name.startsWith('.') && entry.name !== '.env.example') continue;
+    // Skip hidden dirs (but allow hidden files — e.g. .council-worker-log.md)
+    if (entry.isDirectory() && entry.name.startsWith('.')) continue;
     if (SKIP_DIRS.has(entry.name)) continue;
 
     const fullPath = path.join(dir, entry.name);
@@ -214,20 +237,28 @@ interface FileMatch {
  */
 function scoreFileMatch(filePath: string, keywords: string[]): FileMatch | null {
   const lower = filePath.toLowerCase();
+  const ext = path.extname(filePath).toLowerCase();
   const basename = path.basename(filePath).toLowerCase();
-  const basenameNoExt = path.basename(filePath, path.extname(filePath)).toLowerCase();
+  const basenameNoExt = path.basename(filePath, ext).toLowerCase();
   const signals: string[] = [];
   let score = 0;
 
+  // Skip binary/media files entirely — they are never useful context
+  if (SKIP_EXTENSIONS.has(ext)) return null;
+
   for (const kw of keywords) {
     const kwLower = kw.toLowerCase();
+    const isGeneric = GENERIC_KEYWORDS.has(kwLower);
 
-    // Exact basename match (strongest signal)
+    // Exact basename match (strongest signal — always applies)
     if (basenameNoExt === kwLower) {
       score += 10;
       signals.push(`exact-basename: "${kw}"`);
       continue;
     }
+
+    // For generic keywords, only exact basename matches count
+    if (isGeneric) continue;
 
     // Basename contains keyword
     if (basenameNoExt.includes(kwLower)) {
@@ -251,9 +282,11 @@ function scoreFileMatch(filePath: string, keywords: string[]): FileMatch | null 
     }
   }
 
-  // Boost source code files over config
-  const ext = path.extname(filePath).toLowerCase();
+  // Boost source code files
   if (CODE_EXTENSIONS.has(ext)) score += 1;
+
+  // Boost project-root markdown files (WORKER.md, CLAUDE.md, etc.)
+  if (DOC_EXTENSIONS.has(ext) && !filePath.includes('/')) score += 2;
 
   // Boost files that are likely entry points or important
   if (basename.includes('route') || basename.includes('page') ||
@@ -268,21 +301,130 @@ function scoreFileMatch(filePath: string, keywords: string[]): FileMatch | null 
 }
 
 // ---------------------------------------------------------------------------
+// Explicit file hints (Option C from 2026-03-30 Pass 2 design review)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract explicit file path hints from the topic string.
+ * Syntax: `[path/to/file.ts, WORKER.md]` — square brackets with comma-separated paths.
+ * Returns the hints and the topic with hints stripped.
+ */
+export function extractFileHints(topic: string): { hints: string[]; cleanTopic: string } {
+  const hints: string[] = [];
+  // Match [file.ext, path/to/file.ext] patterns — must contain at least one dot (file extension)
+  const hintPattern = /\[([^\]]*\.[^\]]+)\]/g;
+  let match;
+  while ((match = hintPattern.exec(topic)) !== null) {
+    const inner = match[1];
+    // Split on commas, trim, filter out empty
+    const paths = inner.split(',').map(p => p.trim()).filter(p => p.length > 0 && p.includes('.'));
+    hints.push(...paths);
+  }
+  const cleanTopic = topic.replace(hintPattern, '').replace(/\s{2,}/g, ' ').trim();
+  return { hints, cleanTopic };
+}
+
+/**
+ * Resolve explicit file hints to ResolvedFile entries.
+ * These bypass the keyword resolver entirely — injected as-is.
+ */
+async function resolveFileHints(
+  projectPath: string,
+  hints: string[],
+  tokenBudget: number,
+): Promise<{ files: ResolvedFile[]; tokensUsed: number }> {
+  const files: ResolvedFile[] = [];
+  let tokensUsed = 0;
+
+  for (const hint of hints) {
+    if (tokensUsed >= tokenBudget) break;
+
+    // Try the hint as a relative path from project root
+    const absPath = path.join(projectPath, hint);
+    let content: string;
+    try {
+      const fileStat = await stat(absPath);
+      if (fileStat.size > 50_000) continue; // Skip very large files
+      content = await readFile(absPath, 'utf-8');
+    } catch {
+      continue; // File doesn't exist or is unreadable — skip silently
+    }
+
+    const remainingBudget = tokenBudget - tokensUsed;
+    const maxChars = Math.min(
+      PER_FILE_TOKEN_BUDGET * CHARS_PER_TOKEN,
+      remainingBudget * CHARS_PER_TOKEN,
+    );
+
+    let truncated = false;
+    if (content.length > maxChars) {
+      const cutoff = content.lastIndexOf('\n', maxChars);
+      content = content.slice(0, cutoff > 0 ? cutoff : maxChars);
+      truncated = true;
+    }
+
+    const estimatedTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
+    tokensUsed += estimatedTokens;
+
+    files.push({
+      relativePath: hint,
+      absolutePath: absPath,
+      content,
+      estimatedTokens,
+      matchSignals: ['explicit-hint'],
+      truncated,
+    });
+  }
+
+  return { files, tokensUsed };
+}
+
+// ---------------------------------------------------------------------------
 // Main resolver
 // ---------------------------------------------------------------------------
 
 /**
  * Gather relevant source files for a meeting topic.
  *
+ * Supports explicit file hints: include `[WORKER.md, lib/scanner.ts]` in the
+ * topic string to bypass the resolver for those files. Hinted files are injected
+ * first, then the resolver fills remaining slots from keywords.
+ *
  * @param projectPath - Absolute path to the project root
- * @param topic - Meeting topic string
+ * @param topic - Meeting topic string (may contain file hints in square brackets)
  * @returns Resolution manifest with gathered files (or empty if no matches)
  */
 export async function gatherPreflightContext(
   projectPath: string,
   topic: string,
 ): Promise<ResolutionManifest> {
-  const keywords = extractKeywords(topic);
+  // Extract explicit file hints first
+  const { hints, cleanTopic } = extractFileHints(topic);
+
+  // Resolve hints — they get priority over keyword-resolved files
+  let hintedFiles: ResolvedFile[] = [];
+  let hintTokens = 0;
+  if (hints.length > 0) {
+    const result = await resolveFileHints(projectPath, hints, CODE_TOKEN_BUDGET);
+    hintedFiles = result.files;
+    hintTokens = result.tokensUsed;
+  }
+
+  const keywords = extractKeywords(cleanTopic);
+
+  // If only hints and no keywords, return hinted files directly
+  if (keywords.length === 0 && hintedFiles.length > 0) {
+    const fileList = hintedFiles
+      .map(f => `${f.relativePath} (${f.estimatedTokens} tokens${f.truncated ? ', truncated' : ''})`)
+      .join(', ');
+    return {
+      files: hintedFiles,
+      totalTokens: hintTokens,
+      extractedKeywords: [],
+      found: true,
+      summary: `Gathered ${hintedFiles.length} file(s) from explicit hints [${hintTokens} tokens]: ${fileList}`,
+    };
+  }
 
   if (keywords.length === 0) {
     return {
@@ -297,62 +439,56 @@ export async function gatherPreflightContext(
   // Walk the file tree
   const allFiles = await walkFileTree(projectPath, projectPath);
 
-  // Score all files against keywords
+  // Track hinted paths to avoid duplicates
+  const hintedPaths = new Set(hintedFiles.map(f => f.relativePath));
+
+  // Score all files against keywords (excluding already-hinted files)
   const matches: FileMatch[] = [];
   for (const file of allFiles) {
+    if (hintedPaths.has(file)) continue; // Skip files already injected via hints
     const match = scoreFileMatch(file, keywords);
     if (match) matches.push(match);
   }
 
   // Sort by score (descending), take top candidates
   matches.sort((a, b) => b.score - a.score);
-  const candidates = matches.slice(0, MAX_FILES * 2); // over-select to account for read failures
+  const remainingSlots = MAX_FILES - hintedFiles.length;
+  const candidates = matches.slice(0, Math.max(remainingSlots * 2, 4));
 
-  if (candidates.length === 0) {
-    return {
-      files: [],
-      totalTokens: 0,
-      extractedKeywords: keywords,
-      found: false,
-      summary: `No matching files found for keywords: ${keywords.slice(0, 8).join(', ')}. Meeting proceeds without pre-flight context.`,
-    };
-  }
-
-  // Read files up to budget
+  // Read files up to remaining budget
   const resolved: ResolvedFile[] = [];
-  let totalTokens = 0;
+  let resolvedTokens = 0;
+  const remainingBudget = CODE_TOKEN_BUDGET - hintTokens;
 
   for (const candidate of candidates) {
-    if (resolved.length >= MAX_FILES) break;
-    if (totalTokens >= CODE_TOKEN_BUDGET) break;
+    if (resolved.length >= remainingSlots) break;
+    if (resolvedTokens >= remainingBudget) break;
 
     const absPath = path.join(projectPath, candidate.relativePath);
     let content: string;
     try {
       const fileStat = await stat(absPath);
-      // Skip very large files (>50KB)
       if (fileStat.size > 50_000) continue;
       content = await readFile(absPath, 'utf-8');
     } catch {
-      continue; // File unreadable — skip
+      continue;
     }
 
-    const remainingBudget = CODE_TOKEN_BUDGET - totalTokens;
+    const fileBudget = remainingBudget - resolvedTokens;
     const maxChars = Math.min(
       PER_FILE_TOKEN_BUDGET * CHARS_PER_TOKEN,
-      remainingBudget * CHARS_PER_TOKEN,
+      fileBudget * CHARS_PER_TOKEN,
     );
 
     let truncated = false;
     if (content.length > maxChars) {
-      // Truncate at a line boundary
       const cutoff = content.lastIndexOf('\n', maxChars);
       content = content.slice(0, cutoff > 0 ? cutoff : maxChars);
       truncated = true;
     }
 
     const estimatedTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
-    totalTokens += estimatedTokens;
+    resolvedTokens += estimatedTokens;
 
     resolved.push({
       relativePath: candidate.relativePath,
@@ -364,26 +500,30 @@ export async function gatherPreflightContext(
     });
   }
 
-  if (resolved.length === 0) {
+  // Combine hinted files (first) with keyword-resolved files
+  const allResolved = [...hintedFiles, ...resolved];
+  const totalTokens = hintTokens + resolvedTokens;
+
+  if (allResolved.length === 0) {
     return {
       files: [],
       totalTokens: 0,
       extractedKeywords: keywords,
       found: false,
-      summary: `Files matched keywords but all were unreadable or too large. Keywords: ${keywords.slice(0, 8).join(', ')}`,
+      summary: `No matching files found. Keywords: ${keywords.slice(0, 8).join(', ')}`,
     };
   }
 
-  const fileList = resolved
+  const fileList = allResolved
     .map(f => `${f.relativePath} (${f.estimatedTokens} tokens${f.truncated ? ', truncated' : ''})`)
     .join(', ');
 
   return {
-    files: resolved,
+    files: allResolved,
     totalTokens,
     extractedKeywords: keywords,
     found: true,
-    summary: `Gathered ${resolved.length} file(s) [${totalTokens} tokens]: ${fileList}`,
+    summary: `Gathered ${allResolved.length} file(s) [${totalTokens} tokens]: ${fileList}`,
   };
 }
 
