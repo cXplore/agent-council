@@ -254,9 +254,8 @@ export default function MeetingListCard({
       )}
 
       {m.objective ? (
-        <div className="text-xs mt-1.5 ml-5" style={{ color: 'var(--text-secondary)', opacity: 0.85 }}>
-          <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>Obj:</span>
-          {m.objective}
+        <div className="text-xs mt-1.5 ml-5 line-clamp-2" style={{ color: 'var(--text-secondary)', opacity: 0.85 }}>
+          {m.objective.length > 120 ? m.objective.slice(0, 120) + '...' : m.objective}
         </div>
       ) : m.preview ? (
         <div className="text-xs mt-2 ml-5 line-clamp-2" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
