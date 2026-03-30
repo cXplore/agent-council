@@ -127,8 +127,10 @@ function SetupWizardInner() {
     setConnecting(true);
     setConnectError('');
 
-    // Strip surrounding quotes — users often paste paths with quotes from terminals
-    const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
+    // Strip surrounding quotes and normalize path separators
+    const cleanPath = projectPath.trim()
+      .replace(/^["']+|["']+$/g, '')  // strip quotes from terminal paste
+      .replace(/[/\\]+$/g, '');        // strip trailing slashes
 
     try {
       // Try to update the config with this project's meetings dir
@@ -265,7 +267,9 @@ function SetupWizardInner() {
     setScanError('');
     setScanProgress([]);
 
-    const cleanPath = projectPath.trim().replace(/^["']+|["']+$/g, '');
+    const cleanPath = projectPath.trim()
+      .replace(/^["']+|["']+$/g, '')
+      .replace(/[/\\]+$/g, '');
 
     try {
       const res = await fetch('/api/setup/ai-scan', {
@@ -355,7 +359,7 @@ function SetupWizardInner() {
     setGenerating(true);
     try {
       const enabledAgents = agents.filter(a => a.enabled);
-      const targetDir = (projectPath.trim().replace(/^["']+|["']+$/g, '')) || '.';
+      const targetDir = projectPath.trim().replace(/^["']+|["']+$/g, '').replace(/[/\\]+$/g, '') || '.';
 
       const res = await fetch('/api/setup/generate', {
         method: 'POST',

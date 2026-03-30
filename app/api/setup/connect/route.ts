@@ -14,15 +14,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'projectPath is required' }, { status: 400 });
     }
 
+    // Normalize path: resolve relative paths, fix mixed separators, strip trailing slashes
+    const normalizedPath = path.resolve(projectPath.replace(/\//g, path.sep));
+
     // Verify project directory exists
     try {
-      await stat(projectPath);
+      const s = await stat(normalizedPath);
+      if (!s.isDirectory()) {
+        return NextResponse.json({ error: 'Path exists but is not a directory' }, { status: 400 });
+      }
     } catch {
       return NextResponse.json({ error: 'Project directory not found' }, { status: 404 });
     }
 
     // Derive project name
-    const projectName = name || path.basename(projectPath);
+    const projectName = name || path.basename(normalizedPath);
 
     // Auto-detect meetings dir if not provided
     let resolvedMeetingsDir = meetingsDir || 'meetings';
@@ -30,7 +36,7 @@ export async function POST(req: NextRequest) {
       const candidates = ['docs/10-meetings', 'docs/meetings', 'meetings', '.meetings'];
       for (const candidate of candidates) {
         try {
-          await stat(path.join(projectPath, candidate));
+          await stat(path.join(normalizedPath, candidate));
           resolvedMeetingsDir = candidate;
           break;
         } catch {
@@ -44,7 +50,7 @@ export async function POST(req: NextRequest) {
     let agentCount = 0;
     let hasFacilitator = false;
     try {
-      const agentFiles = await readdir(path.join(projectPath, agentsDir));
+      const agentFiles = await readdir(path.join(normalizedPath, agentsDir));
       const mdFiles = agentFiles.filter(f => f.endsWith('.md') && !f.endsWith('.context.md'));
       agentCount = mdFiles.length;
       hasFacilitator = mdFiles.includes('facilitator.md');
@@ -52,13 +58,12 @@ export async function POST(req: NextRequest) {
       // no agents dir
     }
 
-    // Ensure meetings directory exists — must be inside projectPath
+    // Ensure meetings directory exists — must be inside project
     const absMeetingsDir = path.isAbsolute(resolvedMeetingsDir)
       ? resolvedMeetingsDir
-      : path.join(projectPath, resolvedMeetingsDir);
+      : path.join(normalizedPath, resolvedMeetingsDir);
     const normalizedMeetings = path.resolve(absMeetingsDir);
-    const normalizedProject = path.resolve(projectPath);
-    if (!normalizedMeetings.startsWith(normalizedProject + path.sep) && normalizedMeetings !== normalizedProject) {
+    if (!normalizedMeetings.startsWith(normalizedPath + path.sep) && normalizedMeetings !== normalizedPath) {
       return NextResponse.json({ error: 'meetingsDir must be inside the project directory' }, { status: 400 });
     }
     try {
@@ -70,14 +75,14 @@ export async function POST(req: NextRequest) {
     // Run lightweight filesystem scan — pure file I/O, no AI tokens needed
     let profile: ProjectProfile | undefined = undefined;
     try {
-      profile = await scanProject(projectPath);
+      profile = await scanProject(normalizedPath);
     } catch {
       // Scan failure is non-fatal — connect still works without a profile
     }
 
     // Add meetingsDir to .gitignore if a .gitignore exists
     try {
-      await ensureGitignore(projectPath, resolvedMeetingsDir);
+      await ensureGitignore(normalizedPath, resolvedMeetingsDir);
     } catch {
       // Non-fatal — gitignore update is best-effort
     }
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
     let generatedAgents: string[] = [];
     if (profile && agentCount === 0) {
       try {
-        const result = await generateCoreAgents(projectPath, agentsDir, profile);
+        const result = await generateCoreAgents(normalizedPath, agentsDir, profile);
         generatedAgents = result.generated;
         agentCount = result.generated.length + result.skipped.length;
         hasFacilitator = false; // Core agents don't include facilitator
@@ -98,7 +103,7 @@ export async function POST(req: NextRequest) {
     // Add project to config and make it active
     const config = await getConfig();
     config.projects[projectName] = {
-      path: projectPath.replace(/\\/g, '/'),
+      path: normalizedPath.replace(/\\/g, '/'),
       meetingsDir: resolvedMeetingsDir,
       agentsDir,
       ...(profile ? { profile } : {}),

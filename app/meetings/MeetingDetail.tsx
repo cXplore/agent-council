@@ -393,9 +393,13 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                 <span className="text-xs">{'\u2714'}</span>
                 Meeting complete
               </span>
-              <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
-                {completedTime}
-              </span>
+              <button
+                className="text-xs ml-auto flex items-center gap-1 hover:underline cursor-pointer"
+                style={{ color: 'var(--text-muted)', background: 'none', border: 'none', padding: 0 }}
+                onClick={() => completionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                {completedTime} &middot; {'\u2193'} View outcomes
+              </button>
             </div>
           );
         }
