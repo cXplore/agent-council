@@ -71,6 +71,44 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { filename, content } = body;
+
+    if (!filename || !content) {
+      return NextResponse.json({ error: 'filename and content are required' }, { status: 400 });
+    }
+
+    const config = await getConfig();
+    const active = getActiveProjectConfig(config);
+    const safeName = path.basename(filename);
+
+    if (!safeName.endsWith('.md')) {
+      return NextResponse.json({ error: 'Invalid filename: must be a .md file' }, { status: 400 });
+    }
+
+    const filePath = path.join(active.agentsDir, safeName);
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(active.agentsDir);
+    if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
+
+    // Validate content has frontmatter
+    const { frontmatter } = parseFrontmatter(content);
+    if (!frontmatter['name']) {
+      return NextResponse.json({ error: 'Content must include frontmatter with at least a name field' }, { status: 400 });
+    }
+
+    await writeFile(filePath, content, 'utf-8');
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Agent write error:', err);
+    return NextResponse.json({ error: 'Failed to write agent' }, { status: 500 });
+  }
+}
+
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();

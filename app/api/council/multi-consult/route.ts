@@ -12,6 +12,12 @@ import {
   buildOutcomeExtractionPrompt,
   type StructuredOutcomes,
 } from '@/lib/meeting-utils';
+import {
+  gatherPreflightContext,
+  formatManifest,
+  formatManifestForMeetingFile,
+  type ResolutionManifest,
+} from '@/lib/preflight-context';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
@@ -232,13 +238,30 @@ export async function POST(req: NextRequest) {
     // Load shared work context once
     const workContext = await loadWorkContext(active.meetingsDir);
 
+    // Pre-flight context gathering: resolve relevant source files from the topic
+    let preflightManifest: ResolutionManifest | undefined;
+    if (active.projectPath) {
+      try {
+        preflightManifest = await gatherPreflightContext(active.projectPath, topic);
+      } catch {
+        // Pre-flight is additive — failures don't block the meeting
+      }
+    }
+    const preflightContext = preflightManifest?.found
+      ? formatManifest(preflightManifest)
+      : '';
+
     // Build base system prompts for all agents in parallel
     const promptsMap = new Map<string, string>();
     await Promise.all(
       agents.map(async (agentName) => {
-        const prompt = await buildAgentPrompt(
+        let prompt = await buildAgentPrompt(
           agentName, active.agentsDir, active.meetingsDir, topic, workContext,
         );
+        // Inject pre-flight context into every agent's prompt
+        if (preflightContext) {
+          prompt += '\n\n---\n\n' + preflightContext;
+        }
         promptsMap.set(agentName, prompt);
       }),
     );
@@ -266,6 +289,11 @@ export async function POST(req: NextRequest) {
       lines.push('');
       lines.push(`# ${meetingTitle}`);
       lines.push('');
+      // Include pre-flight context manifest in the meeting file for observability
+      if (preflightManifest) {
+        lines.push(formatManifestForMeetingFile(preflightManifest));
+        lines.push('');
+      }
       for (const { round, responses } of rounds) {
         lines.push(`## Round ${round}`);
         lines.push('');
