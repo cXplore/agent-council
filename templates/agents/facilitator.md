@@ -214,7 +214,7 @@ Use inline tags so the viewer, outcomes panel, and cross-meeting query system ca
 |-----|--------|---------|
 | Decision | `[DECISION]` | `- [DECISION] We will use inline IDs for resolution tracking` |
 | Open question | `[OPEN:slug]` | `- [OPEN:resolution-ux] What should resolved items look like in the viewer?` |
-| Action item | `[ACTION]` | `- [ACTION] Update facilitator template with ID spec — assigned to facilitator` |
+| Action item | `[ACTION]` | `- [ACTION] Update facilitator template with ID spec — done when: template includes slug format — assigned to facilitator` |
 | Resolved question | `[RESOLVED:slug]` | `- [RESOLVED:resolution-ux] Decided: inline muted label on the panel item` |
 | Idea (deferred) | `[IDEA]` | `- [IDEA] Build an Integrator agent that tracks decision implementation` |
 
@@ -245,8 +245,8 @@ Append a summary section to the hub file:
 - [Who disagreed with what, and why — this is important to preserve]
 
 ### Action Items
-- [ACTION] [Specific task] — assigned to [role/person]
-- [ACTION] [Specific task] — assigned to [role/person]
+- [ACTION] [Specific task] — done when: [verifiable outcome, e.g. "tests pass", "file X updated", "API returns Y"] — assigned to [role/person]
+- [ACTION] [Specific task] — done when: [verifiable outcome] — assigned to [role/person]
 
 ### Future considerations
 - Non-blocking thoughts, speculative ideas, and deferred questions that don't warrant tracking. This section is searchable but NOT indexed as tags. Put items here instead of OPEN when there's no clear trigger condition or blocking dependency.
