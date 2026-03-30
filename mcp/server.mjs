@@ -324,6 +324,31 @@ server.tool(
   }
 );
 
+// Tool: Append content to a meeting and/or close it
+server.tool(
+  'council_close_meeting',
+  'Close a meeting by setting its status to "complete". Optionally append final content (summary section, JSON appendix) before closing. Use after all rounds are done and the summary is written.',
+  {
+    filename: z.string().describe('Meeting filename (e.g., "2026-03-30-design-review-api-caching.md")'),
+    appendContent: z.string().optional().describe('Content to append before closing (e.g., summary section with decisions, actions, JSON appendix)'),
+  },
+  async ({ filename, appendContent }) => {
+    try {
+      const data = await councilRequest('/api/meetings', 'PATCH', {
+        file: filename,
+        status: 'complete',
+        content: appendContent || null,
+      });
+
+      return {
+        content: [{ type: 'text', text: `Meeting closed: ${data.filename}\nStatus: complete${data.appended ? '\nSummary appended' : ''}` }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Failed to close meeting: ${err.message}` }] };
+    }
+  }
+);
+
 // Tool: Notify meeting event
 server.tool(
   'council_notify',

@@ -266,6 +266,57 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const { dir: meetingsDir } = await getMeetingsDir(request);
+
+  try {
+    const { file, status, content: appendContent } = await request.json();
+
+    if (!file) {
+      return NextResponse.json({ error: 'file is required' }, { status: 400 });
+    }
+
+    const safeName = path.basename(file);
+    const filePath = path.join(meetingsDir, safeName);
+    let fileContent = await readFile(filePath, 'utf-8');
+
+    // Append content if provided (e.g., summary section, agent responses)
+    if (appendContent && typeof appendContent === 'string') {
+      fileContent += appendContent;
+    }
+
+    // Update status if provided
+    if (status && typeof status === 'string') {
+      const validStatuses = ['in-progress', 'complete'];
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` }, { status: 400 });
+      }
+      fileContent = fileContent.replace(
+        /<!--\s*status:\s*[\w-]+\s*-->/,
+        `<!-- status: ${status} -->`
+      );
+      // Also update the frontmatter-style status if present
+      fileContent = fileContent.replace(
+        /^\*\*Status:\*\*\s*.+$/m,
+        `**Status:** ${status}`
+      );
+    }
+
+    await writeFile(filePath, fileContent, 'utf-8');
+
+    return NextResponse.json({
+      filename: safeName,
+      status: status || 'unchanged',
+      appended: !!appendContent,
+    });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return NextResponse.json({ error: 'Meeting file not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: `Failed to update meeting: ${(err as Error).message}` }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const { dir: meetingsDir } = await getMeetingsDir(request);
   const filename = request.nextUrl.searchParams.get('file');
