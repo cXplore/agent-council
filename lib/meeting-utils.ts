@@ -34,6 +34,8 @@ export function parseMetadata(content: string) {
     const titleParts = titleMatch[1].split(/\s*[—–\-]{1,2}\s*/);
     type = titleParts[0]?.trim() ?? null;
   }
+  // Normalize type: lowercase and trim for consistent filtering
+  if (type) type = type.toLowerCase().trim();
 
   const participantsRaw = fm['participants'] ?? participantsMatchComment?.[1] ?? participantsMatchBold?.[1]?.trim() ?? '';
   const participants = participantsRaw

@@ -241,9 +241,19 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   // URL-syncing wrappers for viewMode and decisionQuery
   const setViewMode = useCallback((v: 'meetings' | 'decisions') => {
     setViewModeState(v);
+    // Reset filters on mode switch — mental models differ between browsing meetings and searching decisions
+    if (v === 'decisions') {
+      setStatusFilter('all');
+      setTypeFilter(null);
+      setSearchQuery('');
+    } else {
+      setDecisionQueryState('');
+    }
     const url = new URL(window.location.href);
     if (v === 'decisions') {
       url.searchParams.set('mode', 'decisions');
+      url.searchParams.delete('filter');
+      url.searchParams.delete('search');
     } else {
       url.searchParams.delete('mode');
       url.searchParams.delete('q');

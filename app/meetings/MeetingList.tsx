@@ -881,14 +881,30 @@ export default function MeetingList(props: MeetingListProps) {
                 })}
               </div>
             )}
-            {/* Type filter chips */}
+            {/* Type filter chips — show filtered counts when search is active, hide zero-count chips */}
             {(() => {
-              const types = [...new Set(meetings.map(m => m.type))].sort();
+              const types = [...new Set(meetings.map(m => (m.type || '').toLowerCase().trim()))].sort();
               if (types.length <= 1) return null;
+              // When search is active, show counts from search-filtered results (excluding type filter itself)
+              const baseFiltered = searchQuery || statusFilter !== 'all'
+                ? meetings.filter(m => {
+                    if (statusFilter !== 'all' && m.status !== statusFilter) return false;
+                    if (searchQuery) {
+                      const q = searchQuery.toLowerCase();
+                      return (m.title?.toLowerCase().includes(q)) || m.type.toLowerCase().includes(q) ||
+                        m.participants.some(p => p.toLowerCase().includes(q)) || m.preview?.toLowerCase().includes(q) ||
+                        m.filename.toLowerCase().includes(q) || m.date?.includes(q);
+                    }
+                    return true;
+                  })
+                : meetings;
+              const visibleChips = types
+                .map(t => ({ type: t, count: baseFiltered.filter(m => (m.type || '').toLowerCase().trim() === t).length }))
+                .filter(c => !searchQuery || c.count > 0); // hide zero-count when searching
+              if (visibleChips.length <= 1) return null;
               return (
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {types.map(t => {
-                    const count = meetings.filter(m => m.type === t).length;
+                  {visibleChips.map(({ type: t, count }) => {
                     const active = typeFilter === t;
                     const color = getTypeColor(t);
                     return (
@@ -910,15 +926,20 @@ export default function MeetingList(props: MeetingListProps) {
                 </div>
               );
             })()}
-            {/* Clear filters link */}
+            {/* Filtered count indicator + clear filters */}
             {(statusFilter !== 'all' || typeFilter || searchQuery) && (
-              <button
-                onClick={() => { setStatusFilter('all'); setTypeFilter(null); setSearchQuery(''); }}
-                className="text-xs mb-2 px-2 py-0.5 rounded transition-colors"
-                style={{ color: 'var(--accent)', background: 'transparent' }}
-              >
-                Clear filters
-              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Showing {sortedMeetings.length} of {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+                </span>
+                <button
+                  onClick={() => { setStatusFilter('all'); setTypeFilter(null); setSearchQuery(''); }}
+                  className="text-xs px-2 py-0.5 rounded transition-colors"
+                  style={{ color: 'var(--accent)', background: 'transparent' }}
+                >
+                  Clear filters
+                </button>
+              </div>
             )}
             {error && (
               <div
