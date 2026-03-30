@@ -8,6 +8,7 @@ import { getContentForRound } from '@/lib/meeting-utils';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 import MeetingCompletionCard from './MeetingCompletionCard';
 import { formatType, formatDuration, ProjectBadge } from './MeetingListCard';
+import { useToast } from '@/app/components/Toast';
 import type { MeetingData } from './useMeetingData';
 
 const mdComponents = createMeetingComponents(getAgentColor);
@@ -80,6 +81,37 @@ export default function MeetingDetail(props: MeetingDetailProps) {
   } = props;
 
   const isLive = detail?.status === 'in-progress';
+  const { toast } = useToast();
+  const completionCardRef = useRef<HTMLDivElement>(null);
+
+  // Track the live → complete transition for animation and toast nudge
+  const [justCompleted, setJustCompleted] = useState(false);
+  const wasLiveRef = useRef(false);
+
+  useEffect(() => {
+    if (isLive) {
+      wasLiveRef.current = true;
+    } else if (wasLiveRef.current && detail?.status === 'complete') {
+      // Meeting just transitioned from in-progress to complete
+      wasLiveRef.current = false;
+      setJustCompleted(true);
+      // Auto-dismiss the completion banner after 8 seconds
+      const timer = setTimeout(() => setJustCompleted(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [isLive, detail?.status]);
+
+  // Toast nudge when meeting completes (only for live viewers)
+  useEffect(() => {
+    if (justCompleted) {
+      toast('Meeting complete — View outcomes below', 'success', 5000);
+      // Scroll to completion card after a short delay to let it render
+      setTimeout(() => {
+        completionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [justCompleted, toast]);
+
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -339,8 +371,35 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         )}
       </div>
 
-      {/* Live status banner — prominent phase indicator for in-progress meetings */}
-      {isLive && detail && (() => {
+      {/* Status banner — live phase indicator OR completion transition */}
+      {(isLive || justCompleted) && detail && (() => {
+        if (justCompleted) {
+          // Completion state: checkmark + timestamp, settled green
+          const completedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          return (
+            <div
+              className="px-6 py-2.5 flex items-center gap-3"
+              style={{
+                background: 'rgba(34, 197, 94, 0.06)',
+                borderBottom: '1px solid var(--border)',
+                transition: 'opacity 0.5s ease',
+              }}
+            >
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ background: 'var(--live-green)' }}
+              />
+              <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--live-green)' }}>
+                <span className="text-xs">{'\u2714'}</span>
+                Meeting complete
+              </span>
+              <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
+                {completedTime}
+              </span>
+            </div>
+          );
+        }
+        // Live state: animated phase indicator
         const phaseIcon = connectionLost ? null
           : latestEvent?.includes('starting') ? '\u25B6'
           : latestEvent?.includes('thinking') ? '\u270D'
@@ -678,6 +737,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
 
       {/* Completion card -- shown at top of completed meetings */}
       {detail && detail.status === 'complete' && (
+        <div ref={completionCardRef}>
         <MeetingCompletionCard
           content={detail.content}
           recommendedMeetings={detail.recommendedMeetings}
@@ -708,6 +768,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             setDismissedSuggestions(prev => new Set([...prev, text]));
           }}
         />
+        </div>
       )}
 
       {/* Content + Outcomes panel wrapper */}

@@ -52,7 +52,19 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
   );
 
   const hasContent = decisions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
-  if (!hasContent) return null;
+
+  // Fallback: no extracted outcomes — show a simple "complete" line instead of nothing
+  if (!hasContent) {
+    return (
+      <div
+        className="mx-6 mt-4 mb-2 rounded-xl text-sm px-4 py-2.5 flex items-center gap-2"
+        style={{ border: '1px solid rgba(96, 165, 250, 0.15)', background: 'rgba(96, 165, 250, 0.03)' }}
+      >
+        <span className="text-xs" style={{ color: '#60a5fa' }}>{'\u2714'}</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Meeting complete — scroll up to view full outcomes</span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -65,7 +77,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         className="w-full px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors"
         style={{ borderBottom: expanded ? '1px solid rgba(96, 165, 250, 0.15)' : undefined, background: 'rgba(96, 165, 250, 0.06)' }}
       >
-        <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>Meeting complete</span>
+        <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>{'\u2714'} Meeting complete</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— here&apos;s what was decided</span>
         <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
       </button>
