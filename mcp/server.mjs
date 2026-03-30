@@ -209,6 +209,80 @@ server.tool(
   }
 );
 
+// Tool: Read a specific meeting (structured summary + outcomes)
+server.tool(
+  'council_read_meeting',
+  'Read a specific meeting by filename. Returns structured summary with title, type, participants, decisions, actions, and open questions — without the full raw content. Use this to recall what happened in a meeting.',
+  {
+    filename: z.string().describe('Meeting filename (e.g., "2026-03-31-design-review-live-meeting-experience.md")'),
+  },
+  async ({ filename }) => {
+    try {
+      const data = await councilRequest(`/api/meetings?file=${encodeURIComponent(filename)}`);
+      if (!data || !data.content) {
+        return { content: [{ type: 'text', text: `Meeting not found: ${filename}` }] };
+      }
+
+      const content = data.content;
+
+      // Extract summary section (text between "## Summary" and the next ## heading)
+      const summaryMatch = content.match(/##\s+Summary\s*\n([\s\S]*?)(?=\n##\s|\n<!--\s*meeting-outcomes|$)/i);
+      const summary = summaryMatch ? summaryMatch[1].trim() : null;
+
+      // Extract tagged outcomes from the content
+      const decisions = [];
+      const actions = [];
+      const openQuestions = [];
+
+      // Try JSON appendix first (structured source)
+      const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+      if (jsonMatch) {
+        try {
+          const outcomes = JSON.parse(jsonMatch[1]);
+          if (outcomes.decisions) decisions.push(...outcomes.decisions.map(d => d.text + (d.rationale ? ` — ${d.rationale}` : '')));
+          if (outcomes.actions) actions.push(...outcomes.actions.map(a => a.text + (a.assignee ? ` (${a.assignee})` : '')));
+          if (outcomes.open_questions) openQuestions.push(...outcomes.open_questions.map(q => (q.slug ? `[${q.slug}] ` : '') + q.text));
+        } catch { /* fall through to inline parsing */ }
+      }
+
+      // Fall back to inline tag parsing if no JSON appendix
+      if (decisions.length === 0 && actions.length === 0 && openQuestions.length === 0) {
+        for (const line of content.split('\n')) {
+          const decMatch = line.match(/\[DECISION\]\s*(.*)/);
+          if (decMatch) decisions.push(decMatch[1].trim());
+          const actMatch = line.match(/\[ACTION\]\s*(.*)/);
+          if (actMatch) actions.push(actMatch[1].trim());
+          const openMatch = line.match(/\[OPEN(?::([^\]]+))?\]\s*(.*)/);
+          if (openMatch) openQuestions.push((openMatch[1] ? `[${openMatch[1]}] ` : '') + openMatch[2].trim());
+        }
+      }
+
+      const result = {
+        filename: data.filename,
+        title: data.title,
+        type: data.type,
+        status: data.status,
+        date: data.date,
+        participants: data.participants,
+        summary,
+        outcomes: {
+          decisions: decisions.length > 0 ? decisions : null,
+          actions: actions.length > 0 ? actions : null,
+          openQuestions: openQuestions.length > 0 ? openQuestions : null,
+        },
+      };
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `Error reading meeting: ${err.message}` }],
+      };
+    }
+  }
+);
+
 // Tool: Notify meeting event
 server.tool(
   'council_notify',
