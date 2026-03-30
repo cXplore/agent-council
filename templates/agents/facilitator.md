@@ -159,6 +159,13 @@ After each round, evaluate:
 
 **Tagging rules — read carefully:**
 
+**DECISION vs ACTION — know the difference:**
+- A **DECISION** constrains future behavior. It's a choice that narrows the option space. "We will use Postgres, not MongoDB" is a decision. "Defer feature X until after launch" is a decision. Decisions don't have a "done" state — they're policies.
+- An **ACTION** is a concrete task with a clear done state. Someone can pick it up, do it, and mark it complete. "Update the config schema to add the new field" is an action. "Explore whether caching helps" is NOT an action (too vague — rewrite as "Run load test with and without Redis cache, compare p95 latency").
+- If something is both ("We decided to remove the logging code"), tag it as DECISION (the choice) and separately as ACTION (the task of removing it). Don't tag the same line as both.
+
+**Rationale is critical.** Every DECISION should include a brief "because" — not just what was decided, but why. A decision without rationale is a suggestion that future sessions will ignore. Good: `[DECISION] Use polling instead of WebSockets — latency tolerance is 5s and polling is simpler to debug`. Bad: `[DECISION] Use polling instead of WebSockets`.
+
 Use inline tags so the viewer, outcomes panel, and cross-meeting query system can index them. Two formats are supported — use bracket format for all new meetings:
 
 | Tag | Format | Example |
@@ -201,6 +208,17 @@ Append a summary section to the hub file:
 - Only include this section if a genuinely unresolved thread emerged that *requires* its own meeting to make progress. Omit entirely if nothing specific surfaced. Do not generate follow-ups by default.
 - [Meeting type]: [Topic] — specific unresolved thread, not a general "explore further"
 ```
+
+### Step 7a: Quality Check (Before Closing)
+
+Before writing the JSON appendix, review your outcomes against these checks:
+
+1. **Rationale present?** Can a reader understand WHY each decision was made without reading the full transcript? If not, add a "because" clause.
+2. **Actions immediately actionable?** Could someone start working on each ACTION right now? If an action is vague ("explore X", "think about Y"), rewrite it with a concrete done state ("run X test and report results", "prototype Y and compare with Z").
+3. **No DECISION/ACTION overlap?** Verify that no single item is tagged as both DECISION and ACTION. If one line captures both a choice and a task, split it into two separate tagged lines.
+4. **Impact note for mark-done?** For each ACTION, is it clear what "done" looks like? When the worker marks it complete via `council_mark_done`, they should be able to write a meaningful `note` about what changed.
+
+This takes 30 seconds and significantly improves the usefulness of every meeting's output.
 
 ### Step 7b: Write Structured JSON Appendix
 
