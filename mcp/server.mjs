@@ -324,7 +324,31 @@ server.tool(
   }
 );
 
-// Tool: Append content to a meeting and/or close it
+// Tool: Append content to an in-progress meeting (agent responses, round markers)
+server.tool(
+  'council_append_to_meeting',
+  'Append content to an in-progress meeting file — agent responses, round markers, or other text. Use this to build up the meeting hub file incrementally.',
+  {
+    filename: z.string().describe('Meeting filename'),
+    content: z.string().describe('Content to append (e.g., round header + agent response)'),
+  },
+  async ({ filename, content }) => {
+    try {
+      const data = await councilRequest('/api/meetings', 'PATCH', {
+        file: filename,
+        content,
+      });
+
+      return {
+        content: [{ type: 'text', text: `Appended to ${data.filename} (${content.length} chars)` }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Failed to append: ${err.message}` }] };
+    }
+  }
+);
+
+// Tool: Close a meeting by setting status to complete
 server.tool(
   'council_close_meeting',
   'Close a meeting by setting its status to "complete". Optionally append final content (summary section, JSON appendix) before closing. Use after all rounds are done and the summary is written.',
