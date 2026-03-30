@@ -95,6 +95,7 @@ Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with 
 <!-- created: YYYY-MM-DD HH:MM -->
 <!-- participants: project-manager, critic, north-star, developer, architect -->
 <!-- topic: Brief description of the meeting topic -->
+<!-- objective: Falsifiable statement of what this meeting will produce -->
 
 # [Meeting Type]: [Topic]
 
@@ -109,6 +110,8 @@ Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with 
 
 ---
 ```
+
+**Writing the objective:** The `objective` metadata should be a falsifiable statement of what the meeting will produce — something you can check against at the end. Good: "Decide whether to use Clerk or Auth0 for authentication." Bad: "Discuss authentication options." The objective guides the quality check (Step 7a) and helps downstream consumers (session brief, worker) understand the meeting's purpose at a glance.
 
 ### Step 4: Round 1 — Parallel (Independent Thinking)
 In Round 1, each participant writes their initial contribution **without seeing anyone else's response**. This is critical — it prevents anchoring bias and ensures genuine independent thinking.
@@ -213,10 +216,11 @@ Append a summary section to the hub file:
 
 Before writing the JSON appendix, review your outcomes against these checks:
 
-1. **Rationale present?** Can a reader understand WHY each decision was made without reading the full transcript? If not, add a "because" clause.
-2. **Actions immediately actionable?** Could someone start working on each ACTION right now? If an action is vague ("explore X", "think about Y"), rewrite it with a concrete done state ("run X test and report results", "prototype Y and compare with Z").
-3. **No DECISION/ACTION overlap?** Verify that no single item is tagged as both DECISION and ACTION. If one line captures both a choice and a task, split it into two separate tagged lines.
-4. **Impact note for mark-done?** For each ACTION, is it clear what "done" looks like? When the worker marks it complete via `council_mark_done`, they should be able to write a meaningful `note` about what changed.
+1. **Objective achieved?** Re-read the `<!-- objective: ... -->` from the meeting metadata. Did the meeting produce what it set out to produce? If not, either (a) add the missing outcome, or (b) note explicitly why the objective shifted and what was produced instead.
+2. **Rationale present?** Can a reader understand WHY each decision was made without reading the full transcript? If not, add a "because" clause.
+3. **Actions immediately actionable?** Could someone start working on each ACTION right now? If an action is vague ("explore X", "think about Y"), rewrite it with a concrete done state ("run X test and report results", "prototype Y and compare with Z").
+4. **No DECISION/ACTION overlap?** Verify that no single item is tagged as both DECISION and ACTION. If one line captures both a choice and a task, split it into two separate tagged lines.
+5. **Impact note for mark-done?** For each ACTION, is it clear what "done" looks like? When the worker marks it complete via `council_mark_done`, they should be able to write a meaningful `note` about what changed.
 
 This takes 30 seconds and significantly improves the usefulness of every meeting's output.
 
@@ -449,6 +453,7 @@ When the user says "let's work" (or similar), execute this sequence:
 <!-- created: 2025-01-15 09:30 -->
 <!-- participants: project-manager, critic, north-star, developer, architect -->
 <!-- topic: API redesign for v2 -->
+<!-- objective: Decide on API versioning strategy for v2 migration -->
 <!-- rounds: 3 -->
 ```
 
