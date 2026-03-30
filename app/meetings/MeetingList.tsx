@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
-import MeetingListCard, { formatType } from './MeetingListCard';
+import MeetingListCard, { formatType, getTypeColor } from './MeetingListCard';
 import { inferMeetingType } from '@/lib/meeting-type-inference';
 import { renderInline } from './render-inline';
 
@@ -76,6 +76,7 @@ export default function MeetingList(props: MeetingListProps) {
     dismissedSuggestions,
     error,
     statusFilter,
+    typeFilter,
     searchQuery,
     focusedIndex,
     addingFacilitator,
@@ -93,6 +94,7 @@ export default function MeetingList(props: MeetingListProps) {
     selectMeeting,
     setError,
     setStatusFilter,
+    setTypeFilter,
     setSearchQuery,
     setUserExplicitlyBack,
     setFocusedIndex,
@@ -650,6 +652,45 @@ export default function MeetingList(props: MeetingListProps) {
                   );
                 })}
               </div>
+            )}
+            {/* Type filter chips */}
+            {(() => {
+              const types = [...new Set(meetings.map(m => m.type))].sort();
+              if (types.length <= 1) return null;
+              return (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {types.map(t => {
+                    const count = meetings.filter(m => m.type === t).length;
+                    const active = typeFilter === t;
+                    const color = getTypeColor(t);
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => setTypeFilter(active ? null : t)}
+                        className="text-xs px-2.5 py-0.5 rounded-full transition-colors"
+                        style={{
+                          background: active ? color + '22' : 'transparent',
+                          color: active ? color : 'var(--text-muted)',
+                          border: `1px solid ${active ? color + '66' : 'var(--border)'}`,
+                        }}
+                      >
+                        {formatType(t)}
+                        <span className="ml-1 opacity-60">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+            {/* Clear filters link */}
+            {(statusFilter !== 'all' || typeFilter || searchQuery) && (
+              <button
+                onClick={() => { setStatusFilter('all'); setTypeFilter(null); setSearchQuery(''); }}
+                className="text-xs mb-2 px-2 py-0.5 rounded transition-colors"
+                style={{ color: 'var(--accent)', background: 'transparent' }}
+              >
+                Clear filters
+              </button>
             )}
             {error && (
               <div

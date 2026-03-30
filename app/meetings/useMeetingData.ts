@@ -38,6 +38,7 @@ export interface MeetingData {
   // UI state
   error: string | null;
   statusFilter: 'all' | 'in-progress' | 'complete';
+  typeFilter: string | null;
   searchQuery: string;
   focusedIndex: number | null;
   userScrolledUp: boolean;
@@ -85,6 +86,7 @@ export interface MeetingData {
   // Setters needed by children
   setError: (v: string | null) => void;
   setStatusFilter: (v: 'all' | 'in-progress' | 'complete') => void;
+  setTypeFilter: (v: string | null) => void;
   setSearchQuery: (v: string) => void;
   setFocusedIndex: (v: number | null | ((prev: number | null) => number | null)) => void;
   setUserScrolledUp: (v: boolean) => void;
@@ -161,6 +163,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const [addingFacilitator, setAddingFacilitator] = useState(false);
   const [facilitatorError, setFacilitatorError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'in-progress' | 'complete'>('all');
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -597,6 +600,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const filteredMeetings = useMemo(() =>
     meetings.filter(m => {
       if (statusFilter !== 'all' && m.status !== statusFilter) return false;
+      if (typeFilter && m.type !== typeFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -610,7 +614,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
       }
       return true;
     }),
-    [meetings, statusFilter, searchQuery]
+    [meetings, statusFilter, typeFilter, searchQuery]
   );
 
   // Toggle pin on a meeting and persist to localStorage
@@ -818,6 +822,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     queuedSuggestions,
     error,
     statusFilter,
+    typeFilter,
     searchQuery,
     focusedIndex,
     userScrolledUp,
@@ -855,6 +860,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     projectParam,
     setError,
     setStatusFilter,
+    setTypeFilter,
     setSearchQuery,
     setFocusedIndex,
     setUserScrolledUp,
