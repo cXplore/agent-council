@@ -6,7 +6,6 @@ Tell Claude Code *"let's review the dark mode design"* and a facilitator spins u
 
 No database. No auth. Pure file I/O — the meeting file IS the conversation.
 
-<!-- TODO: Add screenshot or GIF of live meeting viewer here -->
 
 ## Quick Start
 

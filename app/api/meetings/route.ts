@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    const mdFiles = files.filter(f => f.endsWith('.md'));
+    const mdFiles = files.filter(f => f.endsWith('.md') && !f.startsWith('.'));
 
     const results = await Promise.all(
       mdFiles.map(async (f): Promise<MeetingListItem | null> => {

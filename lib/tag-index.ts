@@ -176,7 +176,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   let files: string[];
   try {
     const entries = await readdir(meetingsDir);
-    files = entries.filter(f => f.endsWith('.md'));
+    files = entries.filter(f => f.endsWith('.md') && !f.startsWith('.'));
   } catch {
     return { decisions: [], open: [], actions: [], resolved: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString() };
   }

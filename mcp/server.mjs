@@ -22,9 +22,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import http from 'http';
+import http from 'node:http';
+import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 
-import fs from 'fs';
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
 // Helper to make HTTP requests to Agent Council with retry
@@ -46,6 +47,9 @@ function councilRequest(path, method = 'GET', body = null, retries = 1) {
       const req = http.request({ ...options, timeout: 10000 }, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
+        res.on('error', (err) => {
+          reject(new Error(`Response stream error: ${err.message}`));
+        });
         res.on('end', () => {
           // Handle non-2xx responses
           if (res.statusCode >= 400) {
@@ -90,6 +94,41 @@ function councilRequest(path, method = 'GET', body = null, retries = 1) {
   });
 }
 
+// Activity logging — capped JSONL file for observability
+// Decision: 2026-03-28 design review — max 200 entries, truncate oldest
+const ACTIVITY_LOG_MAX = 200;
+
+function getActivityLogPath() {
+  // Log lives next to meeting files — resolve via councilRequest would be async,
+  // so we use a fixed path relative to the project root
+  return join(process.cwd(), 'meetings', '.council-activity.jsonl');
+}
+
+function logActivity(tool, params, result) {
+  try {
+    const entry = JSON.stringify({
+      ts: new Date().toISOString(),
+      tool,
+      params,
+      result: typeof result === 'string' ? result : result?.slice?.(0, 200) || 'ok',
+    });
+    const logPath = getActivityLogPath();
+    appendFileSync(logPath, entry + '\n', 'utf8');
+
+    // Cap at max entries
+    try {
+      const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+      if (lines.length > ACTIVITY_LOG_MAX) {
+        writeFileSync(logPath, lines.slice(-ACTIVITY_LOG_MAX).join('\n') + '\n', 'utf8');
+      }
+    } catch {
+      // Truncation is best-effort
+    }
+  } catch {
+    // Logging is fire-and-forget — never fail a tool because of it
+  }
+}
+
 const server = new McpServer({
   name: 'agent-council',
   version: '0.1.0',
@@ -103,7 +142,7 @@ server.tool(
   async () => {
     try {
       const [projectData, meetingsData, suggestionsData, plannedData] = await Promise.all([
-        councilRequest('/api/projects'),
+        councilRequest('/api/projects').catch(() => ({ activeProject: null, projects: [] })),
         councilRequest('/api/meetings').catch(() => []),
         councilRequest('/api/council/suggestions').catch(() => ({ suggestions: [] })),
         councilRequest('/api/council/planned?enrich=staleness').catch(() => ({ meetings: [] })),
@@ -224,6 +263,7 @@ server.tool(
         detail,
         timestamp: new Date().toISOString(),
       });
+      logActivity('council_notify', { event, meeting, detail }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -231,6 +271,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      logActivity('council_notify', { event, meeting }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not notify: ${err.message}` }],
       };
@@ -460,6 +501,7 @@ server.tool(
         source: 'claude-mcp',
       });
       const id = data.id || data.meeting?.id || 'unknown';
+      logActivity('council_schedule_meeting', { type, topic: topic.slice(0, 100) }, `id: ${id}`);
       return {
         content: [{
           type: 'text',
@@ -467,6 +509,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      logActivity('council_schedule_meeting', { type, topic: topic.slice(0, 80) }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not schedule meeting: ${err.message}` }],
       };
@@ -580,6 +623,7 @@ server.tool(
         meeting,
         timestamp: new Date().toISOString(),
       });
+      logActivity('council_resolve_question', { slug, resolution: resolution.slice(0, 100) }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -587,6 +631,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      logActivity('council_resolve_question', { slug }, `error: ${err.message}`);
       return {
         content: [{ type: 'text', text: `Could not resolve question: ${err.message}` }],
       };
@@ -825,15 +870,17 @@ server.tool(
 // Tool: AI context — narrative summary of recent project activity
 server.tool(
   'council_ai_context',
-  'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer. Call when you want deep context about project direction.',
-  {},
-  async () => {
+  'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer. Call when you want deep context about project direction. Use codeAware=true to ground the narrative in actual code state (slower but more accurate).',
+  {
+    codeAware: z.boolean().optional().default(false).describe('When true, the AI inspects the project codebase using Read/Glob/Grep to verify decisions and ground the narrative in actual code state. Slower but more accurate.'),
+  },
+  async ({ codeAware }) => {
     try {
-      const data = await councilRequest('/api/council/ai-context', 'POST', {});
+      const data = await councilRequest('/api/council/ai-context', 'POST', { codeAware });
       if (data.error) {
         return { content: [{ type: 'text', text: `Could not generate context: ${data.error}` }] };
       }
-      const meta = `(${data.meetingsAnalyzed} meeting${data.meetingsAnalyzed !== 1 ? 's' : ''} analyzed${data.inProgressMeetings > 0 ? `, ${data.inProgressMeetings} in progress` : ''})`;
+      const meta = `(${data.meetingsAnalyzed} meeting${data.meetingsAnalyzed !== 1 ? 's' : ''} analyzed${data.inProgressMeetings > 0 ? `, ${data.inProgressMeetings} in progress` : ''}${data.codeAware ? ', code-aware' : ''})`;
       return {
         content: [{
           type: 'text',
@@ -888,6 +935,7 @@ server.tool(
         ...(note ? { note } : {}),
       });
 
+      logActivity('council_mark_done', { text: match.text.slice(0, 100), note: note?.slice(0, 100) }, 'ok');
       return {
         content: [{
           type: 'text',
@@ -895,6 +943,7 @@ server.tool(
         }],
       };
     } catch (err) {
+      logActivity('council_mark_done', { text: text.slice(0, 80) }, `error: ${err.message}`);
       return { content: [{ type: 'text', text: `Could not mark item done: ${err.message}` }] };
     }
   }
@@ -909,17 +958,20 @@ server.tool(
     agent: z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'])
       .optional()
       .describe('Which agent to consult (default: critic)'),
+    codeAware: z.boolean().optional()
+      .describe('When true, the agent can read the project codebase (Read/Glob/Grep) to ground its answer in actual code. Slower but more accurate for technical questions. Default: false.'),
   },
-  async ({ question, agent = 'critic' }) => {
+  async ({ question, agent = 'critic', codeAware = false }) => {
     try {
-      const result = await councilRequest('/api/council/quick-consult', 'POST', { question, agent });
+      const result = await councilRequest('/api/council/quick-consult', 'POST', { question, agent, codeAware });
       if (result.error) {
         return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }] };
       }
+      const label = codeAware ? `${result.agent} (code-aware)` : result.agent;
       return {
         content: [{
           type: 'text',
-          text: `[${result.agent}]\n\n${result.answer}`,
+          text: `[${label}]\n\n${result.answer}`,
         }],
       };
     } catch (err) {

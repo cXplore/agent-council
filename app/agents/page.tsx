@@ -986,27 +986,26 @@ function AgentsPageInner() {
             </select>
             <button
               onClick={async () => {
+                const DEFAULT_TEAM_MAP: Record<string, string> = {
+                  'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
+                  'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
+                  'designer': 'design', 'security-reviewer': 'security', 'domain-expert': 'domain', 'tech-writer': 'content',
+                };
+                const applyTeams = (mapping: Record<string, string>) => {
+                  for (const agent of agents) {
+                    const team = mapping[agent.name] ?? mapping[agent.filename.replace('.md', '')] ?? 'other';
+                    handleEditField(agent.filename, 'team', team);
+                  }
+                };
                 try {
                   const res = await fetch('/api/agents/suggest-teams', { method: 'POST' });
                   if (!res.ok) {
-                    // Fallback to hardcoded mapping if AI fails
-                    const teamMap: Record<string, string> = {
-                      'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
-                      'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
-                      'designer': 'design', 'security-reviewer': 'security', 'domain-expert': 'domain', 'tech-writer': 'content',
-                    };
-                    for (const agent of agents) {
-                      const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
-                      handleEditField(agent.filename, 'team', team);
-                    }
+                    applyTeams(DEFAULT_TEAM_MAP);
                     return;
                   }
                   const data = await res.json();
                   const teamAssignments = data.teams || {};
-                  for (const agent of agents) {
-                    const team = teamAssignments[agent.name] ?? teamAssignments[agent.filename.replace('.md', '')] ?? 'other';
-                    handleEditField(agent.filename, 'team', team);
-                  }
+                  applyTeams(teamAssignments);
                   // Add any new teams from the AI suggestion
                   const aiTeams = [...new Set(Object.values(teamAssignments) as string[])];
                   for (const team of aiTeams) {
@@ -1015,16 +1014,7 @@ function AgentsPageInner() {
                     }
                   }
                 } catch {
-                  // Fallback to hardcoded
-                  const teamMap: Record<string, string> = {
-                    'facilitator': 'core', 'project-manager': 'core', 'critic': 'core', 'north-star': 'core',
-                    'developer': 'engineering', 'architect': 'engineering', 'qa-engineer': 'engineering', 'devops': 'engineering',
-                    'designer': 'design', 'security-reviewer': 'security', 'domain-expert': 'domain', 'tech-writer': 'content',
-                  };
-                  for (const agent of agents) {
-                    const team = teamMap[agent.name] ?? teamMap[agent.filename.replace('.md', '')] ?? 'other';
-                    handleEditField(agent.filename, 'team', team);
-                  }
+                  applyTeams(DEFAULT_TEAM_MAP);
                 }
               }}
               className="text-xs px-2.5 py-1 rounded"
@@ -1347,7 +1337,7 @@ function AgentsPageInner() {
 
 export default function AgentsPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<div className="flex items-center justify-center h-64" style={{ color: 'var(--text-muted)' }}>Loading agents...</div>}>
       <AgentsPageInner />
     </Suspense>
   );

@@ -46,14 +46,21 @@ app.on('second-instance', () => {
 });
 
 function getIcon() {
-  // Use a simple built-in icon for now
-  // TODO: Replace with actual app icon
-  const iconPath = path.join(__dirname, 'icon.png');
-  try {
-    return nativeImage.createFromPath(iconPath);
-  } catch {
-    return nativeImage.createEmpty();
+  // Try build icon first, then public, then fallback to empty
+  const candidates = [
+    path.join(__dirname, '..', 'build', 'icon.png'),
+    path.join(__dirname, '..', 'public', 'icon.png'),
+  ];
+  for (const iconPath of candidates) {
+    try {
+      if (fs.existsSync(iconPath)) {
+        return nativeImage.createFromPath(iconPath);
+      }
+    } catch {
+      // try next
+    }
   }
+  return nativeImage.createEmpty();
 }
 
 function waitForServer(url, timeout = 30000) {

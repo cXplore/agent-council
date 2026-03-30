@@ -14,7 +14,7 @@ export default function MeetingViewer() {
   // (e.g. after user adds facilitator inline)
   const effectiveHasFacilitator = hasFacilitator ?? projectCtx.hasFacilitator;
 
-  const meetingData = useMeetingData(projectCtx.activeProject, effectiveHasFacilitator, setHasFacilitator);
+  const meetingData = useMeetingData(projectCtx.activeProject, setHasFacilitator);
 
   if (!meetingData.selected) {
     return (
