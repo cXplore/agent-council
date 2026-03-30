@@ -560,6 +560,11 @@ function SetupWizardInner() {
                       </strong>
                       {connectInfo.profile.frameworks.length > 0 && (
                         <> with <strong style={{ color: 'var(--text-primary)' }}>{connectInfo.profile.frameworks.map(f => f.name).join(', ')}</strong></>
+                      )}
+                      {connectInfo.profile.scanQuality && (
+                        <span className="ml-1 text-xs" style={{ color: connectInfo.profile.scanQuality.quality === 'rich' ? 'var(--live-green)' : connectInfo.profile.scanQuality.quality === 'basic' ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          ({connectInfo.profile.scanQuality.quality} scan, {connectInfo.profile.scanQuality.score}/10)
+                        </span>
                       )}.
                     </p>
                   )}
@@ -831,9 +836,40 @@ function SetupWizardInner() {
               className="rounded-lg p-6"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
             >
-              <h3 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
-                Project Profile
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  Project Profile
+                </h3>
+                {profile.scanQuality && (
+                  <span
+                    className="px-2 py-0.5 rounded text-xs font-medium"
+                    style={{
+                      background: profile.scanQuality.quality === 'rich' ? 'rgba(34,197,94,0.15)' : profile.scanQuality.quality === 'basic' ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: profile.scanQuality.quality === 'rich' ? 'var(--live-green)' : profile.scanQuality.quality === 'basic' ? 'var(--warning)' : 'var(--error)',
+                    }}
+                  >
+                    {profile.scanQuality.quality === 'rich' ? 'Rich scan' : profile.scanQuality.quality === 'basic' ? 'Partial scan' : 'Minimal scan'} ({profile.scanQuality.score}/10)
+                  </span>
+                )}
+              </div>
+              {/* Minimal scan warning */}
+              {profile.scanQuality?.quality === 'minimal' && (
+                <div className="mb-4 px-3 py-2 rounded text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--text-secondary)' }}>
+                  Not enough signal to personalize the setup. The agents will use generic prompts.
+                  {profile.scanQuality.missingSignals.length > 0 && (
+                    <span style={{ color: 'var(--text-muted)' }}> Missing: {profile.scanQuality.missingSignals.slice(0, 3).join(', ')}.</span>
+                  )}
+                </div>
+              )}
+              {/* Basic scan notice */}
+              {profile.scanQuality?.quality === 'basic' && (
+                <div className="mb-4 px-3 py-2 rounded text-xs" style={{ background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', color: 'var(--text-secondary)' }}>
+                  Partial project insight — agents will have some project context but may miss nuances.
+                  {profile.scanQuality.missingSignals.length > 0 && (
+                    <span style={{ color: 'var(--text-muted)' }}> Could not detect: {profile.scanQuality.missingSignals.slice(0, 2).join(', ')}.</span>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span style={{ color: 'var(--text-muted)' }}>Languages:</span>

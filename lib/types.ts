@@ -15,6 +15,13 @@ export interface ProjectProfile {
   libraries: Record<string, string[]>;
   suggestedPreset: string;
   suggestedAgents: string[];
+  /** Scan quality scoring — determines onboarding path (reveal vs generic) */
+  scanQuality?: {
+    quality: 'rich' | 'basic' | 'minimal';
+    score: number;
+    signals: string[];
+    missingSignals: string[];
+  };
   /** What agents can and cannot reason about — the production readiness gate */
   coverageBoundaries?: {
     /** Domains agents have visibility into (inferred from scan) */

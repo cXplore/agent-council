@@ -6,6 +6,7 @@ import {
   suggestPreset,
   suggestAgents,
   detectCoverageBoundaries,
+  scoreScanQuality,
 } from '@/lib/scanner';
 import type { ProjectProfile } from '@/lib/types';
 
@@ -473,5 +474,119 @@ describe('detectCoverageBoundaries', () => {
       [], new Set(), [], emptyStructure, emptyFrameworks, emptyLanguages, libraries,
     );
     expect(cb.unknownDomains.some(d => d.includes('3 categories detected'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// scoreScanQuality
+// ---------------------------------------------------------------------------
+
+describe('scoreScanQuality', () => {
+  const emptyProfile: ProjectProfile = {
+    languages: [],
+    frameworks: [],
+    structure: { hasApi: false, hasFrontend: false, hasDatabase: false, hasTests: false, hasCICD: false, isMonorepo: false, hasDocker: false },
+    packageManager: 'unknown',
+    libraries: {},
+    suggestedPreset: 'minimal',
+    suggestedAgents: [],
+  };
+
+  it('returns minimal for an empty scan', () => {
+    const result = scoreScanQuality(emptyProfile);
+    expect(result.quality).toBe('minimal');
+    expect(result.score).toBe(0);
+    expect(result.missingSignals.length).toBeGreaterThan(0);
+    expect(result.signals.length).toBe(0);
+  });
+
+  it('returns rich for a full-stack Next.js project', () => {
+    const profile: ProjectProfile = {
+      languages: [
+        { name: 'TypeScript', fileCount: 80, percentage: 90 },
+        { name: 'JavaScript', fileCount: 10, percentage: 10 },
+      ],
+      frameworks: [
+        { name: 'Next.js', confidence: 'high', version: '16.0.0' },
+        { name: 'TailwindCSS', confidence: 'high', version: '4.0.0' },
+      ],
+      structure: { hasApi: true, hasFrontend: true, hasDatabase: true, hasTests: true, hasCICD: false, isMonorepo: false, hasDocker: false },
+      packageManager: 'npm',
+      libraries: { testing: ['vitest'], ui: ['Radix UI'] },
+      suggestedPreset: 'full-stack',
+      suggestedAgents: ['developer', 'architect'],
+    };
+    const result = scoreScanQuality(profile);
+    expect(result.quality).toBe('rich');
+    expect(result.score).toBeGreaterThanOrEqual(6);
+    expect(result.signals.length).toBeGreaterThan(0);
+  });
+
+  it('returns basic for a project with only language and package manager', () => {
+    const profile: ProjectProfile = {
+      ...emptyProfile,
+      languages: [{ name: 'Python', fileCount: 15, percentage: 100 }],
+      packageManager: 'pip',
+    };
+    const result = scoreScanQuality(profile);
+    expect(result.quality).toBe('basic');
+    expect(result.score).toBeGreaterThanOrEqual(3);
+    expect(result.score).toBeLessThan(6);
+  });
+
+  it('awards 2 points for high-confidence frameworks', () => {
+    const withHigh: ProjectProfile = {
+      ...emptyProfile,
+      frameworks: [{ name: 'Next.js', confidence: 'high' }],
+    };
+    const withMedium: ProjectProfile = {
+      ...emptyProfile,
+      frameworks: [{ name: 'FastAPI', confidence: 'medium' }],
+    };
+    const highResult = scoreScanQuality(withHigh);
+    const medResult = scoreScanQuality(withMedium);
+    expect(highResult.score).toBeGreaterThan(medResult.score);
+  });
+
+  it('caps structure points at 2', () => {
+    const manyStructure: ProjectProfile = {
+      ...emptyProfile,
+      structure: { hasApi: true, hasFrontend: true, hasDatabase: true, hasTests: true, hasCICD: true, isMonorepo: true, hasDocker: true },
+    };
+    const twoStructure: ProjectProfile = {
+      ...emptyProfile,
+      structure: { hasApi: true, hasFrontend: true, hasDatabase: false, hasTests: false, hasCICD: false, isMonorepo: false, hasDocker: false },
+    };
+    const many = scoreScanQuality(manyStructure);
+    const two = scoreScanQuality(twoStructure);
+    // Both should get exactly 2 structure points (signals differ but score is same for structure)
+    expect(many.score).toBe(two.score);
+  });
+
+  it('gives polyglot bonus for multiple languages', () => {
+    const single: ProjectProfile = {
+      ...emptyProfile,
+      languages: [{ name: 'TypeScript', fileCount: 20, percentage: 100 }],
+    };
+    const multi: ProjectProfile = {
+      ...emptyProfile,
+      languages: [
+        { name: 'TypeScript', fileCount: 15, percentage: 75 },
+        { name: 'Python', fileCount: 5, percentage: 25 },
+      ],
+    };
+    expect(scoreScanQuality(multi).score).toBeGreaterThan(scoreScanQuality(single).score);
+  });
+
+  it('requires 10+ source files for file count point', () => {
+    const few: ProjectProfile = {
+      ...emptyProfile,
+      languages: [{ name: 'TypeScript', fileCount: 5, percentage: 100 }],
+    };
+    const many: ProjectProfile = {
+      ...emptyProfile,
+      languages: [{ name: 'TypeScript', fileCount: 15, percentage: 100 }],
+    };
+    expect(scoreScanQuality(many).score).toBeGreaterThan(scoreScanQuality(few).score);
   });
 });

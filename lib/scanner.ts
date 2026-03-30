@@ -628,6 +628,138 @@ export function detectCoverageBoundaries(
 }
 
 // ---------------------------------------------------------------------------
+// Scan quality scoring — determines "reveal" vs "generic setup" onboarding path
+// ---------------------------------------------------------------------------
+
+export type ScanQuality = 'rich' | 'basic' | 'minimal';
+
+export interface ScanQualityResult {
+  quality: ScanQuality;
+  score: number;           // 0-10 composite score
+  signals: string[];       // human-readable signals that contributed to the score
+  missingSignals: string[]; // what the scan could NOT detect
+}
+
+/**
+ * Scores the scan output to determine onboarding path:
+ * - "rich" (score >= 6): Show project-specific reveal with interpreted judgment
+ * - "basic" (score 3-5): Show partial reveal with fallback options
+ * - "minimal" (score 0-2): Generic setup — not enough signal for personalization
+ *
+ * Thresholds:
+ * - At least 1 language detected (1 point)
+ * - At least 1 high-confidence framework (2 points)
+ * - At least 2 structure signals (hasApi, hasFrontend, etc.) (1 point per, max 2)
+ * - Package manager detected (not "unknown") (1 point)
+ * - At least 1 library category detected (1 point)
+ * - At least 10 source files (1 point)
+ * - Coverage boundaries have known domains (1 point)
+ * - Multiple languages detected (1 point, bonus for polyglot projects)
+ */
+export function scoreScanQuality(profile: ProjectProfile): ScanQualityResult {
+  let score = 0;
+  const signals: string[] = [];
+  const missingSignals: string[] = [];
+
+  // Language detection (1 point)
+  if (profile.languages.length > 0) {
+    score += 1;
+    const primary = profile.languages[0];
+    signals.push(`Primary language: ${primary.name} (${primary.percentage}%)`);
+  } else {
+    missingSignals.push('No programming languages detected');
+  }
+
+  // Multiple languages bonus (1 point)
+  if (profile.languages.length >= 2) {
+    score += 1;
+    signals.push(`Polyglot: ${profile.languages.map(l => l.name).join(', ')}`);
+  }
+
+  // High-confidence framework (2 points)
+  const highConfFrameworks = profile.frameworks.filter(f => f.confidence === 'high');
+  if (highConfFrameworks.length > 0) {
+    score += 2;
+    signals.push(`Frameworks: ${highConfFrameworks.map(f => `${f.name}${f.version ? ` ${f.version}` : ''}`).join(', ')}`);
+  } else if (profile.frameworks.length > 0) {
+    score += 1;
+    signals.push(`Possible frameworks: ${profile.frameworks.map(f => f.name).join(', ')} (low confidence)`);
+    missingSignals.push('No high-confidence framework detection');
+  } else {
+    missingSignals.push('No frameworks detected');
+  }
+
+  // Structure signals (1 point per, max 2)
+  const structureBools = [
+    profile.structure.hasApi,
+    profile.structure.hasFrontend,
+    profile.structure.hasDatabase,
+    profile.structure.hasTests,
+    profile.structure.hasCICD,
+    profile.structure.isMonorepo,
+    profile.structure.hasDocker,
+  ];
+  const structureCount = structureBools.filter(Boolean).length;
+  const structurePoints = Math.min(structureCount, 2);
+  score += structurePoints;
+  if (structureCount > 0) {
+    const structureNames: string[] = [];
+    if (profile.structure.hasApi) structureNames.push('API');
+    if (profile.structure.hasFrontend) structureNames.push('Frontend');
+    if (profile.structure.hasDatabase) structureNames.push('Database');
+    if (profile.structure.hasTests) structureNames.push('Tests');
+    if (profile.structure.hasCICD) structureNames.push('CI/CD');
+    if (profile.structure.isMonorepo) structureNames.push('Monorepo');
+    if (profile.structure.hasDocker) structureNames.push('Docker');
+    signals.push(`Structure: ${structureNames.join(', ')}`);
+  } else {
+    missingSignals.push('No recognizable project structure');
+  }
+
+  // Package manager (1 point)
+  if (profile.packageManager !== 'unknown') {
+    score += 1;
+    signals.push(`Package manager: ${profile.packageManager}`);
+  } else {
+    missingSignals.push('No package manager detected');
+  }
+
+  // Library categories (1 point)
+  const libCategories = Object.keys(profile.libraries);
+  if (libCategories.length > 0) {
+    score += 1;
+    const libSummary = libCategories.map(cat => {
+      const libs = profile.libraries[cat];
+      return `${cat}: ${libs.join(', ')}`;
+    }).join('; ');
+    signals.push(`Libraries: ${libSummary}`);
+  } else {
+    missingSignals.push('No library dependencies detected');
+  }
+
+  // Source file count (1 point for >= 10 files)
+  const totalSourceFiles = profile.languages.reduce((sum, l) => sum + l.fileCount, 0);
+  if (totalSourceFiles >= 10) {
+    score += 1;
+    signals.push(`${totalSourceFiles} source files`);
+  } else {
+    missingSignals.push(`Only ${totalSourceFiles} source files (need 10+ for structure insight)`);
+  }
+
+  // Determine quality tier
+  let quality: ScanQuality;
+  if (score >= 6) {
+    quality = 'rich';
+  } else if (score >= 3) {
+    quality = 'basic';
+  } else {
+    quality = 'minimal';
+  }
+
+  return { quality, score, signals, missingSignals };
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
@@ -658,6 +790,17 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     files, dirs, skippedDirs, structure, frameworks, languages, libraries,
   );
 
+  const scanQuality = scoreScanQuality({
+    languages,
+    frameworks,
+    structure,
+    packageManager,
+    libraries,
+    suggestedPreset,
+    suggestedAgents,
+    coverageBoundaries,
+  });
+
   return {
     languages,
     frameworks,
@@ -666,6 +809,7 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     libraries,
     suggestedPreset,
     suggestedAgents,
+    scanQuality,
     coverageBoundaries,
   };
 }
