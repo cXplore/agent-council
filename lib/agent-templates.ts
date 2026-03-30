@@ -2,8 +2,6 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const TEMPLATES_DIR = path.join(process.cwd(), 'templates', 'agents');
-const PRESETS_DIR = path.join(process.cwd(), 'templates', 'presets');
-
 // Load a single template by name (e.g., "developer")
 export async function loadTemplate(name: string): Promise<string> {
   // Sanitize to prevent path traversal
@@ -21,24 +19,6 @@ export async function loadTemplate(name: string): Promise<string> {
 export async function listTemplates(): Promise<string[]> {
   const files = await readdir(TEMPLATES_DIR);
   return files.filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
-}
-
-// Load a preset by name
-export async function loadPreset(name: string): Promise<{ name: string; description: string; agents: string[] }> {
-  const safeName = path.basename(name);
-  const filePath = path.join(PRESETS_DIR, `${safeName}.json`);
-  const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(path.resolve(PRESETS_DIR))) {
-    throw new Error(`Invalid preset name: ${name}`);
-  }
-  const raw = await readFile(resolved, 'utf-8');
-  return JSON.parse(raw);
-}
-
-// List all presets
-export async function listPresets(): Promise<string[]> {
-  const files = await readdir(PRESETS_DIR);
-  return files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
 }
 
 // Fill placeholders in a template
