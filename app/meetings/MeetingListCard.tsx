@@ -175,8 +175,12 @@ export default function MeetingListCard({
             background: m.status === 'in-progress' ? 'var(--live-green)' : 'var(--text-muted)',
           }}
         />
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          {m.title || formatType(m.type)}
+        <span
+          className="text-sm font-semibold truncate"
+          style={{ color: 'var(--text-primary)', maxWidth: '600px', display: 'inline-block' }}
+          title={(m.title || '').length > 80 ? m.title || undefined : undefined}
+        >
+          {(m.title || formatType(m.type)).slice(0, 80)}{(m.title || '').length > 80 ? '...' : ''}
         </span>
         {m.status === 'in-progress' && (
           <span

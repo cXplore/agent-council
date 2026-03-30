@@ -269,7 +269,9 @@ export async function POST(req: NextRequest) {
 
     // Generate meeting filename early so events reference the right file
     const meetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
-    const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${topic}`;
+    // Use first sentence or first 80 chars as title — full topic goes in the objective field
+    const shortTopic = topic.includes('.') ? topic.split('.')[0] : (topic.length > 80 ? topic.slice(0, 80).replace(/\s+\S*$/, '') + '...' : topic);
+    const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${shortTopic}`;
     let meetingFilePath: string | undefined;
 
     // Helper to build/rebuild the meeting file content from current state
@@ -414,7 +416,7 @@ export async function POST(req: NextRequest) {
       await writeActivityEntry({
         source: 'meeting',
         type: 'meeting_complete',
-        summary: `Meeting complete: ${topic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
+        summary: `Meeting complete: ${shortTopic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
         linkedMeeting: meetingFilename,
       }).catch(() => {}); // fire-and-forget
     }
