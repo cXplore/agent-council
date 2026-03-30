@@ -15,6 +15,20 @@ export interface ProjectProfile {
   libraries: Record<string, string[]>;
   suggestedPreset: string;
   suggestedAgents: string[];
+  /** What agents can and cannot reason about — the production readiness gate */
+  coverageBoundaries?: {
+    /** Domains agents have visibility into (inferred from scan) */
+    knownDomains: string[];
+    /** Domains agents should hedge on (visible but not deeply understood) */
+    unknownDomains: string[];
+    /** Top-level dirs that were scanned */
+    scannedPaths: string[];
+    /** Top-level dirs that were skipped (node_modules, .git, etc.) */
+    skippedPaths: string[];
+    /** Total files scanned vs estimated total */
+    filesCovered: number;
+    filesEstimatedTotal: number;
+  };
 }
 
 export interface Preset {

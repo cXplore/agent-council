@@ -59,10 +59,11 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
 interface WalkResult {
   files: string[];    // relative file paths
   dirs: Set<string>;  // relative directory paths
+  skippedDirs: string[];  // top-level dirs that were skipped
 }
 
 async function walk(root: string, rel: string = '', depth: number = 0): Promise<WalkResult> {
-  const result: WalkResult = { files: [], dirs: new Set() };
+  const result: WalkResult = { files: [], dirs: new Set(), skippedDirs: [] };
   if (depth > MAX_DEPTH) return result;
 
   let entries;
@@ -78,7 +79,10 @@ async function walk(root: string, rel: string = '', depth: number = 0): Promise<
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
 
     if (entry.isDirectory()) {
-      if (SKIP_DIRS.has(entry.name)) continue;
+      if (SKIP_DIRS.has(entry.name)) {
+        if (depth === 0) result.skippedDirs.push(entry.name);
+        continue;
+      }
       if (entry.isSymbolicLink()) continue;
       result.dirs.add(relPath);
       const sub = await walk(root, relPath, depth + 1);
@@ -87,6 +91,7 @@ async function walk(root: string, rel: string = '', depth: number = 0): Promise<
         if (result.files.length >= MAX_FILES) break;
       }
       for (const d of sub.dirs) result.dirs.add(d);
+      for (const s of sub.skippedDirs) result.skippedDirs.push(s);
     } else if (entry.isFile()) {
       result.files.push(relPath);
     }
@@ -554,6 +559,75 @@ export function suggestAgents(
 }
 
 // ---------------------------------------------------------------------------
+// Coverage boundaries — what agents know vs. don't know
+// ---------------------------------------------------------------------------
+
+export function detectCoverageBoundaries(
+  files: string[],
+  dirs: Set<string>,
+  skippedDirs: string[],
+  structure: ProjectProfile['structure'],
+  frameworks: ProjectProfile['frameworks'],
+  languages: ProjectProfile['languages'],
+  libraries: Record<string, string[]>,
+): NonNullable<ProjectProfile['coverageBoundaries']> {
+  // Known domains: what the scanner can confidently describe
+  const knownDomains: string[] = [];
+  const unknownDomains: string[] = [];
+
+  // Language-based knowledge
+  for (const lang of languages) {
+    if (lang.percentage >= 5) {
+      knownDomains.push(`${lang.name} code patterns`);
+    }
+  }
+
+  // Framework knowledge
+  for (const fw of frameworks) {
+    if (fw.confidence === 'high') {
+      knownDomains.push(`${fw.name} architecture${fw.version ? ` (${fw.version})` : ''}`);
+    } else {
+      unknownDomains.push(`${fw.name} (detected but not deeply analyzed)`);
+    }
+  }
+
+  // Structure-based knowledge
+  if (structure.hasFrontend) knownDomains.push('Frontend component structure');
+  if (structure.hasApi) knownDomains.push('API route layout');
+  if (structure.hasTests) knownDomains.push('Test file organization');
+  if (structure.isMonorepo) knownDomains.push('Monorepo workspace layout');
+
+  // Structure-based unknowns — things we see exist but can't deeply analyze
+  if (structure.hasDatabase) unknownDomains.push('Database schema and migrations (files detected, content not analyzed)');
+  if (structure.hasCICD) unknownDomains.push('CI/CD pipeline logic (config detected, behavior not analyzed)');
+  if (structure.hasDocker) unknownDomains.push('Container configuration (Dockerfile detected, runtime behavior unknown)');
+
+  // Library-based unknowns — dependencies exist but we don't analyze their usage
+  const libCategories = Object.keys(libraries).filter(k => (libraries[k]?.length ?? 0) > 0);
+  if (libCategories.length > 0) {
+    unknownDomains.push(`Library usage patterns (${libCategories.length} categories detected, actual usage not traced)`);
+  }
+
+  // Universal unknowns
+  unknownDomains.push('Runtime behavior and environment variables');
+  unknownDomains.push('Business logic semantics (file structure visible, intent requires reading)');
+  unknownDomains.push('External service integrations (dependencies listed, contracts unknown)');
+  unknownDomains.push('Git history and recent changes (not scanned)');
+
+  // Scanned vs skipped paths
+  const topLevelDirs = [...dirs].filter(d => !d.includes('/')).sort();
+
+  return {
+    knownDomains,
+    unknownDomains,
+    scannedPaths: topLevelDirs,
+    skippedPaths: skippedDirs.sort(),
+    filesCovered: files.length,
+    filesEstimatedTotal: files.length, // We can't easily know what's in skipped dirs
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
@@ -564,7 +638,7 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     throw new Error(`Path is not a directory: ${dirPath}`);
   }
 
-  const { files, dirs } = await walk(dirPath);
+  const { files, dirs, skippedDirs } = await walk(dirPath);
   const languages = detectLanguages(files);
   const frameworks = await detectFrameworks(dirPath, files, dirs);
   const structure = detectStructure(files, dirs);
@@ -580,6 +654,10 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
   };
   const libraries = detectLibraries(allDeps);
 
+  const coverageBoundaries = detectCoverageBoundaries(
+    files, dirs, skippedDirs, structure, frameworks, languages, libraries,
+  );
+
   return {
     languages,
     frameworks,
@@ -588,5 +666,6 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     libraries,
     suggestedPreset,
     suggestedAgents,
+    coverageBoundaries,
   };
 }

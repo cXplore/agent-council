@@ -147,13 +147,14 @@ Every decision-producing meeting includes: **project-manager** (what's real), **
 
 Meetings are a thinking tool for complex decisions. The default is no meeting.
 
-**When to meet:**
-- Before 4+ hours of new work → Direction Check (Tier 0: 1 round, 2 agents)
-- Reversible decision? → Quick Consult (Tier 1: 1 round, 3 agents)
-- Irreversible or system-wide? → Full Meeting (Tier 2: 2-3 rounds, 4-5 agents)
-- Otherwise: no meeting. Code.
+**Decision-complexity rubric** (score 0-2 on each: reversibility, blast radius, novelty, confidence):
+- **0-1 total:** No meeting. Just code.
+- **2-3:** Quick consult — ask one agent via `council_quick_consult`.
+- **4-5:** Direction Check (Tier 0: 1 round, 2 agents). Confirm approach before starting.
+- **6:** Quick Consult meeting (Tier 1: 1 round, 3 agents). Get multiple perspectives.
+- **7-8:** Full Meeting (Tier 2: 2-3 rounds, 4-5 agents). Multi-round deliberation.
 
-**Rules:** Max 2 full meetings/week. JSON appendix required for Tier 2. Agents read actual source files for technical meetings. Open questions archived after 3 meetings without progress.
+**Rules:** Max 2 Tier 2 meetings/week. No cap on Tier 0/1. JSON appendix required for Tier 2. Agents read actual source files for technical meetings. Open questions archived after 3 meetings without progress. Escalate mid-meeting if complexity is higher than initially assessed.
 
 ## Project Phase
 

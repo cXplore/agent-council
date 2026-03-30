@@ -5,6 +5,7 @@ import {
   detectPackageManager,
   suggestPreset,
   suggestAgents,
+  detectCoverageBoundaries,
 } from '@/lib/scanner';
 import type { ProjectProfile } from '@/lib/types';
 
@@ -379,5 +380,98 @@ describe('suggestAgents', () => {
     const structure = makeStructureObj();
     const agents = suggestAgents(structure, []);
     expect(agents).toEqual(['project-manager', 'critic', 'north-star', 'developer']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectCoverageBoundaries
+// ---------------------------------------------------------------------------
+
+describe('detectCoverageBoundaries', () => {
+  const emptyStructure = makeStructureObj();
+  const emptyLanguages: ProjectProfile['languages'] = [];
+  const emptyFrameworks: ProjectProfile['frameworks'] = [];
+  const emptyLibraries: Record<string, string[]> = {};
+
+  it('includes known domains for detected languages above 5%', () => {
+    const languages: ProjectProfile['languages'] = [
+      { name: 'TypeScript', fileCount: 80, percentage: 80 },
+      { name: 'Python', fileCount: 15, percentage: 15 },
+      { name: 'Shell', fileCount: 2, percentage: 2 }, // below 5%, excluded
+    ];
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], emptyStructure, emptyFrameworks, languages, emptyLibraries,
+    );
+    expect(cb.knownDomains).toContain('TypeScript code patterns');
+    expect(cb.knownDomains).toContain('Python code patterns');
+    expect(cb.knownDomains).not.toContain('Shell code patterns');
+  });
+
+  it('puts high-confidence frameworks in known, others in unknown', () => {
+    const frameworks: ProjectProfile['frameworks'] = [
+      { name: 'Next.js', confidence: 'high', version: '16.2.1' },
+      { name: 'Express', confidence: 'medium' },
+    ];
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], emptyStructure, frameworks, emptyLanguages, emptyLibraries,
+    );
+    expect(cb.knownDomains).toContain('Next.js architecture (16.2.1)');
+    expect(cb.unknownDomains).toContain('Express (detected but not deeply analyzed)');
+  });
+
+  it('adds structure-based known domains', () => {
+    const structure = makeStructureObj({
+      hasFrontend: true, hasApi: true, hasTests: true, isMonorepo: true,
+    });
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], structure, emptyFrameworks, emptyLanguages, emptyLibraries,
+    );
+    expect(cb.knownDomains).toContain('Frontend component structure');
+    expect(cb.knownDomains).toContain('API route layout');
+    expect(cb.knownDomains).toContain('Test file organization');
+    expect(cb.knownDomains).toContain('Monorepo workspace layout');
+  });
+
+  it('adds structure-based unknown domains for db, cicd, docker', () => {
+    const structure = makeStructureObj({
+      hasDatabase: true, hasCICD: true, hasDocker: true,
+    });
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], structure, emptyFrameworks, emptyLanguages, emptyLibraries,
+    );
+    expect(cb.unknownDomains.some(d => d.includes('Database schema'))).toBe(true);
+    expect(cb.unknownDomains.some(d => d.includes('CI/CD pipeline'))).toBe(true);
+    expect(cb.unknownDomains.some(d => d.includes('Container configuration'))).toBe(true);
+  });
+
+  it('always includes universal unknowns', () => {
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], emptyStructure, emptyFrameworks, emptyLanguages, emptyLibraries,
+    );
+    expect(cb.unknownDomains.some(d => d.includes('Runtime behavior'))).toBe(true);
+    expect(cb.unknownDomains.some(d => d.includes('Business logic'))).toBe(true);
+    expect(cb.unknownDomains.some(d => d.includes('External service'))).toBe(true);
+    expect(cb.unknownDomains.some(d => d.includes('Git history'))).toBe(true);
+  });
+
+  it('tracks scanned and skipped paths', () => {
+    const dirs = new Set(['app', 'lib', 'app/api', 'lib/utils']);
+    const skipped = ['node_modules', '.git', 'dist'];
+    const cb = detectCoverageBoundaries(
+      ['app/page.tsx', 'lib/config.ts'], dirs, skipped,
+      emptyStructure, emptyFrameworks, emptyLanguages, emptyLibraries,
+    );
+    // scannedPaths = top-level dirs only
+    expect(cb.scannedPaths).toEqual(['app', 'lib']);
+    expect(cb.skippedPaths).toEqual(['.git', 'dist', 'node_modules']);
+    expect(cb.filesCovered).toBe(2);
+  });
+
+  it('notes library categories in unknowns', () => {
+    const libraries = { testing: ['vitest'], ui: ['shadcn'], database: ['prisma'] };
+    const cb = detectCoverageBoundaries(
+      [], new Set(), [], emptyStructure, emptyFrameworks, emptyLanguages, libraries,
+    );
+    expect(cb.unknownDomains.some(d => d.includes('3 categories detected'))).toBe(true);
   });
 });

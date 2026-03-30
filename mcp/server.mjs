@@ -995,6 +995,10 @@ server.tool(
           if (frameworks) parts.push(frameworks);
           if (profile.structure?.isMonorepo) parts.push('monorepo');
           if (parts.length > 0) lines.push(`  Stack: ${parts.join(' · ')}`);
+          const cb = profile.coverageBoundaries;
+          if (cb) {
+            lines.push(`  Coverage: ${cb.filesCovered} files scanned | ${cb.knownDomains.length} known domains, ${cb.unknownDomains.length} hedged`);
+          }
         }
         lines.push('');
       }

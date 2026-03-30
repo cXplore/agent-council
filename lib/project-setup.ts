@@ -37,6 +37,21 @@ export function buildPlaceholders(projectPath: string, profile: ProjectProfile):
   for (const [category, names] of Object.entries(libs)) {
     if (names.length > 0) libSections.push(`${category}: ${names.join(', ')}`);
   }
+  // Build coverage boundaries summary
+  let coverageSummary = 'Not available';
+  const cb = profile.coverageBoundaries;
+  if (cb) {
+    const lines: string[] = [];
+    if (cb.knownDomains.length > 0) {
+      lines.push('Agents CAN reason about: ' + cb.knownDomains.join('; '));
+    }
+    if (cb.unknownDomains.length > 0) {
+      lines.push('Agents should HEDGE on: ' + cb.unknownDomains.join('; '));
+    }
+    lines.push(`Files scanned: ${cb.filesCovered} | Scanned dirs: ${cb.scannedPaths.join(', ') || 'none'} | Skipped dirs: ${cb.skippedPaths.join(', ') || 'none'}`);
+    coverageSummary = lines.join('\n');
+  }
+
   return {
     PROJECT_NAME: projectName,
     FRAMEWORK: frameworkNames,
@@ -49,6 +64,7 @@ export function buildPlaceholders(projectPath: string, profile: ProjectProfile):
     DB_LIBS: (libs.database ?? []).join(', ') || 'None installed',
     UI_LIBS: (libs.ui ?? []).join(', ') || 'None installed',
     THREE_D_LIBS: (libs['3d'] ?? []).join(', ') || 'None installed',
+    COVERAGE_BOUNDARIES: coverageSummary,
   };
 }
 

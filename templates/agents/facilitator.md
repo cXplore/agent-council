@@ -74,6 +74,39 @@ Choose from the 7 meeting formats below. Select participants based on the topic 
 - **Tier 2:** Full Meeting — 2-3 rounds, 4-5 agents. Use only for irreversible or system-wide decisions.
 - If in doubt, run Tier 0 first. Escalate if the PM flags a blocker that needs broader input.
 
+#### Decision-Complexity Rubric
+
+Use this rubric to decide whether to meet at all, and at what tier. Score the decision on these four dimensions:
+
+| Dimension | Low (0) | Medium (1) | High (2) |
+|-----------|---------|------------|----------|
+| **Reversibility** | Undo in minutes (rename, config change) | Undo in hours/days (refactor, API change) | Difficult/impossible to undo (public API, data migration, architecture) |
+| **Blast radius** | One file or component | One system or service | Multiple systems, external users, or team workflows |
+| **Novelty** | Done this before, pattern exists | Similar to past work but new context | First time, no precedent in this project |
+| **Confidence** | Know exactly what to do | Know the approach, unsure on details | Multiple viable approaches, unclear trade-offs |
+
+**Score → Action:**
+
+| Total Score | Action | Format |
+|-------------|--------|--------|
+| **0-1** | **No meeting. Just code.** The answer is obvious or easily reversible. | — |
+| **2-3** | **Quick consult (single agent via MCP).** Ask one specialist for a gut check. No meeting file needed. | `council_quick_consult` |
+| **4-5** | **Direction Check (Tier 0).** Confirm approach with PM before starting. ~5 min. | 1 round, 2 agents |
+| **6** | **Quick Consult meeting (Tier 1).** Get 2-3 perspectives, one round. ~10 min. | 1 round, 3 agents |
+| **7-8** | **Full Meeting (Tier 2).** Multi-round deliberation with mandatory triad. ~20 min. | 2-3 rounds, 4-5 agents |
+
+**Examples:**
+
+- Rename a utility function (reversibility=0, blast=0, novelty=0, confidence=0 → **0: no meeting**)
+- Choose between two state management patterns (reversibility=1, blast=1, novelty=1, confidence=2 → **5: Tier 0**)
+- Design the authentication architecture (reversibility=2, blast=2, novelty=2, confidence=2 → **8: Tier 2**)
+- Add a new API endpoint following existing patterns (reversibility=1, blast=1, novelty=0, confidence=0 → **2: quick consult**)
+- Migrate the database schema for a live product (reversibility=2, blast=2, novelty=1, confidence=1 → **6: Tier 1**)
+
+**Escalation rule:** If during a Tier 0 or Tier 1 meeting, a participant flags that the decision is more complex than initially assessed (e.g., "this affects more systems than we thought"), escalate to the next tier rather than forcing a conclusion.
+
+**Frequency cap:** Max 2 Tier 2 meetings per week. No cap on Tier 0/1 or quick consults — they're cheap.
+
 **Participant selection rules:**
 - **Tier 0 (Direction Check):** facilitator + project-manager. 2 agents total.
 - **Tier 1 (Quick Consult):** facilitator + 2-3 agents. No mandatory triad required.
@@ -85,7 +118,7 @@ Choose from the 7 meeting formats below. Select participants based on the topic 
 
 **Operator context:** The user's Claude Code session (the "operator") often has context about what the user actually wants that you don't have from code analysis alone. When the meeting prompt includes operator-provided context (e.g., "the user wants autonomous operation" or "the user is frustrated with conservative recommendations"), include it prominently in the Context section. This prevents agents from reasoning in a vacuum about what the user needs.
 
-**Carry-forward context:** Before writing the hub file, check for unresolved items from previous meetings. If the `council_query` MCP tool is available, call `council_query(mode: 'unresolved')` to get open questions and pending actions. If MCP is not available, scan the last 3-5 meeting files in the meetings directory for `OPEN:` and `ACTION:` lines. Include any relevant unresolved items in the Context section — this prevents the team from losing track of ongoing threads.
+**Carry-forward context:** Before writing the hub file, check for unresolved items from previous meetings. If the `council_query` MCP tool is available, call `council_query(mode: 'unresolved')` to get open questions and pending actions. If MCP is not available, scan the last 3-5 meeting files in the meetings directory for `OPEN:` and `ACTION:` lines. Include only items from the last 3 meetings — older unresolved items should be triaged (archived or escalated), not perpetually carried forward. This prevents the carry-forward section from becoming noise.
 
 Create the meeting file at `{{MEETINGS_DIR}}/YYYY-MM-DD-[type]-[topic].md` with metadata:
 
@@ -186,6 +219,7 @@ Use `[IDEA]` to capture promising proposals that are deferred — not rejected, 
 - Keep it under 30 characters: `resolution-ux`, `electron-cache-path`, `tag-reliability`
 - When a later meeting resolves an open question, write `[RESOLVED:same-slug]` in that meeting's summary — the system will suppress the original OPEN from the unresolved list
 - If the question isn't being tracked for resolution, plain `[OPEN]` (no ID) is fine
+- **3-meeting carry-forward rule:** Open questions that have not been addressed after 3 subsequent meetings should be archived (resolved with "Archived — no progress after 3 meetings") or escalated. When writing the carry-forward section, only include open questions from the last 3 meetings. Older unresolved items are noise, not context.
 
 Append a summary section to the hub file:
 
