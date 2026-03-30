@@ -91,7 +91,28 @@ const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-
 export function extractTags(content: string, filename: string): TagEntry[] {
   // Try JSON appendix first (preferred, structured)
   const jsonEntries = extractFromJSON(content, filename);
-  if (jsonEntries !== null && jsonEntries.length > 0) return jsonEntries;
+  if (jsonEntries !== null && jsonEntries.length > 0) {
+    // JSON appendix found — but also scan raw content for [RESOLVED:slug] tags
+    // appended after the JSON block (e.g., by council_resolve_question).
+    // Without this, resolutions written as raw text are never picked up.
+    const lines = content.split('\n');
+    for (const line of lines) {
+      const match = line.match(TAG_REGEX);
+      if (match && match[1].toUpperCase() === 'RESOLVED') {
+        jsonEntries.push({
+          type: 'RESOLVED',
+          id: match[2]?.toLowerCase() ?? null,
+          text: match[3].trim(),
+          meeting: filename,
+          meetingTitle: jsonEntries[0]?.meetingTitle ?? filename.replace(/\.md$/, ''),
+          meetingStatus: jsonEntries[0]?.meetingStatus ?? 'complete',
+          lineNumber: lines.indexOf(line),
+          date: jsonEntries[0]?.date ?? null,
+        });
+      }
+    }
+    return jsonEntries;
+  }
   const entries: TagEntry[] = [];
   const lines = content.split('\n');
 

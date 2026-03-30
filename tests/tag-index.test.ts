@@ -378,6 +378,54 @@ meeting-outcomes -->`;
   });
 });
 
+describe('RESOLVED tags after JSON appendix', () => {
+  it('picks up [RESOLVED:slug] appended after JSON appendix', () => {
+    const content = `# Design Review: Auth
+
+## Summary
+
+- [DECISION] Use JWT for auth
+- [OPEN:token-refresh] How often should tokens rotate?
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Use JWT for auth" }],
+  "open_questions": [{ "text": "How often should tokens rotate?", "slug": "token-refresh" }],
+  "resolved": []
+}
+meeting-outcomes -->
+
+[RESOLVED:token-refresh] Decided: rotate every 7 days based on security audit`;
+
+    const tags = extractTags(content, '2026-03-31-auth.md');
+    const resolved = tags.filter(t => t.type === 'RESOLVED');
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].id).toBe('token-refresh');
+    expect(resolved[0].text).toContain('rotate every 7 days');
+  });
+
+  it('still extracts JSON entries alongside appended RESOLVED tags', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Ship the feature" }],
+  "open_questions": [{ "text": "Deadline?", "slug": "deadline" }],
+  "resolved": []
+}
+meeting-outcomes -->
+
+[RESOLVED:deadline] Set for March 15`;
+
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags.filter(t => t.type === 'DECISION')).toHaveLength(1);
+    expect(tags.filter(t => t.type === 'OPEN')).toHaveLength(1);
+    expect(tags.filter(t => t.type === 'RESOLVED')).toHaveLength(1);
+  });
+});
+
 describe('Future considerations section', () => {
   it('skips tags inside Future considerations section', () => {
     const content = `# Test Meeting
