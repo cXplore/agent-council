@@ -880,11 +880,24 @@ server.tool(
 
       if (!filter || filter === 'all' || filter === 'open') {
         if (open.length > 0) {
-          sections.push(`OPEN QUESTIONS (${open.length}):`);
-          for (const o of open.slice(0, maxItems)) {
+          // Heuristic: questions containing deferral patterns are "deferred", not actively open
+          const deferralPatterns = /\b(revisit when|build when|defer until|trigger:|Phase 2:)\b/i;
+          const activeOpen = open.filter(o => !deferralPatterns.test(o.text || ''));
+          const deferredCount = open.length - activeOpen.length;
+
+          // Cap open questions at 5 by default (full list via council_query)
+          const openCap = filter === 'open' ? maxItems : 5;
+          const shownOpen = activeOpen.slice(0, openCap);
+          const hiddenCount = activeOpen.length - shownOpen.length;
+
+          sections.push(`OPEN QUESTIONS (${activeOpen.length}${deferredCount > 0 ? `, ${deferredCount} deferred hidden` : ''}):`);
+          for (const o of shownOpen) {
             const slug = o.id ? ` [${o.id}]` : '';
             sections.push(`  ? ${o.text}${slug}`);
             sections.push(`    from: ${o.meetingTitle || o.meeting} (${o.date || 'unknown'})`);
+          }
+          if (hiddenCount > 0) {
+            sections.push(`  ... ${hiddenCount} more — use council_query(mode: "unresolved", type: "open") for full list`);
           }
           sections.push('');
         }
