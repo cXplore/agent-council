@@ -76,7 +76,7 @@ describe('JSON appendix parsing', () => {
 }
 -->`;
 
-    const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+    const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
     expect(jsonMatch).not.toBeNull();
 
     const data = JSON.parse(jsonMatch![1]);
@@ -223,7 +223,7 @@ Nothing tagged here. Just prose.`;
 
 describe('JSON appendix extraction', () => {
   function extractFromJSON(content: string): { decisions: number; actions: number; open: number; resolved: number } | null {
-    const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+    const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
     if (!jsonMatch) return null;
     try {
       const data = JSON.parse(jsonMatch[1]);

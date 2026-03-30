@@ -39,7 +39,7 @@ interface MeetingOutcomesJSON {
 }
 
 function extractFromJSON(content: string, filename: string): TagEntry[] | null {
-  const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+  const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
   if (!jsonMatch) return null;
 
   try {

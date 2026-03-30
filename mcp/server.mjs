@@ -235,7 +235,7 @@ server.tool(
       const openQuestions = [];
 
       // Try JSON appendix first (structured source)
-      const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n\s*-->/);
+      const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
       if (jsonMatch) {
         try {
           const outcomes = JSON.parse(jsonMatch[1]);
