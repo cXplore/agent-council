@@ -93,8 +93,17 @@ export function resolveDir(dir: string): string {
   return path.join(process.cwd(), dir);
 }
 
+export interface ActiveProjectResult {
+  name: string;
+  agentsDir: string;
+  meetingsDir: string;
+  projectPath?: string;
+  /** True if the configured activeProject was not found and we fell back to workspace */
+  fallback?: boolean;
+}
+
 /** Get the active project config, or workspace if "workspace" is active */
-export function getActiveProjectConfig(config: CouncilConfig): { name: string; agentsDir: string; meetingsDir: string; projectPath?: string } {
+export function getActiveProjectConfig(config: CouncilConfig): ActiveProjectResult {
   if (config.activeProject === 'workspace') {
     return {
       name: 'workspace',
@@ -105,11 +114,16 @@ export function getActiveProjectConfig(config: CouncilConfig): { name: string; a
 
   const project = config.projects[config.activeProject];
   if (!project) {
-    // Fallback to workspace if active project not found
+    // Loud warning — this means config.activeProject points to a project that doesn't exist
+    console.warn(
+      `[council] Active project "${config.activeProject}" not found in config.projects — falling back to workspace. ` +
+      `This usually means the project was removed from config without updating activeProject.`
+    );
     return {
       name: 'workspace',
       agentsDir: resolveDir(config.workspace.agentsDir),
       meetingsDir: resolveDir(config.workspace.meetingsDir),
+      fallback: true,
     };
   }
 

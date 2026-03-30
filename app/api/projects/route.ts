@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig, validateProjects } from '@/lib/config';
 
@@ -130,6 +130,14 @@ export async function POST(req: NextRequest) {
       };
       config.activeProject = name;
       await saveConfig(config);
+
+      // Ensure meetingsDir and agentsDir exist so first meeting doesn't ENOENT
+      const absMeetings = path.join(projectPath, resolvedMeetingsDir);
+      const absAgents = path.join(projectPath, resolvedAgentsDir);
+      await Promise.all([
+        mkdir(absMeetings, { recursive: true }),
+        mkdir(absAgents, { recursive: true }),
+      ]);
 
       return NextResponse.json({
         success: true,
