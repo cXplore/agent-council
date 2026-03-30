@@ -97,8 +97,23 @@ const server = new McpServer({
   version: '0.1.0',
 });
 
+// Wrap tool handlers with global error boundary — catches any uncaught errors
+// and returns them as isError:true responses instead of crashing the MCP connection.
+function safeTool(name, description, schema, handler) {
+  safeTool(name, description, schema, async (params) => {
+    try {
+      return await handler(params);
+    } catch (err) {
+      return {
+        content: [{ type: 'text', text: `[${name}] Unexpected error: ${err.message}` }],
+        isError: true,
+      };
+    }
+  });
+}
+
 // Tool: Check if Agent Council viewer is active
-server.tool(
+safeTool(
   'council_status',
   'Check if Agent Council is running and if someone is watching the meeting viewer',
   {},
@@ -168,13 +183,14 @@ server.tool(
             hint: 'Start Agent Council with: npm run dev (in the agent-council directory)',
           }, null, 2),
         }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: List meetings
-server.tool(
+safeTool(
   'council_meetings',
   'List recent meetings from Agent Council. Shows active and past meetings.',
   {
@@ -204,13 +220,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Read a specific meeting (structured summary + outcomes)
-server.tool(
+safeTool(
   'council_read_meeting',
   'Read a specific meeting by filename. Returns structured summary with title, type, participants, decisions, actions, and open questions — without the full raw content. Use this to recall what happened in a meeting.',
   {
@@ -278,13 +295,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error reading meeting: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Create a new meeting file with proper structure
-server.tool(
+safeTool(
   'council_create_meeting',
   'Create a new meeting file with proper metadata and structure. Returns the filename for use with council_notify and other tools. The meeting is created with status "in-progress" — write agent contributions to it, then close it.',
   {
@@ -319,13 +337,13 @@ server.tool(
 
       return { content: [{ type: 'text', text: lines.join('\n') }] };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Failed to create meeting: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Failed to create meeting: ${err.message}` }], isError: true };
     }
   }
 );
 
 // Tool: Append content to an in-progress meeting (agent responses, round markers)
-server.tool(
+safeTool(
   'council_append_to_meeting',
   'Append content to an in-progress meeting file — agent responses, round markers, or other text. Use this to build up the meeting hub file incrementally.',
   {
@@ -343,13 +361,13 @@ server.tool(
         content: [{ type: 'text', text: `Appended to ${data.filename} (${content.length} chars)` }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Failed to append: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Failed to append: ${err.message}` }], isError: true };
     }
   }
 );
 
 // Tool: Close a meeting by setting status to complete
-server.tool(
+safeTool(
   'council_close_meeting',
   'Close a meeting by setting its status to "complete". Optionally append final content and/or structured outcomes before closing. Use the outcomes parameter to avoid JSON-in-JSON escaping — the server formats the appendix.',
   {
@@ -387,13 +405,13 @@ server.tool(
         content: [{ type: 'text', text: parts.join('\n') }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Failed to close meeting: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Failed to close meeting: ${err.message}` }], isError: true };
     }
   }
 );
 
 // Tool: Notify meeting event
-server.tool(
+safeTool(
   'council_notify',
   'Send a meeting progress update to Agent Council viewers. Use this to signal round changes, meeting start/end, or other status updates.',
   {
@@ -418,13 +436,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not notify: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Check for human input
-server.tool(
+safeTool(
   'council_check_input',
   'Check if the human viewer has typed a message into the meeting through Agent Council. Returns any pending messages.',
   {
@@ -445,13 +464,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Check for suggestions from the viewer
-server.tool(
+safeTool(
   'council_check_suggestions',
   'Check if the Agent Council viewer has queued any suggestions. Suggestions are changes the user wants made to agents (move to team, change role, update description, etc.). The user makes suggestions through the Council UI; Claude picks them up here and applies them.',
   {},
@@ -489,13 +509,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Get planned meetings
-server.tool(
+safeTool(
   'council_planned_meetings',
   'Get meetings that have been planned or recommended through Agent Council. These come from meeting summaries ("Recommended Next Meetings" sections) or from the user manually queuing meetings in the viewer. Returns a list of planned meetings with type, topic, and trigger conditions.',
   {},
@@ -531,13 +552,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Mark a planned meeting as running/done
-server.tool(
+safeTool(
   'council_update_planned',
   'Update the status of a planned meeting (mark as running when you start it, done when complete, dismissed if skipped).',
   {
@@ -553,13 +575,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Error: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Query tagged items across meetings
-server.tool(
+safeTool(
   'council_query',
   'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items. Use mode=recall with a topic to find relevant decisions during coding — returns decisions and open questions with surrounding context.',
   {
@@ -644,13 +667,13 @@ server.tool(
         content: [{ type: 'text', text: `Found ${results.length} result${results.length !== 1 ? 's' : ''}:\n\n${lines.join('\n\n')}` }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Error: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
     }
   }
 );
 
 // Tool: Schedule a meeting for later
-server.tool(
+safeTool(
   'council_schedule_meeting',
   'Schedule a meeting for later. Use when you identify something that needs group discussion. The meeting appears in the viewer for the user to approve or run.',
   {
@@ -678,13 +701,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not schedule meeting: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Update an agent's metadata
-server.tool(
+safeTool(
   'council_update_agent',
   'Update an agent\'s metadata (model, team, role, or description). Use after meetings decide on role changes.',
   {
@@ -708,13 +732,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not update agent: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Append learnings to agent context files (with rolling window)
-server.tool(
+safeTool(
   'council_update_context',
   'Append meeting learnings to an agent\'s context file. Auto-trims to 50-line rolling window to prevent unbounded growth. Use after meetings to record what each agent learned. Can also record corrections when an agent was wrong.',
   {
@@ -740,13 +765,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not update context: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Get context health report for all agents
-server.tool(
+safeTool(
   'council_context_health',
   'Get a health/staleness report for all agent context files. Shows capacity usage, date ranges, stale entries, and correction counts. Use to assess whether agent context is fresh and reliable before production use.',
   {},
@@ -771,13 +797,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not get context health: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Push context to the meeting viewer
-server.tool(
+safeTool(
   'council_add_context',
   'Push context or research findings to the meeting viewer. Use when you discover relevant information during a session that the viewer should display.',
   {
@@ -802,13 +829,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not add context: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Resolve an open question from a meeting
-server.tool(
+safeTool(
   'council_resolve_question',
   'Mark an open question from a meeting as resolved. Use when you fix or address something that was flagged as [OPEN:slug] in a meeting.',
   {
@@ -833,13 +861,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not resolve question: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Get work items — the execution bridge
-server.tool(
+safeTool(
   'council_get_work_items',
   'Get actionable work items from meeting decisions. Use at the start of a coding session to see what the team decided should be built. Returns action items, open questions, and recent decisions — prioritized by recency. Filters out done and stale items automatically. This is how meeting decisions turn into code.',
   {
@@ -933,13 +962,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not fetch work items: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Session brief — opinionated 5-line brief for starting a coding session
-server.tool(
+safeTool(
   'council_session_brief',
   'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2), and aging items that need attention (stale actions, at-risk open questions). Call this at the START of any session.',
   {},
@@ -1097,13 +1127,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not generate brief: ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Check meeting pace — should the facilitator wait or proceed?
-server.tool(
+safeTool(
   'council_check_pace',
   'Check if the viewer wants you to wait before proceeding to the next round. In "guided" mode, wait for the human to click Proceed before starting the next round. In "auto" mode (default), proceed immediately. Call this BETWEEN rounds.',
   {
@@ -1129,13 +1160,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not check pace (proceeding by default): ${err.message}` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: AI context — narrative summary of recent project activity
-server.tool(
+safeTool(
   'council_ai_context',
   'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer. Call when you want deep context about project direction. Use codeAware=true to ground the narrative in actual code state (slower but more accurate).',
   {
@@ -1145,7 +1177,7 @@ server.tool(
     try {
       const data = await councilRequest('/api/council/ai-context', 'POST', { codeAware }, 1, 120000); // 2 min timeout
       if (data.error) {
-        return { content: [{ type: 'text', text: `Could not generate context: ${data.error}` }] };
+        return { content: [{ type: 'text', text: `Could not generate context: ${data.error}` }], isError: true };
       }
       const meta = `(${data.meetingsAnalyzed} meeting${data.meetingsAnalyzed !== 1 ? 's' : ''} analyzed${data.inProgressMeetings > 0 ? `, ${data.inProgressMeetings} in progress` : ''}${data.codeAware ? ', code-aware' : ''})`;
       return {
@@ -1157,13 +1189,14 @@ server.tool(
     } catch (err) {
       return {
         content: [{ type: 'text', text: `Could not generate AI context: ${err.message}\n\nHint: Ensure CLAUDE_CODE_OAUTH_TOKEN is set in .env.local` }],
+        isError: true,
       };
     }
   }
 );
 
 // Tool: Mark an action item as done
-server.tool(
+safeTool(
   'council_mark_done',
   'Mark an action item or open question as done after completing the work. Finds the best matching active item by text and updates its status. Use after implementing something from meeting decisions.',
   {
@@ -1209,13 +1242,13 @@ server.tool(
         }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Could not mark item done: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Could not mark item done: ${err.message}` }], isError: true };
     }
   }
 );
 
 // Tool: Quick consult — ask a single agent one question, get one answer
-server.tool(
+safeTool(
   'council_list_agents',
   'List all available agents with their roles, teams, and descriptions. Use to discover which agents exist before consulting them with council_quick_consult or referencing them in meetings.',
   {},
@@ -1247,12 +1280,12 @@ server.tool(
 
       return { content: [{ type: 'text', text: lines.join('\n').trim() }] };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Could not list agents: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Could not list agents: ${err.message}` }], isError: true };
     }
   }
 );
 
-server.tool(
+safeTool(
   'council_triage',
   'Should you run a meeting on this? Scores a decision on 4 dimensions (reversibility, blast radius, novelty, confidence) and recommends: no meeting, quick consult, direction check, or full meeting. Use before deciding whether to call a meeting.',
   {
@@ -1290,7 +1323,7 @@ Respond with ONLY this JSON format (no other text):
       // Extract JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*?\}/);
       if (!jsonMatch) {
-        return { content: [{ type: 'text', text: `Could not parse triage result. Raw response:\n${responseText}` }] };
+        return { content: [{ type: 'text', text: `Could not parse triage result. Raw response:\n${responseText}` }], isError: true };
       }
 
       const scores = JSON.parse(jsonMatch[0]);
@@ -1329,12 +1362,12 @@ Respond with ONLY this JSON format (no other text):
 
       return { content: [{ type: 'text', text: lines.join('\n') }] };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Triage failed: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Triage failed: ${err.message}` }], isError: true };
     }
   }
 );
 
-server.tool(
+safeTool(
   'council_quick_consult',
   'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting. Use topic to ground the agent in relevant past decisions.',
   {
@@ -1353,7 +1386,7 @@ server.tool(
       if (topic) body.topic = topic;
       const result = await councilRequest('/api/council/quick-consult', 'POST', body, 1, 120000); // 2 min timeout
       if (result.error) {
-        return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }] };
+        return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }], isError: true };
       }
       const parts = [codeAware ? 'code-aware' : '', topic ? `topic: ${topic}` : ''].filter(Boolean).join(', ');
       const label = parts ? `${result.agent} (${parts})` : result.agent;
@@ -1364,14 +1397,14 @@ server.tool(
         }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Quick consult error: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Quick consult error: ${err.message}` }], isError: true };
     }
   }
 );
 
-server.tool(
+safeTool(
   'council_multi_consult',
-  'Run a structured multi-agent meeting. Round 1: agents respond independently in parallel. Round 2+: agents receive previous rounds as context and respond to each other — challenging, building on, and synthesizing ideas. Results are written to a meeting file. Use when you want deliberation from 2-6 agents.',
+  'Run a structured multi-agent meeting. Round 1: agents respond independently in parallel. Round 2+: agents receive previous rounds as context and respond to each other — challenging, building on, and synthesizing ideas. Results are written to a meeting file. Use when you want deliberation from 2-6 agents. NOTE: This call may take 2-5 minutes due to Claude API latency. The server has a 5-minute timeout.',
   {
     topic: z.string().describe('The question or topic for agents to discuss'),
     agents: z.array(z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager']))
@@ -1393,7 +1426,7 @@ server.tool(
         topic, agents, rounds, type, codeAware, writeMeeting,
       }, 1, 300000); // 5 min timeout — Claude API calls can take minutes
       if (result.error) {
-        return { content: [{ type: 'text', text: `Multi-consult failed: ${result.error}` }] };
+        return { content: [{ type: 'text', text: `Multi-consult failed: ${result.error}` }], isError: true };
       }
 
       const parts = [];
@@ -1446,7 +1479,7 @@ server.tool(
         }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Multi-consult error: ${err.message}` }] };
+      return { content: [{ type: 'text', text: `Multi-consult error: ${err.message}` }], isError: true };
     }
   }
 );
