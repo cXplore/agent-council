@@ -434,7 +434,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                 style={{ color: 'var(--text-muted)', background: 'none', border: 'none', padding: 0 }}
                 onClick={() => completionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
               >
-                {completedTime} &middot; {'\u2193'} View outcomes
+                <span className="font-mono tabular-nums">{completedTime}</span> &middot; {'\u2193'} View outcomes
               </button>
             </div>
           );
@@ -566,9 +566,9 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             className="px-6 py-2 flex items-center gap-4 text-xs flex-wrap"
             style={{ borderBottom: (showContribDetails || showTerms) ? 'none' : '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
-            <span>{totalWords.toLocaleString()} words (~{Math.ceil(totalWords / 250)} min read)</span>
-            <span>{rounds} round{rounds !== 1 ? 's' : ''}</span>
-            <span>{Object.keys(wordCounts).length} agents</span>
+            <span className="font-mono tabular-nums">{totalWords.toLocaleString()} words (~{Math.ceil(totalWords / 250)} min read)</span>
+            <span className="font-mono tabular-nums">{rounds} round{rounds !== 1 ? 's' : ''}</span>
+            <span className="font-mono tabular-nums">{Object.keys(wordCounts).length} agents</span>
             <div className="flex-1" />
             {/* Mini contribution bar (clickable) */}
             <button
@@ -1047,11 +1047,22 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         {/* Round navigation bar removed — now inline above content */}
         <div className="max-w-3xl mx-auto">
           {!detail ? (
-            <div className="space-y-4">
-              <div className="loading-shimmer h-8 w-64 rounded" />
-              <div className="loading-shimmer h-4 w-96 rounded" />
-              <div className="loading-shimmer h-4 w-80 rounded" />
-              <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>Loading meeting...</p>
+            <div className="space-y-6 animate-pulse">
+              {/* Title skeleton */}
+              <div className="loading-shimmer h-7 w-72 rounded" />
+              {/* Metadata row */}
+              <div className="flex gap-3">
+                <div className="loading-shimmer h-3 w-20 rounded" />
+                <div className="loading-shimmer h-3 w-16 rounded" />
+                <div className="loading-shimmer h-3 w-24 rounded" />
+              </div>
+              {/* Agent block skeleton */}
+              <div className="space-y-3 mt-4">
+                <div className="loading-shimmer h-3 w-28 rounded" style={{ borderLeft: '3px solid var(--border)', paddingLeft: 12 }} />
+                <div className="loading-shimmer h-3 w-full rounded" />
+                <div className="loading-shimmer h-3 w-5/6 rounded" />
+                <div className="loading-shimmer h-3 w-4/6 rounded" />
+              </div>
             </div>
           ) : isLive && !detail.content.match(/\*\*[\w-]+:\*\*/) ? (
             /* Meeting file exists but no agent has responded yet */

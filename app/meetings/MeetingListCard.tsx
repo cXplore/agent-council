@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { MeetingListItem } from '@/lib/types';
+import { getMeetingTypeColor } from '@/lib/meeting-utils';
 
 // Shared interval: one 60s timer drives all useRelativeTime consumers
 let subscriberCount = 0;
@@ -46,17 +47,9 @@ export function formatType(type: string): string {
   return type.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-/** Get a subtle HSL color for each meeting type */
+/** Get a subtle HSL color for each meeting type — delegates to shared MEETING_TYPE_COLORS map */
 export function getTypeColor(type: string): string {
-  const t = type.toLowerCase();
-  if (t.includes('design')) return 'hsl(210, 60%, 60%)';
-  if (t.includes('strategy')) return 'hsl(270, 50%, 60%)';
-  if (t.includes('architecture')) return 'hsl(180, 50%, 50%)';
-  if (t.includes('sprint')) return 'hsl(30, 70%, 55%)';
-  if (t.includes('standup')) return 'hsl(150, 50%, 50%)';
-  if (t.includes('retrospective')) return 'hsl(330, 55%, 60%)';
-  if (t.includes('incident')) return 'hsl(0, 60%, 55%)';
-  return 'var(--text-muted)';
+  return getMeetingTypeColor(type);
 }
 
 /** Get a subtle type indicator character for meeting types */
@@ -176,7 +169,7 @@ export default function MeetingListCard({
           }}
         />
         <span
-          className="text-sm font-semibold truncate"
+          className="text-sm font-semibold truncate sm:truncate line-clamp-2 sm:line-clamp-none"
           style={{ color: 'var(--text-primary)', maxWidth: '600px', display: 'inline-block' }}
           title={(m.title || '').length > 80 ? m.title || undefined : undefined}
         >
@@ -217,13 +210,13 @@ export default function MeetingListCard({
           {formatType(m.type)}
         </span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
           {m.date}
         </span>
         {m.participants.length > 0 && (
           <>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
               {m.participants.length} agent{m.participants.length !== 1 ? 's' : ''}
             </span>
           </>
@@ -233,14 +226,14 @@ export default function MeetingListCard({
           return dur ? (
             <>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{dur}</span>
+              <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>{dur}</span>
             </>
           ) : null;
         })()}
         {m.wordCount && m.wordCount > 100 && (
           <>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>&middot;</span>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
               {m.wordCount > 1000 ? `${(m.wordCount / 1000).toFixed(1)}k` : m.wordCount} words
             </span>
           </>
@@ -265,23 +258,23 @@ export default function MeetingListCard({
 
       <div className="flex items-center justify-between mt-2 ml-5">
         <span className="flex items-center gap-1.5">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-muted)' }}>
             {timeAgo}
           </span>
           {tagCounts && (tagCounts.decisions > 0 || tagCounts.open > 0 || tagCounts.actions > 0) && (
             <span className="flex items-center gap-1" style={{ opacity: 0.7 }}>
               {tagCounts.decisions > 0 && (
-                <span style={{ fontSize: '0.6rem', color: '#60a5fa' }} title={`${tagCounts.decisions} decision${tagCounts.decisions !== 1 ? 's' : ''}`}>
+                <span className="font-mono tabular-nums" style={{ fontSize: '0.6rem', color: 'var(--color-decision)' }} title={`${tagCounts.decisions} decision${tagCounts.decisions !== 1 ? 's' : ''}`}>
                   {tagCounts.decisions}D
                 </span>
               )}
               {tagCounts.open > 0 && (
-                <span style={{ fontSize: '0.6rem', color: '#fbbf24' }} title={`${tagCounts.open} open question${tagCounts.open !== 1 ? 's' : ''}`}>
+                <span className="font-mono tabular-nums" style={{ fontSize: '0.6rem', color: 'var(--color-open)' }} title={`${tagCounts.open} open question${tagCounts.open !== 1 ? 's' : ''}`}>
                   {tagCounts.open}Q
                 </span>
               )}
               {tagCounts.actions > 0 && (
-                <span style={{ fontSize: '0.6rem', color: '#4ade80' }} title={`${tagCounts.actions} action${tagCounts.actions !== 1 ? 's' : ''}`}>
+                <span className="font-mono tabular-nums" style={{ fontSize: '0.6rem', color: 'var(--color-action)' }} title={`${tagCounts.actions} action${tagCounts.actions !== 1 ? 's' : ''}`}>
                   {tagCounts.actions}A
                 </span>
               )}

@@ -27,7 +27,7 @@ import http from 'node:http';
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
 // Helper to make HTTP requests to Agent Council with retry
-function councilRequest(path, method = 'GET', body = null, retries = 1) {
+function councilRequest(path, method = 'GET', body = null, retries = 1, timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     let attempt = 0;
 
@@ -42,7 +42,7 @@ function councilRequest(path, method = 'GET', body = null, retries = 1) {
         headers: { 'Content-Type': 'application/json' },
       };
 
-      const req = http.request({ ...options, timeout: 10000 }, (res) => {
+      const req = http.request({ ...options, timeout: timeoutMs }, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
         res.on('error', (err) => {
@@ -1143,7 +1143,7 @@ server.tool(
   },
   async ({ codeAware }) => {
     try {
-      const data = await councilRequest('/api/council/ai-context', 'POST', { codeAware });
+      const data = await councilRequest('/api/council/ai-context', 'POST', { codeAware }, 1, 120000); // 2 min timeout
       if (data.error) {
         return { content: [{ type: 'text', text: `Could not generate context: ${data.error}` }] };
       }
@@ -1351,7 +1351,7 @@ server.tool(
     try {
       const body = { question, agent, codeAware };
       if (topic) body.topic = topic;
-      const result = await councilRequest('/api/council/quick-consult', 'POST', body);
+      const result = await councilRequest('/api/council/quick-consult', 'POST', body, 1, 120000); // 2 min timeout
       if (result.error) {
         return { content: [{ type: 'text', text: `Quick consult failed: ${result.error}` }] };
       }
@@ -1391,7 +1391,7 @@ server.tool(
     try {
       const result = await councilRequest('/api/council/multi-consult', 'POST', {
         topic, agents, rounds, type, codeAware, writeMeeting,
-      });
+      }, 1, 300000); // 5 min timeout — Claude API calls can take minutes
       if (result.error) {
         return { content: [{ type: 'text', text: `Multi-consult failed: ${result.error}` }] };
       }

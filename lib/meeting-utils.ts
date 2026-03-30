@@ -3,6 +3,34 @@
  */
 
 /**
+ * Canonical type → color map. Use this everywhere a meeting type needs a color.
+ * HSL values chosen for balanced contrast on dark backgrounds.
+ */
+export const MEETING_TYPE_COLORS: Record<string, string> = {
+  'design-review': 'hsl(210, 60%, 60%)',
+  'strategy': 'hsl(270, 50%, 60%)',
+  'architecture': 'hsl(180, 50%, 50%)',
+  'sprint-planning': 'hsl(30, 70%, 55%)',
+  'standup': 'hsl(150, 50%, 50%)',
+  'retrospective': 'hsl(330, 55%, 60%)',
+  'incident-review': 'hsl(0, 60%, 55%)',
+  'direction-check': 'hsl(45, 60%, 55%)',
+  'quick-consult': 'hsl(195, 55%, 55%)',
+};
+
+/** Get the canonical color for a meeting type. Falls back to muted text color. */
+export function getMeetingTypeColor(type: string): string {
+  const t = type.toLowerCase().trim();
+  // Exact match first
+  if (MEETING_TYPE_COLORS[t]) return MEETING_TYPE_COLORS[t];
+  // Partial match (for types like "design review" without hyphen)
+  for (const [key, color] of Object.entries(MEETING_TYPE_COLORS)) {
+    if (t.includes(key.replace(/-/g, ' ')) || t.includes(key)) return color;
+  }
+  return 'var(--text-muted)';
+}
+
+/**
  * Parse metadata from meeting markdown content.
  * Extracts status, type, title, started date, participants, and recommended meetings.
  */

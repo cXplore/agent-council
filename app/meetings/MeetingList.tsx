@@ -611,6 +611,9 @@ export default function MeetingList(props: MeetingListProps) {
 
         {loading ? (
           <div className="space-y-3">
+            <div className="text-xs font-mono" style={{ color: 'var(--text-muted)', paddingLeft: 4 }}>
+              Loading meetings...
+            </div>
             {[1, 2, 3].map(i => (
               <div key={i} className="rounded-lg p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-3 mb-2">
@@ -629,7 +632,7 @@ export default function MeetingList(props: MeetingListProps) {
             className="rounded-lg px-5 py-4 text-sm"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--error)', color: 'var(--text-secondary)' }}
           >
-            Could not load meetings. Check that the project directory exists and try refreshing.
+            Could not load meetings. Check that the project directory exists and the dev server is running, then refresh the page.
           </div>
         ) : hasProject === false ? null : meetings.length === 0 ? (
           <EmptyStateWithDemo selectMeeting={selectMeeting} setUserExplicitlyBack={setUserExplicitlyBack} setFocusedIndex={setFocusedIndex} />
@@ -930,7 +933,7 @@ export default function MeetingList(props: MeetingListProps) {
             {(statusFilter !== 'all' || typeFilter || searchQuery) && (
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  Showing {sortedMeetings.length} of {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+                  Showing <span className="font-mono tabular-nums">{sortedMeetings.length}</span> of <span className="font-mono tabular-nums">{meetings.length}</span> meeting{meetings.length !== 1 ? 's' : ''}
                 </span>
                 <button
                   onClick={() => { setStatusFilter('all'); setTypeFilter(null); setSearchQuery(''); }}
@@ -1070,25 +1073,13 @@ function EmptyStateWithDemo({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        No meetings yet. Try one of these in Claude Code:
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {[
-          { type: 'Standup', prompt: 'what should we work on today?' },
-          { type: 'Strategy', prompt: 'let\'s discuss the roadmap' },
-          { type: 'Design Review', prompt: 'review the login flow design' },
-          { type: 'Architecture', prompt: 'review our API architecture' },
-        ].map(s => (
-          <div
-            key={s.type}
-            className="rounded-lg px-4 py-3 text-xs"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.type}</span>
-            <p className="mt-1 italic" style={{ color: 'var(--text-muted)' }}>&quot;{s.prompt}&quot;</p>
-          </div>
-        ))}
+      <div className="text-center py-8">
+        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          No meetings yet
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          Ask Claude Code to run a meeting — try &ldquo;let&rsquo;s discuss the architecture&rdquo;
+        </p>
       </div>
 
       {demo && (

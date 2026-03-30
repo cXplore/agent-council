@@ -194,7 +194,7 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
     strong: ({ children }) => {
       const name = String(children).replace(/:$/, '');
       const color = getAgentColor(name);
-      // Agent names (ending with :) get a colored badge-style header with link to profile
+      // Agent names (ending with :) get an uppercase label with colored left border
       // Must look like an agent slug: lowercase letters, digits, hyphens only (no spaces, no uppercase)
       const isAgentName = String(children).endsWith(':') && /^[a-z][a-z0-9-]*$/.test(name);
       if (isAgentName) {
@@ -205,9 +205,11 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
             marginBottom: 4,
             paddingLeft: 12,
             borderLeft: `3px solid ${color}`,
-            color,
-            fontSize: '0.9rem',
+            color: 'var(--text-muted)',
+            fontSize: '0.65rem',
             fontWeight: 600,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
           }}>
             <a
               href={`/agents?agent=${encodeURIComponent(name)}`}
@@ -215,7 +217,7 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
               style={{ color: 'inherit', textDecoration: 'none' }}
               title={`View ${name} agent profile`}
             >
-              {children}
+              {name}
             </a>
           </strong>
         );
