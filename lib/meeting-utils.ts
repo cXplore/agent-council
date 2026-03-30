@@ -21,6 +21,7 @@ export function parseMetadata(content: string) {
   const typeMatchComment = content.match(/<!--\s*(?:meeting-)?type:\s*(.+?)\s*-->/);
   const startedMatchComment = content.match(/<!--\s*(?:created|started):\s*(.+?)\s*-->/);
   const participantsMatchComment = content.match(/<!--\s*participants:\s*(.+?)\s*-->/);
+  const objectiveMatch = content.match(/<!--\s*objective:\s*(.+?)\s*-->/);
 
   const typeMatchBold = content.match(/\*\*Type:\*\*\s*(.+)/i);
   const startedMatchBold = content.match(/\*\*Date:\*\*\s*(.+)/i);
@@ -79,6 +80,7 @@ export function parseMetadata(content: string) {
     started: fm['created'] ?? fm['date'] ?? startedMatchComment?.[1] ?? startedMatchBold?.[1]?.trim() ?? null,
     participants,
     recommendedMeetings,
+    objective: fm['objective'] ?? objectiveMatch?.[1]?.replace(/^["']|["']$/g, '').trim() ?? null,
   };
 }
 

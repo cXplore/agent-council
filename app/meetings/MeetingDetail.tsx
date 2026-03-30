@@ -379,6 +379,21 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         );
       })()}
 
+      {/* Objective bar — shows the meeting's falsifiable objective when present */}
+      {detail && (() => {
+        const obj = detail.objective || detail.content?.match(/<!--\s*objective:\s*"?(.+?)"?\s*-->/)?.[1];
+        if (!obj) return null;
+        return (
+          <div
+            className="px-6 py-2 text-xs flex items-center gap-2"
+            style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+          >
+            <span style={{ color: 'var(--text-muted)' }}>Objective:</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{obj}</span>
+          </div>
+        );
+      })()}
+
       {/* Participants bar */}
       {detail && detail.participants.length > 0 && (
         <div

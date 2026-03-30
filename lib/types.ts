@@ -77,6 +77,7 @@ export interface MeetingListItem {
   modifiedAt: string;
   project?: string;
   preview?: string;
+  objective?: string | null;
   recommendedMeetings?: SuggestedMeeting[];
   wordCount?: number;
 }

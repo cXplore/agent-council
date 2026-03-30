@@ -168,6 +168,40 @@ describe('parseMetadata', () => {
     expect(meta.started).toBeNull();
     expect(meta.participants).toEqual([]);
     expect(meta.recommendedMeetings).toEqual([]);
+    expect(meta.objective).toBeNull();
+  });
+
+  it('extracts objective from HTML comment', () => {
+    const content = `<!-- type: design-review -->
+<!-- objective: Decide whether to use Clerk or Auth0 for authentication -->
+
+# Design Review — Authentication Provider`;
+    const meta = parseMetadata(content);
+    expect(meta.objective).toBe('Decide whether to use Clerk or Auth0 for authentication');
+  });
+
+  it('extracts quoted objective from HTML comment', () => {
+    const content = `<!-- objective: "Multi-agent consult on: API versioning" -->
+# Strategy Session`;
+    const meta = parseMetadata(content);
+    expect(meta.objective).toBe('Multi-agent consult on: API versioning');
+  });
+
+  it('extracts objective from YAML frontmatter', () => {
+    const content = `---
+type: strategy
+objective: Determine next quarter priorities
+---
+# Strategy Session`;
+    const meta = parseMetadata(content);
+    expect(meta.objective).toBe('Determine next quarter priorities');
+  });
+
+  it('returns null when no objective present', () => {
+    const content = `<!-- type: standup -->
+# Daily Standup`;
+    const meta = parseMetadata(content);
+    expect(meta.objective).toBeNull();
   });
 });
 
