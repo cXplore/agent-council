@@ -116,7 +116,23 @@ export function extractTags(content: string, filename: string): TagEntry[] {
   const startLine = meetingStatus === 'complete' && summaryIndex >= 0 ? summaryIndex : 0;
   const summaryStart = summaryIndex >= 0 ? summaryIndex : lines.length;
 
+  // Track whether we're inside a "Future considerations" section (untracked)
+  let inFutureConsiderations = false;
+
   for (let i = startLine; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    // Detect "Future considerations" heading (## or ###) — skip tags inside it
+    if (/^#{2,3}\s+Future considerations/i.test(trimmed)) {
+      inFutureConsiderations = true;
+      continue;
+    }
+    // Exit Future considerations when a new heading of same or higher level appears
+    if (inFutureConsiderations && /^#{2,3}\s+/.test(trimmed) && !/^#{2,3}\s+Future considerations/i.test(trimmed)) {
+      inFutureConsiderations = false;
+    }
+    if (inFutureConsiderations) continue;
+
     const match = lines[i].match(TAG_REGEX);
     if (match) {
       const type = match[1].toUpperCase() as TagEntry['type'];

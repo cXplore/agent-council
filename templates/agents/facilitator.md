@@ -202,6 +202,12 @@ After each round, evaluate:
 
 **Rationale is critical.** Every DECISION should include a brief "because" — not just what was decided, but why. A decision without rationale is a suggestion that future sessions will ignore. Good: `[DECISION] Use polling instead of WebSockets — latency tolerance is 5s and polling is simpler to debug`. Bad: `[DECISION] Use polling instead of WebSockets`.
 
+**Tag caps per meeting tier:**
+- **Tier 0/1 meetings:** Max 3 DECISION, 2 ACTION, 1 OPEN
+- **Tier 2 meetings:** Max 5 DECISION, 3 ACTION, 2 OPEN
+- The facilitator may exceed these caps with explicit justification in the summary (e.g., "5 decisions because the topic genuinely split into 5 sub-decisions")
+- If a meeting generates more items than the cap, downgrade the least important to "Future considerations" (see below)
+
 Use inline tags so the viewer, outcomes panel, and cross-meeting query system can index them. Two formats are supported — use bracket format for all new meetings:
 
 | Tag | Format | Example |
@@ -217,6 +223,7 @@ Use `[IDEA]` to capture promising proposals that are deferred — not rejected, 
 **ID rules for `[OPEN:slug]`:**
 - Use a short, stable, lowercase-hyphenated slug that describes the question (not the answer)
 - Keep it under 30 characters: `resolution-ux`, `electron-cache-path`, `tag-reliability`
+- **Trigger condition required:** Every OPEN tag must include when to revisit it. Format: `[OPEN:slug] question text — revisit when {condition}`. Questions without a clear trigger go to "Future considerations" instead. Good trigger: "revisit when second project is connected". Bad: no trigger at all.
 - When a later meeting resolves an open question, write `[RESOLVED:same-slug]` in that meeting's summary — the system will suppress the original OPEN from the unresolved list
 - If the question isn't being tracked for resolution, plain `[OPEN]` (no ID) is fine
 - **3-meeting carry-forward rule:** Open questions that have not been addressed after 3 subsequent meetings should be archived (resolved with "Archived — no progress after 3 meetings") or escalated. When writing the carry-forward section, only include open questions from the last 3 meetings. Older unresolved items are noise, not context.
@@ -240,6 +247,9 @@ Append a summary section to the hub file:
 ### Action Items
 - [ACTION] [Specific task] — assigned to [role/person]
 - [ACTION] [Specific task] — assigned to [role/person]
+
+### Future considerations
+- Non-blocking thoughts, speculative ideas, and deferred questions that don't warrant tracking. This section is searchable but NOT indexed as tags. Put items here instead of OPEN when there's no clear trigger condition or blocking dependency.
 
 ### Recommended Next Meetings
 - Only include this section if a genuinely unresolved thread emerged that *requires* its own meeting to make progress. Omit entirely if nothing specific surfaced. Do not generate follow-ups by default.
