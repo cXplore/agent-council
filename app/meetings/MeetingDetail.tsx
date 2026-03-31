@@ -585,7 +585,25 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         );
       })()}
 
-      {/* Objective + Participants integrated into compact header above */}
+      {/* Participants — compact colored pills */}
+      {detail && detail.participants.length > 0 && (
+        <div className="px-5 py-1.5 flex items-center gap-2 flex-wrap" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          {detail.participants.map((p) => {
+            const color = getAgentColor(p);
+            return (
+              <a
+                key={p}
+                href={`/agents?agent=${encodeURIComponent(p)}`}
+                className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full hover:brightness-125 transition-all"
+                style={{ color, background: `${color.replace(')', ', 0.1)').replace('hsl(', 'hsla(')}` }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                {p}
+              </a>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stats, contribution bars, terms, recommended meetings — hidden to declutter.
           Available in outcomes panel and roadmap. */}
@@ -911,12 +929,13 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                 transition: 'right 0.2s ease',
               }}
             >
-              {/* Prev */}
+              {/* Prev — scroll to previous round heading */}
               <button
                 onClick={() => {
-                  const target = Math.max(1, currentRound - 1);
-                  setViewRound(target);
-                  contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                  const headings = contentRef.current?.querySelectorAll('h2');
+                  if (!headings) return;
+                  const target = Array.from(headings).find(h => h.textContent?.includes(`Round ${currentRound - 1}`));
+                  target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
                 disabled={currentRound <= 1}
                 className="w-6 h-6 flex items-center justify-center rounded-full text-xs transition-all"
@@ -940,36 +959,33 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                   boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                {viewRound ? `Round ${viewRound}` : `Round ${currentRound}`}
+                Round {currentRound}
                 <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>/ {totalRounds}</span>
               </div>
-              {/* Next */}
+              {/* Next — scroll to next round heading */}
               <button
                 onClick={() => {
-                  const target = Math.min(totalRounds, currentRound + 1);
-                  setViewRound(target);
-                  contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                  const headings = contentRef.current?.querySelectorAll('h2');
+                  if (!headings) return;
+                  const target = Array.from(headings).find(h => h.textContent?.includes(`Round ${currentRound + 1}`));
+                  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  else {
+                    // If no next round, scroll to Summary
+                    const summary = Array.from(headings).find(h => h.textContent?.includes('Summary'));
+                    summary?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
                 }}
-                disabled={currentRound >= totalRounds}
+                disabled={currentRound >= totalRounds && !hasSummary}
                 className="w-6 h-6 flex items-center justify-center rounded-full text-xs transition-all"
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',
-                  color: currentRound >= totalRounds ? 'var(--border)' : 'var(--text-muted)',
+                  color: (currentRound >= totalRounds && !hasSummary) ? 'var(--border)' : 'var(--text-muted)',
                   backdropFilter: 'blur(12px)',
                 }}
               >
                 ›
               </button>
-              {viewRound !== null && (
-                <button
-                  onClick={() => setViewRound(null)}
-                  className="text-xs px-2 py-0.5 rounded-full transition-colors"
-                  style={{ color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--border)' }}
-                >
-                  All
-                </button>
-              )}
             </div>
           );
         })()}
