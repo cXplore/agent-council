@@ -34,6 +34,8 @@ export interface ResolvedFile {
   matchSignals: string[];
   /** Whether the file was truncated */
   truncated: boolean;
+  /** Total tokens of the full file (set when truncated) */
+  fullFileTokens?: number;
 }
 
 export interface ResolutionManifest {
@@ -356,6 +358,7 @@ async function resolveFileHints(
       remainingBudget * CHARS_PER_TOKEN,
     );
 
+    const fullFileTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
     let truncated = false;
     if (content.length > maxChars) {
       const cutoff = content.lastIndexOf('\n', maxChars);
@@ -373,6 +376,7 @@ async function resolveFileHints(
       estimatedTokens,
       matchSignals: ['explicit-hint'],
       truncated,
+      fullFileTokens: truncated ? fullFileTokens : undefined,
     });
   }
 
@@ -480,6 +484,7 @@ export async function gatherPreflightContext(
       fileBudget * CHARS_PER_TOKEN,
     );
 
+    const fullFileTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
     let truncated = false;
     if (content.length > maxChars) {
       const cutoff = content.lastIndexOf('\n', maxChars);
@@ -497,6 +502,7 @@ export async function gatherPreflightContext(
       estimatedTokens,
       matchSignals: candidate.signals,
       truncated,
+      fullFileTokens: truncated ? fullFileTokens : undefined,
     });
   }
 
@@ -551,7 +557,10 @@ export function formatManifest(manifest: ResolutionManifest): string {
 
   for (const f of manifest.files) {
     const signals = f.matchSignals.join('; ');
-    lines.push(`| \`${f.relativePath}\` | ${f.estimatedTokens} | ${signals} | ${f.truncated ? 'Yes' : 'No'} |`);
+    const truncNote = f.truncated && f.fullFileTokens
+      ? `Yes (${f.estimatedTokens}/${f.fullFileTokens})`
+      : f.truncated ? 'Yes' : 'No';
+    lines.push(`| \`${f.relativePath}\` | ${f.estimatedTokens} | ${signals} | ${truncNote} |`);
   }
 
   lines.push('');
@@ -561,7 +570,11 @@ export function formatManifest(manifest: ResolutionManifest): string {
   // Append actual file contents
   for (const f of manifest.files) {
     const ext = path.extname(f.relativePath).replace('.', '') || 'text';
-    lines.push(`### \`${f.relativePath}\`${f.truncated ? ' (truncated)' : ''}`);
+    let header = `### \`${f.relativePath}\``;
+    if (f.truncated && f.fullFileTokens) {
+      header += ` (truncated at ${f.estimatedTokens} of ~${f.fullFileTokens} tokens — full file not available)`;
+    }
+    lines.push(header);
     lines.push('');
     lines.push('```' + ext);
     lines.push(f.content);
