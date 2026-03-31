@@ -17,20 +17,24 @@
   --border: rgba(255, 220, 200, 0.08);
   --border-focus: rgba(255, 220, 200, 0.18);
   --border-subtle: rgba(255, 220, 200, 0.04);
-  --border-glow: rgba(200, 149, 108, 0.35);
+  --border-glow: rgba(155, 109, 216, 0.30);
 
   /* Text — warm cream tones */
   --text-primary: #f2ece4;
   --text-secondary: #b8a89a;
   --text-muted: #7a6e62;
 
-  /* Accent — warm copper/amber */
-  --accent: #d4935c;
-  --accent-hover: #e8a87c;
-  --accent-muted: rgba(212, 147, 92, 0.15);
-  --accent-glow: rgba(212, 147, 92, 0.35);
+  /* Accent — digital purple-pink (interactive elements, buttons) */
+  --accent: #9b6dd8;
+  --accent-hover: #b485f0;
+  --accent-muted: rgba(155, 109, 216, 0.15);
+  --accent-glow: rgba(155, 109, 216, 0.30);
 
-  /* Secondary accent — pink-magenta (for special highlights) */
+  /* Warm accent — copper/amber (glows, highlights, warmth) */
+  --accent-warm: #d4935c;
+  --accent-warm-muted: rgba(212, 147, 92, 0.15);
+
+  /* Secondary — pink-magenta (for special highlights) */
   --accent-pink: #c74b8a;
   --accent-pink-muted: rgba(199, 75, 138, 0.15);
 
@@ -46,19 +50,19 @@
   --success: var(--live-green);
   --text-on-accent: #ffffff;
 
-  /* Semantic tag colors — warmer palette */
-  --color-decision: #6cb4f0;
-  --color-decision-bg: rgba(108, 180, 240, 0.1);
-  --color-open: #e8a87c;
-  --color-open-bg: rgba(232, 168, 124, 0.1);
-  --color-action: #4ade80;
-  --color-action-bg: rgba(74, 222, 128, 0.1);
-  --color-resolved: #7a6e62;
-  --color-resolved-bg: rgba(122, 110, 98, 0.08);
-  --color-idea: #c074e8;
-  --color-idea-bg: rgba(192, 116, 232, 0.1);
-  --color-suggestion: #d4935c;
-  --color-suggestion-bg: rgba(212, 147, 92, 0.08);
+  /* Semantic tag colors — warm-cosmic palette, distinct but harmonious */
+  --color-decision: #7cb8f0;
+  --color-decision-bg: rgba(124, 184, 240, 0.1);
+  --color-open: #e8a060;
+  --color-open-bg: rgba(232, 160, 96, 0.1);
+  --color-action: #5ce8a0;
+  --color-action-bg: rgba(92, 232, 160, 0.1);
+  --color-resolved: #8a7e72;
+  --color-resolved-bg: rgba(138, 126, 114, 0.08);
+  --color-idea: #d090f0;
+  --color-idea-bg: rgba(208, 144, 240, 0.1);
+  --color-suggestion: #b485f0;
+  --color-suggestion-bg: rgba(180, 133, 240, 0.08);
 
   /* Shadows & Glow — warm copper tones */
   --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.4);

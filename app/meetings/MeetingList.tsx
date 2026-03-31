@@ -51,7 +51,7 @@ function ReturningUserBanner({ meetingCount }: { meetingCount: number }) {
         </>
       )}
       <span>&middot;</span>
-      <a href="/roadmap" className="hover:underline" style={{ color: 'var(--accent)' }}>
+      <a href="/roadmap" className="hover:underline" style={{ color: 'var(--accent-warm)' }}>
         View roadmap
       </a>
     </div>

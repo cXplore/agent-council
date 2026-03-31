@@ -224,7 +224,7 @@ export default function HomePage() {
           <h1
             className="text-4xl font-extrabold tracking-tight mb-3"
             style={{
-              background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 50%, var(--accent-pink) 100%)',
+              background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent-warm) 50%, var(--accent-pink) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               letterSpacing: '-0.03em',

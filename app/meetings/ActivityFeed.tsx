@@ -131,7 +131,7 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
           </div>
         );
       })()}
-      <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+      <div className="space-y-0.5">
         {shown.map((entry) => {
           const typeConf = TYPE_CONFIG[entry.type] ?? { label: entry.type, color: 'var(--text-muted)', icon: '\u2022' };
           const isFlag = entry.type === 'flag';
@@ -151,7 +151,7 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
 
           const entryStyle: React.CSSProperties = {
             ...(isFlag ? { background: 'rgba(234, 179, 8, 0.06)' } : {}),
-            ...(isNew ? { borderLeft: '2px solid rgba(124, 109, 216, 0.5)', background: 'rgba(124, 109, 216, 0.04)' } : {}),
+            ...(isNew ? { borderLeft: '2px solid var(--accent-warm)', background: 'rgba(212, 147, 92, 0.04)' } : {}),
             display: 'flex',
             color: 'inherit',
             textDecoration: 'none',
@@ -159,17 +159,13 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
 
           const entryContent = (
             <>
-              {/* Type badge (primary) */}
+              {/* Type label (subtle) */}
               <span
-                className="text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5 flex items-center gap-1"
+                className="text-xs font-medium flex-shrink-0 mt-0.5"
                 style={{
-                  color: typeConf.color,
-                  background: isFlag ? 'rgba(234, 179, 8, 0.12)' : 'var(--bg-elevated)',
-                  border: `1px solid ${isFlag ? 'rgba(234, 179, 8, 0.4)' : typeConf.color}`,
-                  opacity: 0.9,
+                  color: isFlag ? 'var(--warning)' : 'var(--text-muted)',
                 }}
               >
-                <span>{typeConf.icon}</span>
                 {typeConf.label}
               </span>
               <div className="flex-1 min-w-0">

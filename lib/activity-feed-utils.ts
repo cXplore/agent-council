@@ -4,11 +4,11 @@
  */
 
 export const TYPE_CONFIG: Record<string, { label: string; color: string; icon: string }> = {
-  meeting_complete: { label: 'Meeting', color: 'var(--color-decision, #22c55e)', icon: '\u2714' },
-  code_change:      { label: 'Code', color: 'var(--accent, #3b82f6)', icon: '\u2699' },
-  worker_run:       { label: 'Worker', color: 'var(--color-action, #f59e0b)', icon: '\u23F3' },
-  action_resolved:  { label: 'Resolved', color: 'var(--color-decision, #22c55e)', icon: '\u2705' },
-  flag:             { label: 'Flag', color: 'var(--warning, #eab308)', icon: '\u26A0' },
+  meeting_complete: { label: 'Meeting', color: 'var(--text-secondary)', icon: '\u2714' },
+  code_change:      { label: 'Code', color: 'var(--text-secondary)', icon: '\u2699' },
+  worker_run:       { label: 'Worker', color: 'var(--text-secondary)', icon: '\u23F3' },
+  action_resolved:  { label: 'Resolved', color: 'var(--text-secondary)', icon: '\u2705' },
+  flag:             { label: 'Flag', color: 'var(--warning)', icon: '\u26A0' },
 };
 
 export const SOURCE_LABELS: Record<string, string> = {
