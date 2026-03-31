@@ -309,6 +309,37 @@ function SettingsInner() {
                     <option value="16384">16,384 — deep</option>
                   </select>
                 </div>
+                <div>
+                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Default model override</label>
+                  <input
+                    type="text"
+                    disabled={usageSaving}
+                    value={usageSettings.defaultModel ?? ''}
+                    placeholder="e.g. anthropic/claude-sonnet-4.6"
+                    onChange={async (e) => {
+                      const defaultModel = e.target.value || undefined;
+                      setUsageSettings(prev => prev ? { ...prev, defaultModel: defaultModel ?? undefined } : prev);
+                    }}
+                    onBlur={async (e) => {
+                      const defaultModel = e.target.value.trim() || undefined;
+                      setUsageSaving(true);
+                      try {
+                        const res = await fetch('/api/settings/usage', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ defaultModel: defaultModel ?? null }),
+                        });
+                        if (res.ok) setUsageSettings(await res.json());
+                      } catch { /* ignore */ }
+                      finally { setUsageSaving(false); }
+                    }}
+                    className="text-sm px-3 py-1.5 rounded outline-none w-full"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                    Overrides all agent models. Leave empty to use per-agent settings. Format: provider/model
+                  </p>
+                </div>
               </div>
               <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
                 Profile sets defaults. You can override rounds per-meeting in the Run meeting form.

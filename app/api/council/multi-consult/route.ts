@@ -273,7 +273,7 @@ async function queryAgent(
  *   agents: string[],        // Array of agent names (2-6 agents)
  *   type?: string,           // Meeting type (default: 'direction-check')
  *   rounds?: number,         // Number of rounds (1-3, default: 1)
- *   codeAware?: boolean,     // Give agents Read/Glob/Grep tools
+ *   codeAware?: boolean,     // Inject pre-flight source file context (no tools given to agents)
  *   writeMeeting?: boolean,  // Write results to a meeting file (default: true)
  * }
  *
