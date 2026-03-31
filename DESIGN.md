@@ -19,20 +19,20 @@ Dark only. No light mode. The app is a developer tool used in focused sessions.
 
 All defined as CSS custom properties in `app/globals.css`.
 
-### Surfaces
+### Surfaces — Deep Indigo
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--bg` | `#08080a` | Page background |
-| `--bg-card` | `rgba(18,18,22,0.7)` | Cards, panels (transparent for glass) |
-| `--bg-elevated` | `rgba(28,28,34,0.8)` | Elevated elements |
-| `--bg-solid` | `#121216` | Opaque backgrounds when blur isn't needed |
+| `--bg` | `#070610` | Page background (deep indigo-black) |
+| `--bg-card` | `rgba(16,14,30,0.85)` | Cards, panels (indigo-tinted glass) |
+| `--bg-elevated` | `rgba(24,20,44,0.9)` | Elevated elements |
+| `--bg-solid` | `#100e1c` | Opaque backgrounds when blur isn't needed |
 
-### Borders
+### Borders — Cool Purple-Tinted
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--border` | `rgba(255,255,255,0.07)` | Default borders (white opacity, not gray) |
-| `--border-focus` | `rgba(255,255,255,0.15)` | Focus rings, hover borders |
-| `--border-subtle` | `rgba(255,255,255,0.04)` | Very subtle separators |
+| `--border` | `rgba(200,180,255,0.07)` | Default borders (purple-tinted white opacity) |
+| `--border-focus` | `rgba(200,180,255,0.16)` | Focus rings, hover borders |
+| `--border-subtle` | `rgba(200,180,255,0.03)` | Very subtle separators |
 
 ### Shadows & Glow
 | Token | Value | Usage |
@@ -49,27 +49,27 @@ All defined as CSS custom properties in `app/globals.css`.
 | `--text-secondary` | `#a8a5a0` | Descriptions, supporting text |
 | `--text-muted` | `#6b6865` | Labels, timestamps, metadata |
 
-### Accent — Cosmic Palette
-Purple for interactive elements (digital vibe), warm copper for decorative glows.
+### Accent — Purple-Pink Family
+One color family for all interactive elements. No warm/cool clash.
 
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--accent` | `#9b6dd8` | Buttons, active states, interactive elements |
-| `--accent-hover` | `#b485f0` | Hover state |
-| `--accent-muted` | `rgba(155,109,216,0.15)` | Accent backgrounds |
-| `--accent-glow` | `rgba(155,109,216,0.30)` | Glow effects |
-| `--accent-warm` | `#d4935c` | Decorative: heading gradients, warm glows |
-| `--accent-pink` | `#c74b8a` | Secondary highlights |
-| `--accent-cyan` | `#4ecdc4` | Cool contrast accent |
+| `--accent` | `#b070e0` | Buttons, active states, interactive |
+| `--accent-hover` | `#c88cf0` | Hover state |
+| `--accent-muted` | `rgba(176,112,224,0.14)` | Accent backgrounds |
+| `--accent-glow` | `rgba(176,112,224,0.28)` | Glow effects |
+| `--accent-pink` | `#e070a0` | Secondary highlights, new-entry indicators |
+| `--accent-cyan` | `#50d0c8` | Cool contrast for data/tech elements |
+| `--accent-warm` | `#e0a060` | Minimal decorative use only |
 
-### Tag Colors — Warm Cosmic
+### Tag Colors — Cosmic
 | Tag | Color | Background |
 |-----|-------|------------|
-| Decision | `--color-decision` `#7cb8f0` (soft blue) | `rgba(124,184,240,0.1)` |
-| Open | `--color-open` `#e8a060` (warm amber) | `rgba(232,160,96,0.1)` |
-| Action | `--color-action` `#5ce8a0` (warm green) | `rgba(92,232,160,0.1)` |
-| Resolved | `--color-resolved` `#8a7e72` (warm gray) | `rgba(138,126,114,0.08)` |
-| Idea | `--color-idea` `#d090f0` (soft purple) | `rgba(208,144,240,0.1)` |
+| Decision | `#70b0f0` (soft blue) | `rgba(112,176,240,0.1)` |
+| Open | `#f0a860` (amber) | `rgba(240,168,96,0.1)` |
+| Action | `#50e0a0` (green) | `rgba(80,224,160,0.1)` |
+| Resolved | `#706880` (cool gray) | `rgba(112,104,128,0.08)` |
+| Idea | `#d080f0` (purple) | `rgba(208,128,240,0.1)` |
 
 ## Typography
 
