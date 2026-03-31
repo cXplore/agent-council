@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Full mode — optionally filtered
-    let results = [...index.decisions, ...index.open, ...index.actions, ...index.resolved, ...index.ideas];
+    let results = [...index.decisions, ...index.open, ...index.actions, ...index.resolved, ...(index.closed ?? []), ...index.ideas];
 
     if (typeFilter) {
       const t = typeFilter.toUpperCase();

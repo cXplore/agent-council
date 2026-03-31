@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'motion/react';
 import { getAgentColor } from '@/lib/utils';
+import ActivityFeed from '@/app/meetings/ActivityFeed';
 
 const fadeUp = {
   initial: { opacity: 0, y: 16 },
@@ -327,6 +328,110 @@ function KeyTermsBar({ data }: { data: KeyTermsData }) {
   );
 }
 
+interface DiscoveredProject {
+  path: string;
+  name: string;
+  isGitRepo: boolean;
+  languages: { name: string; percentage: number }[];
+  frameworks: string[];
+  projectDescription: string | null;
+}
+
+function DiscoveryStrip() {
+  const [candidates, setCandidates] = useState<DiscoveredProject[]>([]);
+  const [dismissed, setDismissed] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connected, setConnected] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('discovery-strip-dismissed')) {
+      setDismissed(true);
+      return;
+    }
+    fetch('/api/setup/discover')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.candidates?.length) setCandidates(data.candidates); })
+      .catch(() => {});
+  }, []);
+
+  if (dismissed || candidates.length === 0) return null;
+
+  const visible = candidates.filter(c => !connected.has(c.path));
+  if (visible.length === 0) return null;
+
+  async function handleConnect(candidate: DiscoveredProject) {
+    setConnecting(candidate.path);
+    try {
+      const res = await fetch('/api/setup/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectPath: candidate.path }),
+      });
+      if (res.ok) {
+        setConnected(prev => new Set(prev).add(candidate.path));
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setConnecting(null);
+    }
+  }
+
+  function handleDismiss() {
+    setDismissed(true);
+    sessionStorage.setItem('discovery-strip-dismissed', '1');
+  }
+
+  return (
+    <div className="rounded-lg px-4 py-3 mb-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+          Nearby projects
+        </span>
+        <button
+          onClick={handleDismiss}
+          className="text-xs px-1.5 py-0.5 rounded hover:brightness-125"
+          style={{ color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          title="Dismiss"
+        >
+          &times;
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {visible.slice(0, 5).map(c => (
+          <div
+            key={c.path}
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-xs"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{c.name}</span>
+              {c.frameworks.length > 0 && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
+                  {c.frameworks.slice(0, 2).join(', ')}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => handleConnect(c)}
+              disabled={connecting === c.path}
+              className="ml-1 px-2 py-0.5 rounded text-xs font-medium transition-colors"
+              style={{
+                background: connecting === c.path ? 'var(--bg-card)' : 'rgba(99, 102, 241, 0.15)',
+                color: connecting === c.path ? 'var(--text-muted)' : '#a5b4fc',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                cursor: connecting === c.path ? 'wait' : 'pointer',
+              }}
+            >
+              {connecting === c.path ? '...' : 'Connect'}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DashboardInner() {
   const [analytics, setAnalytics] = useState<MeetingAnalytics | null>(null);
   const [tags, setTags] = useState<TagSummary | null>(null);
@@ -457,6 +562,13 @@ function DashboardInner() {
           {analytics.totalParticipants.length} agent{analytics.totalParticipants.length !== 1 ? 's' : ''} &middot;{' '}
           {analytics.averageParticipants} avg participants
         </p>
+
+        {/* Activity feed — primary returning-user anchor */}
+        <ActivityFeed locationKey="dashboard" onSelectMeeting={(filename) => {
+          window.location.href = `/meetings?file=${encodeURIComponent(filename)}`;
+        }} />
+
+        <DiscoveryStrip />
 
         {!hasData ? (
           <div

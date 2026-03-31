@@ -2,8 +2,25 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ProjectProfile } from './types';
 
+/**
+ * CONTEXT FILE RETENTION POLICY
+ *
+ * Model: Rolling window with stale-entry pruning.
+ *
+ * - Learnings: max 50 entries. Oldest trimmed when exceeded.
+ *   Entries older than STALE_DAYS are pruned on every append.
+ * - Corrections: max 20 entries. NOT subject to staleness (they persist
+ *   until manually removed or pushed out by newer corrections).
+ * - Conventions / Domain Knowledge: free-form, not auto-managed.
+ * - Max file size: ~50KB soft limit (enforced by line caps above).
+ *
+ * Rationale: rolling window keeps context fresh without manual intervention.
+ * Corrections are preserved longer because they encode hard-won lessons.
+ * Stale pruning prevents irrelevant entries from consuming the window.
+ */
 export const MAX_LEARNING_LINES = 50;
-const STALE_DAYS = 30;
+export const STALE_DAYS = 30;
+const MAX_FILE_BYTES = 50 * 1024; // 50KB soft limit
 
 interface ContextFileSections {
   header: string;
@@ -128,7 +145,35 @@ function buildContextFile(sections: ContextFileSections): string {
 }
 
 /**
+ * Prune stale entries (older than staleDays) from a learnings array.
+ * Entries without parseable dates are kept (assumed current).
+ */
+export function pruneStaleEntries(
+  entries: string[],
+  staleDays: number = STALE_DAYS,
+  now: Date = new Date()
+): { kept: string[]; pruned: number } {
+  const threshold = new Date(now);
+  threshold.setDate(threshold.getDate() - staleDays);
+
+  const kept: string[] = [];
+  let pruned = 0;
+
+  for (const entry of entries) {
+    const date = parseLearningDate(entry);
+    if (date && date < threshold) {
+      pruned++;
+    } else {
+      kept.push(entry);
+    }
+  }
+
+  return { kept, pruned };
+}
+
+/**
  * Append new learning entries to a context file, enforcing a rolling window.
+ * Also prunes entries older than STALE_DAYS before applying the cap.
  * Keeps the most recent entries up to MAX_LEARNING_LINES.
  * Returns the updated content.
  */
@@ -148,6 +193,10 @@ export async function appendContextLearnings(
 
   const sections = parseContextFile(content);
 
+  // Prune stale entries first
+  const { kept } = pruneStaleEntries(sections.learnings);
+  sections.learnings = kept;
+
   // Add new entries
   sections.learnings.push(...newEntries.map(e => e.startsWith('- ') ? e : `- ${e}`));
 
@@ -157,6 +206,16 @@ export async function appendContextLearnings(
   }
 
   const updated = buildContextFile(sections);
+
+  // Enforce max file size — if over limit, trim learnings further
+  if (Buffer.byteLength(updated, 'utf-8') > MAX_FILE_BYTES) {
+    const halfLines = Math.floor(maxLines / 2);
+    sections.learnings = sections.learnings.slice(-halfLines);
+    const trimmed = buildContextFile(sections);
+    await writeFile(filePath, trimmed, 'utf-8');
+    return trimmed;
+  }
+
   await writeFile(filePath, updated, 'utf-8');
   return updated;
 }
@@ -277,6 +336,33 @@ export async function getContextHealth(
 }
 
 /**
+ * Purge stale entries from a context file without adding new ones.
+ * Returns the number of entries pruned.
+ */
+export async function purgeStaleFromFile(
+  filePath: string,
+  staleDays: number = STALE_DAYS,
+  now: Date = new Date()
+): Promise<number> {
+  let content: string;
+  try {
+    content = await readFile(filePath, 'utf-8');
+  } catch {
+    return 0;
+  }
+
+  const sections = parseContextFile(content);
+  const { kept, pruned } = pruneStaleEntries(sections.learnings, staleDays, now);
+
+  if (pruned === 0) return 0;
+
+  sections.learnings = kept;
+  const updated = buildContextFile(sections);
+  await writeFile(filePath, updated, 'utf-8');
+  return pruned;
+}
+
+/**
  * Generate a skeleton agent context file from a project scan profile.
  * Written once at project connect time so agents immediately know
  * the project's tech stack and structure.
@@ -365,7 +451,11 @@ export function generateProjectBrief(projectName: string, profile?: ProjectProfi
   // What is this project?
   lines.push('## What This Project Does');
   lines.push('');
-  lines.push('<!-- 1-2 sentences: what does this project do and who is it for? -->');
+  if (profile?.projectDescription) {
+    lines.push(profile.projectDescription);
+  } else {
+    lines.push('<!-- 1-2 sentences: what does this project do and who is it for? -->');
+  }
   lines.push('');
 
   // Auto-filled tech context
@@ -385,6 +475,31 @@ export function generateProjectBrief(projectName: string, profile?: ProjectProfi
     if (profile.structure.hasDatabase) traits.push('database');
     if (profile.structure.hasTests) traits.push('tests');
     if (traits.length > 0) lines.push(`**Architecture:** ${traits.join(', ')}`);
+    if (profile.testInfo && profile.testInfo.frameworks.length > 0) {
+      lines.push(`**Testing:** ${profile.testInfo.frameworks.join(', ')} (${profile.testInfo.fileCount} test files)`);
+    }
+    if (profile.packageManager !== 'unknown') {
+      lines.push(`**Package manager:** ${profile.packageManager}`);
+    }
+    if (profile.entryPoint) {
+      lines.push(`**Entry point:** ${profile.entryPoint}`);
+    }
+    if (profile.synthesis) {
+      if (profile.synthesis.stackSignals.length > 0) {
+        lines.push('');
+        lines.push('**Notable:**');
+        for (const s of profile.synthesis.stackSignals.slice(0, 5)) {
+          lines.push(`- ${s}`);
+        }
+      }
+      if (profile.synthesis.gaps.length > 0) {
+        lines.push('');
+        lines.push('**Gaps detected:**');
+        for (const g of profile.synthesis.gaps) {
+          lines.push(`- ${g}`);
+        }
+      }
+    }
   } else {
     lines.push('<!-- Stack, frameworks, architecture notes -->');
   }

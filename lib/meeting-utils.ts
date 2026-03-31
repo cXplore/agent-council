@@ -363,14 +363,24 @@ const TAGGING_INSTRUCTIONS = `
 
 When you reach a conclusion, recommendation, or identify an unresolved question, tag it inline using this exact format:
 
-- \`[DECISION] What was decided — brief rationale\` for choices that constrain future work
-- \`[ACTION] Specific task — done when: verifiable outcome — assigned to role\` for concrete next steps
+- \`[DECISION] What was decided — because: rationale\` for choices that constrain future work
+- \`[ACTION @role] Specific task — done when: verifiable outcome\` for concrete next steps (role is REQUIRED)
 - \`[OPEN:kebab-slug] Unresolved question — revisit when: trigger condition\` for things that need more info
+- \`[CLOSED:kebab-slug] Reason for closing\` to abandon/close a stale OPEN question that is no longer relevant
+
+Modifiers:
+- \`@role\` — **required** on every ACTION (e.g. @developer, @architect, @user). An action without @role belongs to nobody.
+- \`!priority\` — urgency level (e.g. !high, !low). Optional, use sparingly.
+
+Examples:
+- \`[ACTION @developer !high] Fix auth token expiry — done when: tokens refresh without 401\`
+- \`[ACTION @user] Select test project — done when: non-TypeScript project connected\`
+- \`[DECISION] Use JWT — because industry standard and stateless\`
 
 Rules:
 - Only tag genuinely important items — not every statement
-- Decisions need rationale ("because..."). A decision without rationale is just an opinion.
-- Actions need a clear "done when" so someone can verify completion
+- Decisions MUST include rationale ("because..."). A decision without rationale is just an opinion.
+- Actions MUST include \`@role\` and "done when:". An unassigned action is a wish, not a commitment.
 - Open questions need a trigger condition for when to revisit
 - Place tags at the START of a bullet point line
 `.trim();
@@ -388,6 +398,8 @@ export function buildRound1Prompt(
     `**Topic:** ${topic}`,
     '',
     'Give your initial analysis from the perspective of your role. Be specific and concrete — reference real constraints, tradeoffs, and evidence.',
+    '',
+    '**Evidence discipline:** State what you are reasoning from (e.g., "based on the injected code", "from the meeting history", "from general experience"). If you lack evidence for a claim, say so explicitly ("I\'m assuming X because..." or "I don\'t have visibility into..."). Do not present speculation as established fact.',
     '',
     TAGGING_INSTRUCTIONS,
   ];
@@ -543,7 +555,7 @@ export function buildOutcomeExtractionPrompt(
     '[DECISION] The agreed-upon decision text',
     'Rationale: Why this was decided',
     '',
-    '[ACTION] The specific action to take — assignee-name',
+    '[ACTION @role !priority] The specific action to take — done when: verifiable condition',
     '',
     '[OPEN:kebab-slug] The unresolved question',
     '',

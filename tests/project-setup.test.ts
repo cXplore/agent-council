@@ -92,7 +92,7 @@ describe('buildPlaceholders', () => {
     expect(placeholders.TESTING_LIBS).toBe('pytest');
   });
 
-  it('returns "Unknown" for empty languages/frameworks', () => {
+  it('returns "Unknown" for empty languages/frameworks without scanQuality', () => {
     const emptyProfile: ProjectProfile = {
       ...mockProfile,
       languages: [],
@@ -101,6 +101,59 @@ describe('buildPlaceholders', () => {
     const placeholders = buildPlaceholders('/tmp/empty', emptyProfile);
     expect(placeholders.FRAMEWORK).toBe('Unknown');
     expect(placeholders.LANGUAGES).toBe('Unknown');
+    expect(placeholders.SCAN_CONFIDENCE_NOTICE).toBe('');
+  });
+
+  it('uses hedged language for minimal scan quality', () => {
+    const minimalProfile: ProjectProfile = {
+      ...mockProfile,
+      languages: [],
+      frameworks: [],
+      scanQuality: { quality: 'minimal', score: 1, signals: [], missingSignals: ['No languages detected'] },
+    };
+    const placeholders = buildPlaceholders('/tmp/mystery', minimalProfile);
+    expect(placeholders.FRAMEWORK).toContain('not yet identified');
+    expect(placeholders.LANGUAGES).toContain('not yet identified');
+    expect(placeholders.SCAN_CONFIDENCE_NOTICE).toContain('minimal results');
+    expect(placeholders.SCAN_CONFIDENCE_NOTICE).toContain('Ask clarifying questions');
+  });
+
+  it('uses hedged language for basic scan quality', () => {
+    const basicProfile: ProjectProfile = {
+      ...mockProfile,
+      languages: [{ name: 'Python', fileCount: 5, percentage: 100 }],
+      frameworks: [{ name: 'Flask', confidence: 'medium' }],
+      scanQuality: { quality: 'basic', score: 4, signals: [], missingSignals: [] },
+    };
+    const placeholders = buildPlaceholders('/tmp/basic', basicProfile);
+    expect(placeholders.FRAMEWORK).toContain('possibly Flask');
+    expect(placeholders.FRAMEWORK).toContain('not confirmed');
+    expect(placeholders.SCAN_CONFIDENCE_NOTICE).toContain('Verify assumptions');
+  });
+
+  it('uses confident language for rich scan quality', () => {
+    const placeholders = buildPlaceholders('/tmp/rich', {
+      ...mockProfile,
+      scanQuality: { quality: 'rich', score: 8, signals: [], missingSignals: [] },
+    });
+    expect(placeholders.FRAMEWORK).toBe('Django');
+    expect(placeholders.LANGUAGES).toBe('Python, JavaScript');
+    expect(placeholders.SCAN_CONFIDENCE_NOTICE).toBe('');
+  });
+
+  it('separates high and medium confidence frameworks', () => {
+    const mixedProfile: ProjectProfile = {
+      ...mockProfile,
+      frameworks: [
+        { name: 'Next.js', confidence: 'high', version: '16' },
+        { name: 'TailwindCSS', confidence: 'high' },
+        { name: 'Prisma', confidence: 'medium' },
+      ],
+    };
+    const placeholders = buildPlaceholders('/tmp/mixed', mixedProfile);
+    expect(placeholders.FRAMEWORK).toContain('Next.js');
+    expect(placeholders.FRAMEWORK).toContain('TailwindCSS');
+    expect(placeholders.FRAMEWORK).toContain('possibly also Prisma');
   });
 });
 

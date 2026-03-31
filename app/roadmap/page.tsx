@@ -10,7 +10,7 @@ const fadeUp = {
 };
 
 interface RoadmapItem {
-  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'IDEA';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'CLOSED' | 'IDEA';
   text: string;
   id: string | null;
   meeting: string;
@@ -59,6 +59,7 @@ function TypeBadge({ type }: { type: RoadmapItem['type'] }) {
     ACTION: { bg: 'rgba(34, 197, 94, 0.15)', color: 'var(--live-green)', label: 'Action' },
     OPEN: { bg: 'rgba(234, 179, 8, 0.15)', color: 'var(--warning)', label: 'Open' },
     RESOLVED: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Resolved' },
+    CLOSED: { bg: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)', label: 'Closed' },
     IDEA: { bg: 'var(--color-idea-bg)', color: 'var(--color-idea)', label: 'Idea' },
   };
   const c = config[type] ?? config.DECISION;
@@ -87,6 +88,27 @@ function StatusBadge({ status }: { status: RoadmapItem['itemStatus'] }) {
       style={{ background: c.bg, color: c.color }}
     >
       {c.label}
+    </span>
+  );
+}
+
+/** Show age in days for active items — dims items >5 days old */
+function AgeBadge({ date, status }: { date: string | null; status: RoadmapItem['itemStatus'] }) {
+  if (!date || status !== 'active') return null;
+  const ageMs = Date.now() - new Date(date).getTime();
+  const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+  if (ageDays < 2) return null; // don't clutter recent items
+  const isOld = ageDays >= 5;
+  return (
+    <span
+      className="text-xs px-1.5 py-0.5 rounded flex-shrink-0 tabular-nums"
+      style={{
+        background: isOld ? 'rgba(234, 179, 8, 0.12)' : 'rgba(107, 114, 128, 0.1)',
+        color: isOld ? 'var(--warning)' : 'var(--text-muted)',
+      }}
+      title={`From meeting on ${date} (${ageDays}d ago)`}
+    >
+      {ageDays}d
     </span>
   );
 }
@@ -278,6 +300,7 @@ function ItemRow({
       )}
       <TypeBadge type={item.type} />
       <StatusBadge status={item.itemStatus} />
+      <AgeBadge date={item.date} status={item.itemStatus} />
       <span
         className="text-sm leading-relaxed flex-1 min-w-0"
         style={{
@@ -373,6 +396,150 @@ function EmptySection({ message }: { message: string }) {
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
     >
       {message}
+    </div>
+  );
+}
+
+interface RecallResult {
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'CLOSED' | 'IDEA';
+  text: string;
+  id: string | null;
+  meeting: string;
+  meetingTitle: string;
+  date: string | null;
+  context: string;
+}
+
+function SearchPanel() {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<RecallResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Cmd/Ctrl+K to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (e.key === 'Escape' && document.activeElement === inputRef.current) {
+        inputRef.current?.blur();
+        setQuery('');
+        setResults([]);
+        setSearched(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const doSearch = useCallback(async (q: string) => {
+    if (!q.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/meetings/tags?mode=recall&q=${encodeURIComponent(q.trim())}&types=decision,open,action`);
+      if (res.ok) {
+        const data = await res.json();
+        setResults(data.results ?? []);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSearching(false);
+      setSearched(true);
+    }
+  }, []);
+
+  const handleInput = (value: string) => {
+    setQuery(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!value.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    debounceRef.current = setTimeout(() => doSearch(value), 400);
+  };
+
+  return (
+    <div className="mb-6">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => handleInput(e.target.value)}
+          placeholder="Search decisions, actions, and questions..."
+          className="w-full text-sm rounded-lg px-4 py-2.5 pr-10 outline-none transition-colors"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--accent)'; }}
+          onBlur={e => { (e.target as HTMLInputElement).style.borderColor = 'var(--border)'; }}
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          {searching ? '...' : query ? `${results.length}` : '⌘K'}
+        </span>
+      </div>
+
+      {searched && query.trim() && (
+        <div className="mt-3">
+          {results.length === 0 ? (
+            <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
+              No results for &ldquo;{query}&rdquo;
+            </p>
+          ) : (
+            <div
+              className="rounded-lg overflow-hidden divide-y"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            >
+              {results.slice(0, 15).map((r, i) => (
+                <a
+                  key={`${r.meeting}-${i}`}
+                  href={`/meetings?file=${encodeURIComponent(r.meeting)}`}
+                  className="block px-4 py-3 hover:brightness-110 transition-all"
+                >
+                  <div className="flex items-start gap-2 mb-1">
+                    <TypeBadge type={r.type} />
+                    <span className="text-sm leading-snug flex-1" style={{ color: 'var(--text-secondary)' }}>
+                      {r.text}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 ml-0.5">
+                    <span className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {r.meetingTitle}
+                    </span>
+                    {r.date && (
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                        {r.date}
+                      </span>
+                    )}
+                  </div>
+                  {r.context && (
+                    <p className="text-xs mt-1.5 line-clamp-2 leading-relaxed" style={{ color: 'var(--text-muted)', opacity: 0.8 }}>
+                      {r.context}
+                    </p>
+                  )}
+                </a>
+              ))}
+              {results.length > 15 && (
+                <div className="px-4 py-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  ...and {results.length - 15} more
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -526,6 +693,8 @@ function RoadmapInner() {
           {activeActions.length} action{activeActions.length !== 1 ? 's' : ''} tracked,{' '}
           {data.counts.openQuestions} question{data.counts.openQuestions !== 1 ? 's' : ''} open
         </p>
+
+        <SearchPanel />
 
         {!hasData ? (
           <div

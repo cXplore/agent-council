@@ -87,6 +87,19 @@ export default function MeetingDetail(props: MeetingDetailProps) {
   const { toast } = useToast();
   const completionCardRef = useRef<HTMLDivElement>(null);
   const [completionCardDismissed, setCompletionCardDismissed] = useState(false);
+  const [completionCardVisible, setCompletionCardVisible] = useState(true);
+
+  // Track completion card visibility with IntersectionObserver
+  useEffect(() => {
+    const el = completionCardRef.current;
+    if (!el || completionCardDismissed) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setCompletionCardVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [detail?.status, completionCardDismissed]);
 
   // Track the live → complete transition for animation and toast nudge
   const [justCompleted, setJustCompleted] = useState(false);
@@ -1371,6 +1384,22 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Floating nudge bar — appears when meeting just completed and completion card is scrolled out of view */}
+      {detail?.status === 'complete' && !completionCardDismissed && !completionCardVisible && (
+        <button
+          onClick={() => completionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 px-5 py-2.5 rounded-full text-sm shadow-lg flex items-center gap-2 transition-opacity hover:brightness-110 animate-[fadeSlideIn_0.3s_ease-out]"
+          style={{
+            background: 'rgba(96, 165, 250, 0.15)',
+            border: '1px solid rgba(96, 165, 250, 0.4)',
+            color: '#60a5fa',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <span>{'\u2191'}</span> View outcomes
+        </button>
       )}
 
       {/* Scroll to bottom button */}

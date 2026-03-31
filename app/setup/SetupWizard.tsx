@@ -40,10 +40,12 @@ const ALL_AGENTS: Record<string, { description: string; defaultModel: string }> 
 };
 
 /** Copyable first-meeting prompt — uses project name for personalization */
-function FirstMeetingPrompt({ projectPath }: { projectPath: string }) {
+function FirstMeetingPrompt({ projectPath, suggestedTopic }: { projectPath: string; suggestedTopic?: string | null }) {
   const [copied, setCopied] = useState(false);
   const projectName = projectPath.split(/[/\\]/).filter(Boolean).pop() || 'this project';
-  const prompt = `Let's do a quick direction check on ${projectName} — what should we focus on?`;
+  const prompt = suggestedTopic
+    ? `Let's discuss: ${suggestedTopic}`
+    : `Let's do a quick direction check on ${projectName} — what should we focus on?`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt);
@@ -651,7 +653,7 @@ function SetupWizardInner() {
                 </h4>
                 <div className="space-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                   <p>Open your project in Claude Code and paste this prompt:</p>
-                  <FirstMeetingPrompt projectPath={projectPath} />
+                  <FirstMeetingPrompt projectPath={projectPath} suggestedTopic={profile?.synthesis?.suggestedFirstTopic} />
                   <p style={{ color: 'var(--text-muted)' }}>
                     The facilitator will pick the right format and assemble your team. Watch it live in the meeting viewer.
                   </p>
@@ -1143,6 +1145,36 @@ function SetupWizardInner() {
               </p>
             </div>
 
+            {/* What we found — synthesis from scanner */}
+            {profile?.synthesis && (profile.synthesis.stackSignals.length > 0 || profile.synthesis.gaps.length > 0) && (
+              <div
+                className="rounded-lg p-5"
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              >
+                <p className="text-xs font-semibold mb-3 uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                  What we found
+                </p>
+                {profile.synthesis.stackSignals.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {profile.synthesis.stackSignals.slice(0, 4).map(s => (
+                      <span key={s} className="px-2 py-0.5 rounded text-xs" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {profile.synthesis.gaps.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.synthesis.gaps.map(g => (
+                      <span key={g} className="px-2 py-0.5 rounded text-xs" style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--warning)' }}>
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* What's next — prominent */}
             <div
               className="rounded-lg p-6"
@@ -1153,7 +1185,7 @@ function SetupWizardInner() {
               </p>
               <div className="space-y-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 <p>Open your project in Claude Code and paste this prompt:</p>
-                <FirstMeetingPrompt projectPath={projectPath} />
+                <FirstMeetingPrompt projectPath={projectPath} suggestedTopic={profile?.synthesis?.suggestedFirstTopic} />
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   The facilitator picks the right format and assembles the team automatically. The meeting shows up live here.
                 </p>

@@ -4,46 +4,7 @@ import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
 import { buildTagIndex, getUnresolved } from '@/lib/tag-index';
 import { extractSummary, parseMetadata, titleFromFilename } from '@/lib/meeting-utils';
-import { query } from '@anthropic-ai/claude-agent-sdk';
-
-/**
- * Run a query with retry on transient failures (overloaded, network errors).
- * Uses exponential backoff: 2s, 4s for up to 2 retries.
- */
-async function queryWithRetry(
-  prompt: string,
-  options: Record<string, unknown>,
-  maxRetries = 2,
-): Promise<string> {
-  let lastError: Error | undefined;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      let answer = '';
-      for await (const message of query({ prompt, options })) {
-        if (message.type === 'assistant' && message.message?.content) {
-          for (const block of message.message.content) {
-            if ('text' in block && block.text) {
-              answer += block.text;
-            }
-          }
-        }
-      }
-      return answer.trim();
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const isRetryable = lastError.message.includes('overloaded')
-        || lastError.message.includes('529')
-        || lastError.message.includes('rate_limit')
-        || lastError.message.includes('ECONNRESET')
-        || lastError.message.includes('ETIMEDOUT');
-      if (!isRetryable || attempt >= maxRetries) throw lastError;
-      const delay = Math.pow(2, attempt + 1) * 1000;
-      console.warn(`AI context attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError ?? new Error('Query failed after retries');
-}
+import { queryLLM } from '@/lib/llm-query';
 
 /**
  * POST /api/council/ai-context
@@ -177,21 +138,9 @@ Be specific and direct. Don't summarize — synthesize. Focus on what would help
 
 Return only the narrative paragraph. No headings, no bullet points, no preamble.`;
 
-    // Code-aware mode: enable read-only tools and multiple turns
-    const tools = codeAware ? ['Read', 'Glob', 'Grep'] : [];
-    const maxTurns = codeAware ? 5 : 1;
-    const queryOptions: Record<string, unknown> = {
-      tools,
-      maxTurns,
-    };
-
-    // Set working directory to the project path for code-aware queries
-    if (codeAware && active.projectPath) {
-      queryOptions.cwd = active.projectPath;
-      queryOptions.permissionMode = 'acceptEdits'; // read-only tools are safe
-    }
-
-    const narrative = await queryWithRetry(prompt, queryOptions);
+    // Note: codeAware mode with file-reading tools only works with Agent SDK backend.
+    // When using direct Anthropic API, codeAware is ignored (no tool support).
+    const narrative = await queryLLM(prompt, {}, 'AI context');
 
     if (!narrative) {
       return NextResponse.json({ error: 'Failed to generate context' }, { status: 500 });

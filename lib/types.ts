@@ -38,6 +38,24 @@ export interface ProjectProfile {
   };
   /** True if the 50,000-file cap was hit during scan — results are incomplete */
   truncated?: boolean;
+  /** Project description extracted from README first paragraph or package.json description */
+  projectDescription?: string;
+  /** Test framework detection — name patterns and rough file count */
+  testInfo?: {
+    frameworks: string[];
+    fileCount: number;
+  };
+  /** Primary entry point file (e.g., main server, app entry, CLI script) */
+  entryPoint?: string;
+  /** High-level synthesis of what was detected — gaps, notable signals, suggested first topic */
+  synthesis?: {
+    /** Notable framework/tool combinations */
+    stackSignals: string[];
+    /** Missing things you'd typically expect (e.g., no tests, no CI, no types) */
+    gaps: string[];
+    /** Auto-generated first meeting topic based on what was detected */
+    suggestedFirstTopic: string | null;
+  };
 }
 
 export interface Preset {
@@ -67,6 +85,8 @@ export interface CouncilConfig {
     meetingsDir: string;
   };
   port: number;
+  /** Paths discovered by scanning nearby directories but not yet connected */
+  discoveredPaths?: string[];
 }
 
 export interface SuggestedMeeting {

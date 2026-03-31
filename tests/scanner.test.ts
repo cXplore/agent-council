@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
   detectLanguages,
   detectStructure,
@@ -7,6 +10,8 @@ import {
   suggestAgents,
   detectCoverageBoundaries,
   scoreScanQuality,
+  detectEntryPoint,
+  scanProject,
 } from '@/lib/scanner';
 import type { ProjectProfile } from '@/lib/types';
 
@@ -588,5 +593,138 @@ describe('scoreScanQuality', () => {
       languages: [{ name: 'TypeScript', fileCount: 15, percentage: 100 }],
     };
     expect(scoreScanQuality(many).score).toBeGreaterThan(scoreScanQuality(few).score);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectEntryPoint
+// ---------------------------------------------------------------------------
+
+describe('detectEntryPoint', () => {
+  let tempDir: string;
+
+  async function setup(files: string[], packageJson?: Record<string, unknown>) {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'scanner-test-'));
+    for (const file of files) {
+      const fullPath = path.join(tempDir, file);
+      await mkdir(path.dirname(fullPath), { recursive: true });
+      await writeFile(fullPath, '// stub', 'utf-8');
+    }
+    if (packageJson) {
+      await writeFile(path.join(tempDir, 'package.json'), JSON.stringify(packageJson), 'utf-8');
+    }
+  }
+
+  async function cleanup() {
+    if (tempDir) await rm(tempDir, { recursive: true, force: true });
+  }
+
+  it('detects Next.js app/layout.tsx as entry point', async () => {
+    await setup(['app/layout.tsx', 'app/page.tsx']);
+    const result = await detectEntryPoint(tempDir, ['app/layout.tsx', 'app/page.tsx'], [{ name: 'Next.js', confidence: 'high' }]);
+    expect(result).toBe('app/layout.tsx');
+    await cleanup();
+  });
+
+  it('detects src/index.ts for generic projects', async () => {
+    await setup(['src/index.ts', 'src/utils.ts']);
+    const result = await detectEntryPoint(tempDir, ['src/index.ts', 'src/utils.ts'], []);
+    expect(result).toBe('src/index.ts');
+    await cleanup();
+  });
+
+  it('detects main.py for Python projects', async () => {
+    await setup(['main.py', 'utils.py']);
+    const result = await detectEntryPoint(tempDir, ['main.py', 'utils.py'], []);
+    expect(result).toBe('main.py');
+    await cleanup();
+  });
+
+  it('detects manage.py for Django', async () => {
+    await setup(['manage.py', 'myapp/views.py']);
+    const result = await detectEntryPoint(tempDir, ['manage.py', 'myapp/views.py'], [{ name: 'Django', confidence: 'high' }]);
+    expect(result).toBe('manage.py');
+    await cleanup();
+  });
+
+  it('uses package.json main field when available', async () => {
+    await setup(['lib/entry.js'], { main: 'lib/entry.js' });
+    const result = await detectEntryPoint(tempDir, ['lib/entry.js'], []);
+    expect(result).toBe('lib/entry.js');
+    await cleanup();
+  });
+
+  it('uses scripts.start to find entry', async () => {
+    await setup(['src/server.js'], { scripts: { start: 'node src/server.js' } });
+    const result = await detectEntryPoint(tempDir, ['src/server.js'], []);
+    expect(result).toBe('src/server.js');
+    await cleanup();
+  });
+
+  it('returns undefined when no entry point found', async () => {
+    await setup(['README.md', 'LICENSE']);
+    const result = await detectEntryPoint(tempDir, ['README.md', 'LICENSE'], []);
+    expect(result).toBeUndefined();
+    await cleanup();
+  });
+
+  it('detects src/main.rs for Rust projects', async () => {
+    await setup(['src/main.rs', 'Cargo.toml']);
+    const result = await detectEntryPoint(tempDir, ['src/main.rs', 'Cargo.toml'], [{ name: 'Rust/Cargo', confidence: 'high' }]);
+    expect(result).toBe('src/main.rs');
+    await cleanup();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Synthesis fallback — suggestedFirstTopic always has a value
+// ---------------------------------------------------------------------------
+
+describe('synthesis suggestedFirstTopic fallback', () => {
+  let tempDir: string;
+
+  it('produces a topic for language-only projects (no frameworks)', async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'scan-synth-'));
+    // Create a minimal Python project with no framework markers
+    await mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await writeFile(path.join(tempDir, 'src/main.py'), 'print("hello")', 'utf-8');
+    await writeFile(path.join(tempDir, 'src/utils.py'), 'def helper(): pass', 'utf-8');
+
+    const profile = await scanProject(tempDir);
+    expect(profile.synthesis?.suggestedFirstTopic).toBeTruthy();
+    // Gaps fire first when present, but we always get a non-null topic
+    expect(typeof profile.synthesis!.suggestedFirstTopic).toBe('string');
+    expect(profile.synthesis!.suggestedFirstTopic!.length).toBeGreaterThan(10);
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('produces a topic for nearly-empty projects', async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'scan-synth-'));
+    await writeFile(path.join(tempDir, 'README.md'), '# My Project\nA cool thing.', 'utf-8');
+
+    const profile = await scanProject(tempDir);
+    expect(profile.synthesis?.suggestedFirstTopic).toBeTruthy();
+    // Should be the ultimate fallback since no languages detected
+    expect(profile.synthesis!.suggestedFirstTopic).toContain('Direction check');
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('produces a gap-based topic when tests are missing', async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'scan-synth-'));
+    await mkdir(path.join(tempDir, 'src'), { recursive: true });
+    // Create enough files for the scanner to detect structure
+    for (let i = 0; i < 12; i++) {
+      await writeFile(path.join(tempDir, `src/file${i}.ts`), `export const x${i} = ${i};`, 'utf-8');
+    }
+    await writeFile(path.join(tempDir, 'package.json'), JSON.stringify({ name: 'test', dependencies: { next: '16.0.0' } }), 'utf-8');
+
+    const profile = await scanProject(tempDir);
+    expect(profile.synthesis?.suggestedFirstTopic).toBeTruthy();
+    // Should mention a gap (no tests, no CI)
+    expect(profile.synthesis!.gaps.length).toBeGreaterThan(0);
+
+    await rm(tempDir, { recursive: true, force: true });
   });
 });

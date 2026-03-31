@@ -16,7 +16,50 @@ interface Props {
 
 const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
+function extractFromJSON(content: string): { decisions: string[]; actions: string[]; open: string[] } | null {
+  const jsonMatch = content.match(/<!--\s*meeting-outcomes\s*\n([\s\S]*?)\n(?:meeting-outcomes\s*)?-->/);
+  if (!jsonMatch) return null;
+  try {
+    const data = JSON.parse(jsonMatch[1]);
+    if (!data.schema_version) return null;
+    const decisions = (data.decisions ?? []).map((d: string | { text: string; rationale?: string }) =>
+      typeof d === 'string' ? d : d.text + (d.rationale ? ` — ${d.rationale}` : '')
+    ).filter(Boolean);
+    const actions = (data.actions ?? []).map((a: string | { text: string }) =>
+      typeof a === 'string' ? a : a.text
+    ).filter(Boolean);
+    const resolvedSlugs = new Set((data.resolved ?? []).map((r: { slug: string }) => r.slug));
+    const open = (data.open_questions ?? [])
+      .map((o: string | { slug?: string; text: string }) => {
+        const text = typeof o === 'string' ? o : o.text;
+        const slug = typeof o === 'string' ? null : (o.slug ?? null);
+        return { slug, text };
+      })
+      .filter((o: { slug: string | null; text: string }) => o.text && (!o.slug || !resolvedSlugs.has(o.slug)))
+      .map((o: { text: string }) => o.text);
+    return { decisions, actions, open };
+  } catch {
+    return null;
+  }
+}
+
 function extractFromSummary(content: string) {
+  // Try JSON appendix first (preferred — recent meetings use this)
+  const jsonResult = extractFromJSON(content);
+  if (jsonResult && (jsonResult.decisions.length + jsonResult.actions.length + jsonResult.open.length) > 0) {
+    return {
+      decisions: jsonResult.decisions.slice(0, 3),
+      actions: jsonResult.actions.slice(0, 3),
+      open: jsonResult.open.slice(0, 2),
+      overflow: {
+        decisions: Math.max(0, jsonResult.decisions.length - 3),
+        actions: Math.max(0, jsonResult.actions.length - 3),
+        open: Math.max(0, jsonResult.open.length - 2),
+      },
+    };
+  }
+
+  // Fallback: inline tag parsing for older meetings
   const lines = content.split('\n');
   const summaryIdx = lines.findIndex(l => l.trim() === '## Summary');
   const start = summaryIdx >= 0 ? summaryIdx : 0;
@@ -38,7 +81,6 @@ function extractFromSummary(content: string) {
     if (type === 'OPEN') open.push({ slug, text });
   }
 
-  // Suppress open items that were resolved in the same meeting (match by slug)
   const filteredOpen = open
     .filter(item => !item.slug || !resolvedSlugs.has(item.slug))
     .map(item => item.text);

@@ -261,19 +261,32 @@ async function detectFrameworks(
     frameworks.push({ name: 'Flutter/Dart', confidence: 'high' });
   }
 
-  // Python frameworks (from requirements.txt or pyproject.toml)
+  // Python frameworks — read requirements.txt/pyproject.toml for actual dependency names
   if (hasFile(files, 'requirements.txt') || hasFile(files, 'pyproject.toml')) {
-    // Quick check for common Python frameworks via directory patterns
-    if (hasDir(dirs, 'app') && files.some(f => f.includes('main.py'))) {
-      if (!frameworks.some(f => f.name === 'Django')) {
-        // Could be FastAPI — check for common indicators
-        frameworks.push({ name: 'FastAPI', confidence: 'medium' });
+    let pyDeps = '';
+    try {
+      if (hasFile(files, 'requirements.txt')) {
+        pyDeps += await readFile(path.join(dirPath, 'requirements.txt'), 'utf-8');
       }
+    } catch { /* ignore */ }
+    try {
+      if (hasFile(files, 'pyproject.toml')) {
+        pyDeps += await readFile(path.join(dirPath, 'pyproject.toml'), 'utf-8');
+      }
+    } catch { /* ignore */ }
+    const pyDepsLower = pyDeps.toLowerCase();
+
+    if (pyDepsLower.includes('fastapi') && !frameworks.some(f => f.name === 'Django')) {
+      frameworks.push({ name: 'FastAPI', confidence: 'high' });
     }
-    if (hasFile(files, 'flask') || hasDir(dirs, 'templates')) {
-      if (!frameworks.some(f => f.name === 'Django')) {
-        frameworks.push({ name: 'Flask', confidence: 'medium' });
-      }
+    if (pyDepsLower.includes('flask') && !frameworks.some(f => f.name === 'Django')) {
+      frameworks.push({ name: 'Flask', confidence: 'high' });
+    }
+    if (pyDepsLower.includes('starlette') && !frameworks.some(f => f.name.includes('FastAPI'))) {
+      frameworks.push({ name: 'Starlette', confidence: 'medium' });
+    }
+    if (pyDepsLower.includes('celery')) {
+      frameworks.push({ name: 'Celery', confidence: 'high' });
     }
   }
 
@@ -514,6 +527,97 @@ function detectLibraries(allDeps: Record<string, string>): Record<string, string
   check('ui', '@headlessui/react', 'Headless UI');
   check('ui', '@shadcn/ui', 'shadcn/ui');
   check('ui', 'cmdk', 'cmdk');
+
+  // Remove empty categories
+  for (const key of Object.keys(libs)) {
+    if (libs[key].length === 0) delete libs[key];
+  }
+
+  return libs;
+}
+
+/**
+ * Detect Python libraries from requirements.txt or pyproject.toml.
+ * Returns libraries in the same category-based format as detectLibraries.
+ */
+async function detectPythonLibraries(
+  dirPath: string,
+  files: string[],
+): Promise<Record<string, string[]>> {
+  const libs: Record<string, string[]> = {};
+  let content = '';
+
+  try {
+    if (hasFile(files, 'requirements.txt')) {
+      content += await readFile(path.join(dirPath, 'requirements.txt'), 'utf-8');
+    }
+  } catch { /* ignore */ }
+  try {
+    if (hasFile(files, 'pyproject.toml')) {
+      content += '\n' + await readFile(path.join(dirPath, 'pyproject.toml'), 'utf-8');
+    }
+  } catch { /* ignore */ }
+
+  if (!content) return libs;
+  const lower = content.toLowerCase();
+
+  function check(category: string, pkgName: string, displayName: string) {
+    if (lower.includes(pkgName)) {
+      if (!libs[category]) libs[category] = [];
+      if (!libs[category].includes(displayName)) libs[category].push(displayName);
+    }
+  }
+
+  // Testing
+  check('testing', 'pytest', 'pytest');
+  check('testing', 'unittest', 'unittest');
+  check('testing', 'tox', 'tox');
+  check('testing', 'coverage', 'coverage');
+  check('testing', 'hypothesis', 'Hypothesis');
+
+  // Database & ORM
+  check('database', 'sqlalchemy', 'SQLAlchemy');
+  check('database', 'alembic', 'Alembic');
+  check('database', 'tortoise-orm', 'Tortoise ORM');
+  check('database', 'peewee', 'Peewee');
+  check('database', 'psycopg', 'psycopg');
+  check('database', 'pymongo', 'PyMongo');
+  check('database', 'redis', 'Redis');
+
+  // API & networking
+  check('api', 'requests', 'Requests');
+  check('api', 'httpx', 'HTTPX');
+  check('api', 'aiohttp', 'aiohttp');
+  check('api', 'grpcio', 'gRPC');
+  check('api', 'graphene', 'Graphene');
+  check('api', 'pydantic', 'Pydantic');
+
+  // AI & ML
+  check('ai', 'openai', 'OpenAI SDK');
+  check('ai', 'anthropic', 'Anthropic SDK');
+  check('ai', 'langchain', 'LangChain');
+  check('ai', 'transformers', 'Transformers');
+  check('ai', 'torch', 'PyTorch');
+  check('ai', 'tensorflow', 'TensorFlow');
+  check('ai', 'scikit-learn', 'scikit-learn');
+  check('ai', 'numpy', 'NumPy');
+  check('ai', 'pandas', 'pandas');
+
+  // Auth
+  check('auth', 'python-jose', 'python-jose');
+  check('auth', 'pyjwt', 'PyJWT');
+  check('auth', 'passlib', 'Passlib');
+  check('auth', 'authlib', 'Authlib');
+
+  // Monitoring
+  check('monitoring', 'sentry-sdk', 'Sentry');
+  check('monitoring', 'prometheus', 'Prometheus');
+  check('monitoring', 'structlog', 'structlog');
+
+  // Validation
+  check('validation', 'pydantic', 'Pydantic');
+  check('validation', 'marshmallow', 'Marshmallow');
+  check('validation', 'cerberus', 'Cerberus');
 
   // Remove empty categories
   for (const key of Object.keys(libs)) {
@@ -768,6 +872,222 @@ export function scoreScanQuality(profile: ProjectProfile): ScanQualityResult {
 }
 
 // ---------------------------------------------------------------------------
+// README / description extraction
+// ---------------------------------------------------------------------------
+
+async function extractProjectDescription(dirPath: string): Promise<string | undefined> {
+  // Try README first
+  for (const name of ['README.md', 'readme.md', 'Readme.md', 'README.rst', 'README.txt', 'README']) {
+    try {
+      const content = await readFile(path.join(dirPath, name), 'utf-8');
+      // Skip badges, links, and images at the top
+      const lines = content.split('\n');
+      let collecting = false;
+      const paragraphLines: string[] = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip title (# heading)
+        if (trimmed.startsWith('# ') && !collecting) continue;
+        // Skip badges, images, HTML
+        if (trimmed.startsWith('![') || trimmed.startsWith('[![') || trimmed.startsWith('<')) continue;
+        // Skip empty lines before first paragraph
+        if (!trimmed && !collecting) continue;
+
+        if (trimmed) {
+          collecting = true;
+          paragraphLines.push(trimmed);
+        } else if (collecting) {
+          // Hit an empty line after collecting — we have our paragraph
+          break;
+        }
+      }
+
+      if (paragraphLines.length > 0) {
+        const desc = paragraphLines.join(' ').slice(0, 500);
+        return desc;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback: package.json description
+  const pkg = await readJson(path.join(dirPath, 'package.json'));
+  if (pkg?.description && typeof pkg.description === 'string') {
+    return pkg.description;
+  }
+
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Test info detection
+// ---------------------------------------------------------------------------
+
+function detectTestInfo(
+  files: string[],
+  allDeps: Record<string, string>,
+): ProjectProfile['testInfo'] {
+  const frameworks: string[] = [];
+  if (allDeps['vitest']) frameworks.push('Vitest');
+  if (allDeps['jest']) frameworks.push('Jest');
+  if (allDeps['@jest/core']) frameworks.push('Jest');
+  if (allDeps['mocha']) frameworks.push('Mocha');
+  if (allDeps['@testing-library/react']) frameworks.push('Testing Library');
+  if (allDeps['cypress']) frameworks.push('Cypress');
+  if (allDeps['playwright'] || allDeps['@playwright/test']) frameworks.push('Playwright');
+  if (allDeps['pytest'] || files.some(f => f.includes('pytest.ini') || f.includes('conftest.py'))) frameworks.push('pytest');
+
+  const testFiles = files.filter(f =>
+    /\.(test|spec)\.(ts|tsx|js|jsx|py|rb)$/.test(f) ||
+    f.includes('__tests__/') ||
+    f.startsWith('tests/') ||
+    f.startsWith('test/')
+  );
+
+  return { frameworks, fileCount: testFiles.length };
+}
+
+// ---------------------------------------------------------------------------
+// Entry point detection — find the primary executable/server file
+// ---------------------------------------------------------------------------
+
+export async function detectEntryPoint(
+  dirPath: string,
+  files: string[],
+  frameworks: ProjectProfile['frameworks'],
+): Promise<string | undefined> {
+  const frameworkNames = new Set(frameworks.map(f => f.name));
+
+  // Next.js: app/layout.tsx or pages/_app.tsx
+  if (frameworkNames.has('Next.js')) {
+    for (const candidate of [
+      'app/layout.tsx', 'app/layout.ts', 'app/layout.jsx', 'app/layout.js',
+      'src/app/layout.tsx', 'src/app/layout.ts',
+      'pages/_app.tsx', 'pages/_app.ts', 'pages/_app.jsx', 'pages/_app.js',
+      'src/pages/_app.tsx',
+    ]) {
+      if (files.includes(candidate)) return candidate;
+    }
+  }
+
+  // Explicit "main" in package.json
+  const pkg = await readJson(path.join(dirPath, 'package.json'));
+  if (pkg) {
+    // Check scripts.start for the entry
+    const scripts = pkg.scripts as Record<string, string> | undefined;
+    if (scripts?.start) {
+      // e.g. "node src/index.js" or "ts-node src/server.ts"
+      const startMatch = scripts.start.match(/(?:node|ts-node|tsx|bun)\s+(\S+)/);
+      if (startMatch && files.includes(startMatch[1])) return startMatch[1];
+    }
+    // package.json "main" field
+    if (typeof pkg.main === 'string' && files.includes(pkg.main)) return pkg.main;
+  }
+
+  // Common entry point patterns (ordered by priority)
+  const candidates = [
+    'src/index.ts', 'src/index.tsx', 'src/index.js', 'src/index.jsx',
+    'src/main.ts', 'src/main.tsx', 'src/main.js', 'src/main.jsx',
+    'src/app.ts', 'src/app.tsx', 'src/app.js', 'src/app.jsx',
+    'src/server.ts', 'src/server.js',
+    'index.ts', 'index.js',
+    'main.ts', 'main.js', 'main.py',
+    'app.ts', 'app.js', 'app.py',
+    'server.ts', 'server.js', 'server.py',
+    'manage.py',       // Django
+    'cmd/main.go',     // Go convention
+    'main.go',
+    'src/main.rs',     // Rust convention
+    'lib/main.dart',   // Flutter convention
+    'bin/cli.js', 'bin/cli.ts',
+  ];
+
+  for (const candidate of candidates) {
+    if (files.includes(candidate)) return candidate;
+  }
+
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Synthesis — gaps, stack signals, first topic suggestion
+// ---------------------------------------------------------------------------
+
+function synthesize(
+  profile: Pick<ProjectProfile, 'languages' | 'frameworks' | 'structure' | 'testInfo' | 'libraries' | 'projectDescription'>,
+): ProjectProfile['synthesis'] {
+  const gaps: string[] = [];
+  const stackSignals: string[] = [];
+
+  // Detect gaps — things you'd typically expect but are missing
+  if (!profile.structure.hasTests && (!profile.testInfo || profile.testInfo.fileCount === 0)) {
+    gaps.push('No test files or test framework detected');
+  }
+  if (!profile.structure.hasCICD) {
+    gaps.push('No CI/CD configuration detected');
+  }
+  if (profile.languages.length > 0 && !profile.languages.some(l => l.name === 'TypeScript') &&
+      profile.frameworks.some(f => ['Next.js', 'React', 'Vue', 'Svelte', 'Angular'].includes(f.name))) {
+    gaps.push('Frontend framework without TypeScript');
+  }
+  if (profile.structure.hasDatabase && !profile.structure.hasTests) {
+    gaps.push('Database layer without tests');
+  }
+  if (!profile.structure.hasDocker && profile.structure.hasApi) {
+    gaps.push('API layer without containerization');
+  }
+
+  // Detect notable stack signals
+  const frameworkNames = new Set(profile.frameworks.map(f => f.name));
+  if (frameworkNames.has('Next.js') && frameworkNames.has('Electron')) {
+    stackSignals.push('Desktop app built with Next.js + Electron');
+  }
+  if (frameworkNames.has('Next.js') && frameworkNames.has('TailwindCSS')) {
+    stackSignals.push('Next.js with Tailwind CSS');
+  }
+  if (profile.structure.isMonorepo) {
+    stackSignals.push('Monorepo structure');
+  }
+  if (frameworkNames.has('MCP')) {
+    stackSignals.push('MCP (Model Context Protocol) integration');
+  }
+  if (profile.languages.length > 2) {
+    const topLangs = profile.languages.slice(0, 3).map(l => l.name).join(', ');
+    stackSignals.push(`Multi-language project: ${topLangs}`);
+  }
+  if (profile.structure.hasApi && profile.structure.hasFrontend) {
+    stackSignals.push('Full-stack with API and frontend');
+  }
+  if (Object.keys(profile.libraries).length > 3) {
+    stackSignals.push(`Rich dependency surface (${Object.values(profile.libraries).flat().length}+ libraries across ${Object.keys(profile.libraries).length} categories)`);
+  }
+
+  // Generate suggested first topic
+  let suggestedFirstTopic: string | null = null;
+  if (gaps.length > 0 && stackSignals.length > 0) {
+    suggestedFirstTopic = `Architecture review: ${stackSignals[0]}${gaps.length > 0 ? ` — noted gap: ${gaps[0].toLowerCase()}` : ''}`;
+  } else if (gaps.length > 0) {
+    suggestedFirstTopic = `Direction check: ${gaps[0]} — should this be addressed, or is it intentional?`;
+  } else if (stackSignals.length > 0) {
+    suggestedFirstTopic = `Architecture review: ${stackSignals[0]} — current approach and potential improvements`;
+  } else if (profile.languages.length > 0) {
+    // Fallback: we know the language but not much else
+    const primaryLang = profile.languages[0].name;
+    suggestedFirstTopic = `Direction check: Explore this ${primaryLang} project's architecture — what are we building and what matters most?`;
+  } else if (profile.projectDescription) {
+    // Fallback: we have a README description but not much structure
+    suggestedFirstTopic = `Direction check: Review project goals and current architecture — where should effort go next?`;
+  } else {
+    // Ultimate fallback: scanner found almost nothing
+    suggestedFirstTopic = `Direction check: What is this project, what's the current state, and what should we focus on?`;
+  }
+
+  return { gaps, stackSignals, suggestedFirstTopic };
+}
+
+// ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
@@ -794,6 +1114,45 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
   };
   const libraries = detectLibraries(allDeps);
 
+  // Merge Python libraries if Python is a detected language
+  if (languages.some(l => l.name === 'Python')) {
+    const pyLibs = await detectPythonLibraries(dirPath, files);
+    for (const [category, names] of Object.entries(pyLibs)) {
+      if (!libraries[category]) libraries[category] = [];
+      for (const name of names) {
+        if (!libraries[category].includes(name)) libraries[category].push(name);
+      }
+    }
+  }
+
+  // Detect Go libraries from go.mod
+  if (hasFile(files, 'go.mod')) {
+    try {
+      const goMod = await readFile(path.join(dirPath, 'go.mod'), 'utf-8');
+      const goLower = goMod.toLowerCase();
+      const goCheck = (cat: string, pkg: string, display: string) => {
+        if (goLower.includes(pkg)) {
+          if (!libraries[cat]) libraries[cat] = [];
+          if (!libraries[cat].includes(display)) libraries[cat].push(display);
+        }
+      };
+      goCheck('api', 'gin-gonic/gin', 'Gin');
+      goCheck('api', 'go-chi/chi', 'Chi');
+      goCheck('api', 'gorilla/mux', 'Gorilla Mux');
+      goCheck('api', 'labstack/echo', 'Echo');
+      goCheck('api', 'gofiber/fiber', 'Fiber');
+      goCheck('api', 'grpc', 'gRPC');
+      goCheck('database', 'gorm.io/gorm', 'GORM');
+      goCheck('database', 'jackc/pgx', 'pgx');
+      goCheck('database', 'go-redis', 'Redis');
+      goCheck('database', 'mongo-driver', 'MongoDB');
+      goCheck('testing', 'stretchr/testify', 'Testify');
+      goCheck('ai', 'sashabaranov/go-openai', 'OpenAI Go');
+      goCheck('monitoring', 'prometheus', 'Prometheus');
+      goCheck('monitoring', 'uber-go/zap', 'Zap');
+    } catch { /* ignore */ }
+  }
+
   const coverageBoundaries = detectCoverageBoundaries(
     files, dirs, skippedDirs, structure, frameworks, languages, libraries,
   );
@@ -809,6 +1168,11 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     coverageBoundaries,
   });
 
+  const projectDescription = await extractProjectDescription(dirPath);
+  const testInfo = detectTestInfo(files, allDeps);
+  const entryPoint = await detectEntryPoint(dirPath, files, frameworks);
+  const synthesis = synthesize({ languages, frameworks, structure, testInfo, libraries, projectDescription });
+
   return {
     languages,
     frameworks,
@@ -820,5 +1184,9 @@ export async function scanProject(dirPath: string): Promise<ProjectProfile> {
     scanQuality,
     coverageBoundaries,
     truncated,
+    projectDescription,
+    testInfo,
+    entryPoint,
+    synthesis,
   };
 }

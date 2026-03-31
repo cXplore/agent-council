@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { appendFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
-import { invalidateTagCache } from '@/lib/tag-index';
+import { buildTagIndex, invalidateTagCache } from '@/lib/tag-index';
 
 // Track resolved open questions
 // Claude can mark questions resolved from any session via MCP
@@ -69,21 +69,31 @@ export async function POST(request: NextRequest) {
       resolutions.splice(0, resolutions.length - MAX_RESOLUTIONS);
     }
 
-    // If meeting is provided, try to append the resolution to the meeting file
+    // Append the resolution to the meeting file so it persists across restarts
     let appended = false;
-    if (meeting) {
-      try {
-        const config = await getConfig();
-        const active = getActiveProjectConfig(config);
-        const safeName = path.basename(meeting);
+    let targetMeeting = meeting;
+    try {
+      const config = await getConfig();
+      const active = getActiveProjectConfig(config);
+
+      // If no meeting specified, find the meeting file containing the OPEN question
+      if (!targetMeeting) {
+        const index = await buildTagIndex(active.meetingsDir);
+        const match = index.open.find(o =>
+          (o.id && o.id === slug) || o.text.toLowerCase().includes(slug.toLowerCase())
+        );
+        if (match) targetMeeting = match.meeting;
+      }
+
+      if (targetMeeting) {
+        const safeName = path.basename(targetMeeting);
         const filePath = path.join(active.meetingsDir, safeName);
         await appendFile(filePath, `\n[RESOLVED:${slug}] ${resolution}\n`, 'utf-8');
         appended = true;
-        // Invalidate tag cache so the resolution is picked up immediately
         await invalidateTagCache(active.meetingsDir).catch(() => {});
-      } catch {
-        // Non-critical — store in memory regardless
       }
+    } catch {
+      // Non-critical — store in memory regardless
     }
 
     return NextResponse.json({ success: true, appended });

@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
   { href: '/meetings', label: 'Meetings' },
+  { href: '/run-meeting', label: 'Run' },
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/roadmap', label: 'Roadmap' },
   { href: '/agents', label: 'Agents' },
@@ -297,7 +298,7 @@ export default function Nav() {
         </Link>
 
         {/* Desktop project tabs */}
-        <div className="hidden sm:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1">
           <ConnectionDot health={connectionHealth} />
           <ProjectTabs projects={projects} activeProjectName={activeProject?.name} onSwitch={handleSwitch} />
         </div>
@@ -305,7 +306,7 @@ export default function Nav() {
         <div className="flex-1" />
 
         {/* Desktop nav */}
-        <div className="hidden sm:flex items-center gap-6">
+        <div className="hidden md:flex items-center gap-6">
           {NAV_ITEMS.map(item => {
             const isActive = item.href === '/'
               ? pathname === '/'
@@ -377,7 +378,7 @@ export default function Nav() {
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
           aria-controls="mobile-nav"
-          className="sm:hidden text-sm px-2 py-1"
+          className="md:hidden text-sm px-2 py-1"
           style={{ color: 'var(--text-muted)' }}
         >
           {open ? (
@@ -394,7 +395,7 @@ export default function Nav() {
 
       {/* Mobile dropdown */}
       {open && (
-        <div id="mobile-nav" className="sm:hidden mt-3 pb-1 space-y-1">
+        <div id="mobile-nav" className="md:hidden mt-3 pb-1 space-y-1">
           {/* Mobile project tabs — above nav items */}
           <div style={{ marginBottom: 8, padding: '4px 8px' }}>
             <ProjectTabs projects={projects} activeProjectName={activeProject?.name} onSwitch={handleSwitch} />

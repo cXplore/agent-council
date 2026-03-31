@@ -1,11 +1,14 @@
 import { readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { hashItem } from '@/lib/utils';
+import { hashItem, stableActionKey } from '@/lib/utils';
 
 export interface TagEntry {
-  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'IDEA';
+  type: 'DECISION' | 'OPEN' | 'ACTION' | 'RESOLVED' | 'CLOSED' | 'IDEA';
   text: string;
   id: string | null;       // optional slug from [OPEN:slug] format
+  assignee: string | null; // from @role modifier or "assigned to X" suffix
+  priority: string | null; // from !priority modifier (e.g. "high", "low", "p0")
+  doneWhen: string | null; // from "done when:" clause in ACTION text
   meeting: string;         // filename
   meetingTitle: string;    // extracted from # heading
   meetingStatus: string;   // from <!-- status: ... --> or inferred
@@ -18,6 +21,7 @@ export interface TagIndex {
   open: TagEntry[];
   actions: TagEntry[];
   resolved: TagEntry[];
+  closed: TagEntry[];
   ideas: TagEntry[];
   meetingCount: number;
   builtAt: string;
@@ -36,6 +40,24 @@ interface MeetingOutcomesJSON {
   actions?: (string | { text: string; assignee?: string; effort?: string })[];
   open_questions?: (string | { slug?: string; text: string })[];
   resolved?: { slug: string; resolution: string }[];
+  closed?: { slug: string; reason: string }[];
+}
+
+/**
+ * Extract "done when:" criteria from action text.
+ * Patterns: "done when: X", "— done when: X", "done when X"
+ * Returns { cleanText, doneWhen } where cleanText has the clause removed.
+ */
+function extractDoneWhen(text: string): { cleanText: string; doneWhen: string | null } {
+  // Match "done when:" or "done when " (with or without colon, with optional leading dash/em-dash)
+  const match = text.match(/\s*[—–-]+\s*done when[:.]?\s*(.+)$/i)
+    || text.match(/\s*done when[:.]?\s*(.+)$/i);
+  if (match) {
+    const doneWhen = match[1].trim().replace(/\.+$/, ''); // strip trailing periods
+    const cleanText = text.slice(0, text.indexOf(match[0])).trim();
+    return { cleanText, doneWhen };
+  }
+  return { cleanText: text, doneWhen: null };
 }
 
 function extractFromJSON(content: string, filename: string): TagEntry[] | null {
@@ -58,23 +80,36 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
       const text = typeof d === 'string' ? d : d.text;
       const rationale = typeof d === 'string' ? undefined : d.rationale;
       if (!text) continue;
-      entries.push({ type: 'DECISION', id: null, text: text + (rationale ? ` — ${rationale}` : ''), meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      entries.push({ type: 'DECISION', id: null, assignee: null, priority: null, doneWhen: null, text: text + (rationale ? ` — ${rationale}` : ''), meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const a of data.actions ?? []) {
-      const text = typeof a === 'string' ? a : a.text;
-      const assignee = typeof a === 'string' ? undefined : a.assignee;
-      if (!text) continue;
+      const rawText = typeof a === 'string' ? a : a.text;
+      const assignee = typeof a === 'string' ? null : (a.assignee?.toLowerCase() ?? null);
+      if (!rawText) continue;
+      const { cleanText, doneWhen } = extractDoneWhen(rawText);
       const suffix = assignee ? ` — assigned to ${assignee}` : '';
-      entries.push({ type: 'ACTION', id: null, text: text + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      entries.push({ type: 'ACTION', id: null, assignee, priority: null, doneWhen, text: cleanText + suffix, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const o of data.open_questions ?? []) {
-      const text = typeof o === 'string' ? o : o.text;
-      const slug = typeof o === 'string' ? null : (o.slug ?? null);
+      let text = typeof o === 'string' ? o : o.text;
+      let slug = typeof o === 'string' ? null : (o.slug ?? null);
       if (!text) continue;
-      entries.push({ type: 'OPEN', id: slug, text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      // Handle malformed agent output where slug is embedded in text: ": slug-name] actual text"
+      // or "[OPEN:slug-name] actual text" or just "slug-name] actual text"
+      if (!slug) {
+        const embeddedSlug = text.match(/^(?:\[?OPEN)?[:\s]*([a-z0-9][\w-]*)\]\s*(.+)/i);
+        if (embeddedSlug) {
+          slug = embeddedSlug[1].toLowerCase();
+          text = embeddedSlug[2];
+        }
+      }
+      entries.push({ type: 'OPEN', id: slug, assignee: null, priority: null, doneWhen: null, text, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
     for (const r of data.resolved ?? []) {
-      entries.push({ type: 'RESOLVED', id: r.slug, text: r.resolution, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+      entries.push({ type: 'RESOLVED', id: r.slug, assignee: null, priority: null, doneWhen: null, text: r.resolution, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
+    }
+    for (const c of data.closed ?? []) {
+      entries.push({ type: 'CLOSED', id: c.slug, assignee: null, priority: null, doneWhen: null, text: c.reason, meeting: filename, meetingTitle, meetingStatus, lineNumber: 0, date });
     }
 
     return entries;
@@ -86,23 +121,43 @@ function extractFromJSON(content: string, filename: string): TagEntry[] | null {
 // --- Regex fallback (legacy meetings without JSON appendix) ---
 
 // Matches both formats: "DECISION: text" and "[DECISION] text" and "[OPEN:slug] text"
-const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+// Also captures inline modifiers: @role (assignee), !priority
+// Examples: [ACTION @developer !high] Build the thing
+//           [OPEN:auth-flow @architect] How should auth work?
+const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|CLOSED|IDEA)(?::([a-z0-9-]+))?((?:\s+[@!][a-z0-9-]+)*)[:\]]\s*(.+)/i;
+
+// Extract @role and !priority modifiers from the modifier group
+function parseModifiers(modifierStr: string | undefined): { assignee: string | null; priority: string | null } {
+  if (!modifierStr) return { assignee: null, priority: null };
+  let assignee: string | null = null;
+  let priority: string | null = null;
+  const tokens = modifierStr.trim().split(/\s+/);
+  for (const tok of tokens) {
+    if (tok.startsWith('@')) assignee = tok.slice(1).toLowerCase();
+    else if (tok.startsWith('!')) priority = tok.slice(1).toLowerCase();
+  }
+  return { assignee, priority };
+}
 
 export function extractTags(content: string, filename: string): TagEntry[] {
   // Try JSON appendix first (preferred, structured)
   const jsonEntries = extractFromJSON(content, filename);
   if (jsonEntries !== null && jsonEntries.length > 0) {
-    // JSON appendix found — but also scan raw content for [RESOLVED:slug] tags
+    // JSON appendix found — but also scan raw content for [RESOLVED:slug] and [CLOSED:slug] tags
     // appended after the JSON block (e.g., by council_resolve_question).
-    // Without this, resolutions written as raw text are never picked up.
+    // Without this, resolutions/closures written as raw text are never picked up.
     const lines = content.split('\n');
     for (const line of lines) {
       const match = line.match(TAG_REGEX);
-      if (match && match[1].toUpperCase() === 'RESOLVED') {
+      if (match && (match[1].toUpperCase() === 'RESOLVED' || match[1].toUpperCase() === 'CLOSED')) {
+        const mods = parseModifiers(match[3]);
         jsonEntries.push({
-          type: 'RESOLVED',
+          type: match[1].toUpperCase() as 'RESOLVED' | 'CLOSED',
           id: match[2]?.toLowerCase() ?? null,
-          text: match[3].trim(),
+          assignee: mods.assignee,
+          priority: mods.priority,
+          doneWhen: null,
+          text: match[4].trim(),
           meeting: filename,
           meetingTitle: jsonEntries[0]?.meetingTitle ?? filename.replace(/\.md$/, ''),
           meetingStatus: jsonEntries[0]?.meetingStatus ?? 'complete',
@@ -157,10 +212,29 @@ export function extractTags(content: string, filename: string): TagEntry[] {
     const match = lines[i].match(TAG_REGEX);
     if (match) {
       const type = match[1].toUpperCase() as TagEntry['type'];
+      const mods = parseModifiers(match[3]);
+      const rawText = match[4].trim();
+      // Also extract "assigned to X" from text suffix (legacy format)
+      let assignee = mods.assignee;
+      if (!assignee && type === 'ACTION') {
+        const assignedMatch = rawText.match(/—\s*assigned to\s+(\S+)\s*$/i);
+        if (assignedMatch) assignee = assignedMatch[1].toLowerCase();
+      }
+      // Extract "done when:" criteria from ACTION text
+      let doneWhen: string | null = null;
+      let text = rawText;
+      if (type === 'ACTION') {
+        const dw = extractDoneWhen(rawText);
+        text = dw.cleanText;
+        doneWhen = dw.doneWhen;
+      }
       entries.push({
         type,
         id: match[2]?.toLowerCase() ?? null,  // optional slug from [OPEN:slug]
-        text: match[3].trim(),
+        assignee,
+        priority: mods.priority,
+        doneWhen,
+        text,
         meeting: filename,
         meetingTitle,
         meetingStatus,
@@ -175,10 +249,14 @@ export function extractTags(content: string, filename: string): TagEntry[] {
     for (let i = 0; i < summaryStart; i++) {
       const match = lines[i].match(TAG_REGEX);
       if (match && match[1].toUpperCase() === 'IDEA') {
+        const mods = parseModifiers(match[3]);
         entries.push({
           type: 'IDEA',
           id: match[2]?.toLowerCase() ?? null,
-          text: match[3].trim(),
+          assignee: mods.assignee,
+          priority: mods.priority,
+          doneWhen: null,
+          text: match[4].trim(),
           meeting: filename,
           meetingTitle,
           meetingStatus,
@@ -224,7 +302,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     const entries = await readdir(meetingsDir);
     files = entries.filter(f => f.endsWith('.md') && !f.startsWith('.'));
   } catch {
-    return { decisions: [], open: [], actions: [], resolved: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString() };
+    return { decisions: [], open: [], actions: [], resolved: [], closed: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString() };
   }
 
   // Check mtimes to determine which files need re-indexing
@@ -259,6 +337,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   const open: TagEntry[] = [];
   const actions: TagEntry[] = [];
   const resolved: TagEntry[] = [];
+  const closed: TagEntry[] = [];
   const ideas: TagEntry[] = [];
   const mtimes: Record<string, number> = {};
 
@@ -269,6 +348,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     for (const entry of cached.index.open) if (unchangedSet.has(entry.meeting)) open.push(entry);
     for (const entry of cached.index.actions) if (unchangedSet.has(entry.meeting)) actions.push(entry);
     for (const entry of cached.index.resolved) if (unchangedSet.has(entry.meeting)) resolved.push(entry);
+    for (const entry of (cached.index.closed ?? [])) if (unchangedSet.has(entry.meeting)) closed.push(entry);
     for (const entry of (cached.index.ideas ?? [])) if (unchangedSet.has(entry.meeting)) ideas.push(entry);
     for (const file of unchangedFiles) mtimes[file] = currentMtimes[file];
   }
@@ -287,6 +367,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
           case 'OPEN': open.push(tag); break;
           case 'ACTION': actions.push(tag); break;
           case 'RESOLVED': resolved.push(tag); break;
+          case 'CLOSED': closed.push(tag); break;
           case 'IDEA': ideas.push(tag); break;
         }
       }
@@ -295,11 +376,24 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     }
   }
 
+  // Dev-mode validation: warn about ACTION tags missing assignee or done-when
+  if (process.env.NODE_ENV === 'development') {
+    for (const action of actions) {
+      if (!action.assignee && !action.text.match(/assigned to\s+\S+/i)) {
+        console.warn(`[tag-index] ACTION missing assignee: "${action.text.slice(0, 80)}" in ${action.meeting}`);
+      }
+      if (!action.doneWhen) {
+        console.warn(`[tag-index] ACTION missing "done when:" criteria: "${action.text.slice(0, 80)}" in ${action.meeting}`);
+      }
+    }
+  }
+
   const index: TagIndex = {
     decisions,
     open,
     actions,
     resolved,
+    closed,
     ideas,
     meetingCount: files.length,
     builtAt: new Date().toISOString(),
@@ -423,10 +517,11 @@ export async function recallByTopic(
 export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEntry[]; actions: TagEntry[] }> {
   const index = await buildTagIndex(meetingsDir);
 
-  // Build set of resolved slugs so we can suppress matching OPEN items
-  const resolvedSlugs = new Set(
-    index.resolved.map(r => r.id).filter((id): id is string => id !== null)
-  );
+  // Build set of resolved/closed slugs so we can suppress matching OPEN items
+  const resolvedSlugs = new Set([
+    ...index.resolved.map(r => r.id).filter((id): id is string => id !== null),
+    ...(index.closed ?? []).map(c => c.id).filter((id): id is string => id !== null),
+  ]);
 
   // Load roadmap status store to filter out done/stale items
   const statusFilePath = path.join(meetingsDir, '.council-action-status.json');
@@ -443,12 +538,27 @@ export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEnt
     // File doesn't exist yet — no status overrides
   }
 
-  const isActive = (tag: TagEntry) => !doneOrStale.has(hashItem(tag.text, tag.meeting));
+  // Check both stable key and legacy hash for backward compatibility
+  const isActive = (tag: TagEntry) =>
+    !doneOrStale.has(stableActionKey(tag.text, tag.meeting)) &&
+    !doneOrStale.has(hashItem(tag.text, tag.meeting));
   const sortByDate = (a: TagEntry, b: TagEntry) => (b.date ?? '').localeCompare(a.date ?? '');
+
+  // Also check if slug appears in the text for entries with malformed/missing id
+  const isResolved = (o: TagEntry) => {
+    if (o.id && resolvedSlugs.has(o.id)) return true;
+    if (!o.id && resolvedSlugs.size > 0) {
+      // Check if any resolved slug appears in the text
+      for (const slug of resolvedSlugs) {
+        if (o.text.toLowerCase().includes(slug)) return true;
+      }
+    }
+    return false;
+  };
 
   return {
     open: index.open
-      .filter(o => !o.id || !resolvedSlugs.has(o.id))
+      .filter(o => !isResolved(o))
       .filter(isActive)
       .sort(sortByDate),
     actions: index.actions

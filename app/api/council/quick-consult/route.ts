@@ -4,54 +4,15 @@ import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
 import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { queryLLM } from '@/lib/llm-query';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
-
-/**
- * Run a query with retry on transient failures (overloaded, network errors).
- * Uses exponential backoff: 2s, 4s for up to 2 retries.
- */
-async function queryWithRetry(
-  prompt: string,
-  options: Record<string, unknown>,
-  maxRetries = 2,
-): Promise<string> {
-  let lastError: Error | undefined;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      let answer = '';
-      for await (const message of query({ prompt, options })) {
-        if (message.type === 'assistant' && message.message?.content) {
-          for (const block of message.message.content) {
-            if ('text' in block && block.text) {
-              answer += block.text;
-            }
-          }
-        }
-      }
-      return answer.trim();
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const isRetryable = lastError.message.includes('overloaded')
-        || lastError.message.includes('529')
-        || lastError.message.includes('rate_limit')
-        || lastError.message.includes('ECONNRESET')
-        || lastError.message.includes('ETIMEDOUT');
-      if (!isRetryable || attempt >= maxRetries) throw lastError;
-      const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
-      console.warn(`Quick consult attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError ?? new Error('Query failed after retries');
-}
 
 /**
  * Load recent decisions + active work items as context for the agent.
  * Keeps it concise — max 5 decisions, 3 actions, 2 open questions.
  */
-async function loadWorkContext(meetingsDir: string): Promise<string> {
+async function loadWorkContext(meetingsDir: string, topic?: string): Promise<string> {
   try {
     const [index, unresolved] = await Promise.all([
       buildTagIndex(meetingsDir),
@@ -63,19 +24,60 @@ async function loadWorkContext(meetingsDir: string): Promise<string> {
 
     const sections: string[] = [];
 
+    sections.push(
+      `Outcome totals: ${index.decisions.length} decisions, ${unresolved.actions.length} active actions, ${unresolved.open.length} open questions`
+    );
+
     const decisions = [...index.decisions].sort(sortByDate).slice(0, 5);
     if (decisions.length > 0) {
       sections.push('Recent decisions:\n' + decisions.map(d => `- ${d.text}`).join('\n'));
     }
 
-    const actions = unresolved.actions.slice(0, 3);
-    if (actions.length > 0) {
-      sections.push('Active action items:\n' + actions.map(a => `- ${a.text}`).join('\n'));
+    // Stale actions (>5 days old)
+    const now = Date.now();
+    const staleThresholdMs = 5 * 24 * 60 * 60 * 1000;
+    const staleActions = unresolved.actions.filter(a =>
+      a.date && now - new Date(a.date).getTime() > staleThresholdMs
+    );
+    if (staleActions.length > 0) {
+      sections.push(
+        `Stale action items (${staleActions.length} total, >5 days old):\n` +
+        staleActions.slice(0, 3).map(a => `- [${a.date}]${a.assignee ? ` @${a.assignee}` : ''} ${a.text}`).join('\n')
+      );
+    }
+
+    const recentActions = unresolved.actions.filter(a =>
+      !a.date || now - new Date(a.date).getTime() <= staleThresholdMs
+    ).slice(0, 3);
+    if (recentActions.length > 0) {
+      sections.push('Recent action items:\n' + recentActions.map(a => `- ${a.text}`).join('\n'));
+    }
+
+    // Topic-relevant open questions and actions
+    if (topic) {
+      try {
+        const [topicOpenQ, topicActions] = await Promise.all([
+          recallByTopic(meetingsDir, topic, { types: ['open'], limit: 3 }),
+          recallByTopic(meetingsDir, topic, { types: ['action'], limit: 5 }),
+        ]);
+        if (topicActions.length > 0) {
+          sections.push(
+            'Existing action items related to this topic (avoid creating duplicates):\n' +
+            topicActions.map(m => `- ${m.text}`).join('\n')
+          );
+        }
+        if (topicOpenQ.length > 0) {
+          sections.push(
+            'Open questions related to this topic:\n' +
+            topicOpenQ.map(m => `- ${m.text}`).join('\n')
+          );
+        }
+      } catch { /* non-critical */ }
     }
 
     const open = unresolved.open.slice(0, 2);
     if (open.length > 0) {
-      sections.push('Open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
+      sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
     return sections.length > 0 ? sections.join('\n\n') : '';
@@ -159,7 +161,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Enrich with recent decisions and work items
-    const workContext = await loadWorkContext(active.meetingsDir);
+    const workContext = await loadWorkContext(active.meetingsDir, question);
     if (workContext) {
       promptParts.push('---\n\n## Current Project State\n\n' + workContext);
     }
@@ -193,11 +195,7 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = promptParts.length > 0 ? promptParts.join('\n\n') : undefined;
 
-    const queryOptions: Record<string, unknown> = {
-      ...(systemPrompt ? { systemPrompt } : {}),
-    };
-
-    const answer = await queryWithRetry(question, queryOptions);
+    const answer = await queryLLM(question, { systemPrompt }, 'Quick consult');
 
     if (!answer) {
       return NextResponse.json({ error: 'No response from agent' }, { status: 500 });

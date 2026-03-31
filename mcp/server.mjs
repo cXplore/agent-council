@@ -23,6 +23,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import http from 'node:http';
+import fs from 'node:fs';
+import nodePath from 'node:path';
 
 const COUNCIL_PORT = process.env.COUNCIL_PORT || 3003;
 const COUNCIL_URL = `http://localhost:${COUNCIL_PORT}`;
@@ -100,7 +102,7 @@ const server = new McpServer({
 // Wrap tool handlers with global error boundary — catches any uncaught errors
 // and returns them as isError:true responses instead of crashing the MCP connection.
 function safeTool(name, description, schema, handler) {
-  safeTool(name, description, schema, async (params) => {
+  server.tool(name, description, schema, async (params) => {
     try {
       return await handler(params);
     } catch (err) {
@@ -401,6 +403,38 @@ safeTool(
       if (data.appended) parts.push('Summary appended');
       if (data.outcomesAppended) parts.push('Outcomes appendix generated');
 
+      // Log to activity feed with outcome-based summary
+      try {
+        const dCount = outcomes?.decisions?.length || 0;
+        const aCount = outcomes?.actions?.length || 0;
+        const oCount = outcomes?.openQuestions?.length || 0;
+        const countParts = [];
+        if (dCount) countParts.push(`${dCount} decision${dCount > 1 ? 's' : ''}`);
+        if (aCount) countParts.push(`${aCount} action${aCount > 1 ? 's' : ''}`);
+        if (oCount) countParts.push(`${oCount} open`);
+        const outcomeCounts = countParts.join(', ');
+
+        // Build summary: lead with outcomes, not meeting title
+        const shortTitle = filename
+          .replace(/^\d{4}-\d{2}-\d{2}-/, '')
+          .replace(/\.md$/, '')
+          .replace(/-/g, ' ')
+          .slice(0, 80);
+        const firstDecision = outcomes?.decisions?.[0]?.text?.slice(0, 120) || '';
+        const summary = outcomeCounts
+          ? `[${outcomeCounts}]: ${firstDecision || shortTitle}`
+          : `Meeting complete: ${shortTitle}`;
+
+        await councilRequest('/api/activity', 'POST', {
+          type: 'meeting_complete',
+          source: 'interactive',
+          summary,
+          linkedMeeting: filename,
+        });
+      } catch {
+        // Activity logging is best-effort
+      }
+
       return {
         content: [{ type: 'text', text: parts.join('\n') }],
       };
@@ -427,6 +461,10 @@ safeTool(
         detail,
         timestamp: new Date().toISOString(),
       });
+
+      // Note: meeting_complete activity logging is handled by council_close_meeting
+      // which has access to structured outcomes for richer summaries.
+
       return {
         content: [{
           type: 'text',
@@ -584,7 +622,7 @@ safeTool(
 // Tool: Query tagged items across meetings
 safeTool(
   'council_query',
-  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items. Use mode=recall with a topic to find relevant decisions during coding — returns decisions and open questions with surrounding context.\n\nModes:\n- summary: Returns counts of decisions, actions, and open questions across all meetings. Fast, good for orientation.\n- unresolved: Returns all active (not done/resolved) action items and open questions. Use at session start to see pending work.\n- search: Full-text search across all tagged items. Combine with type filter (decision/open/action) to narrow results.\n- recall: Topic-based semantic search — finds decisions and open questions relevant to a topic string. Best for "what did we decide about X?" queries. Supports date_from/date_to filters and types parameter (comma-separated: decision,open,action).',
+  'Query decisions, open questions, and action items across all meetings.\n\nModes (use the right one — they return different things):\n- summary: Counts only (N decisions, N actions, N open). Use this, not "unresolved", when you just want to know how much exists. No item details returned.\n- unresolved: All active (not done/resolved) items with full text. Use this, not "search", when you want pending work regardless of topic. Use this, not "council_get_work_items", when you need the complete unfiltered list.\n- search: Full-text search with optional type filter. Use this, not "recall", when you have an exact phrase or tag text to find. Returns matches across all statuses.\n- recall: Topic-based relevance search with surrounding context. Use this, not "search", when you have a topic like "auth" or "caching" and want semantically related decisions. Only returns active items by default.',
   {
     mode: z.enum(['summary', 'unresolved', 'search', 'recall']).describe('Query mode: summary (counts), unresolved (open items), search (text query), recall (topic-based decision search with context)'),
     query: z.string().optional().describe('Search text (for search and recall modes)'),
@@ -874,8 +912,9 @@ safeTool(
   {
     filter: z.enum(['actions', 'open', 'decisions', 'all']).optional().describe('Filter by item type (default: all)'),
     limit: z.number().optional().describe('Max items to return (default: 15)'),
+    summary: z.boolean().optional().describe('When true, returns one-line-per-item compact output (saves context). Default: false (full output with sources)'),
   },
-  async ({ filter, limit }) => {
+  async ({ filter, limit, summary: summaryMode }) => {
     try {
       const maxItems = limit || 15;
 
@@ -893,6 +932,35 @@ safeTool(
         .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
         .slice(0, maxItems);
 
+      // Summary mode: compact one-line-per-item output
+      if (summaryMode) {
+        const lines = [];
+        if (!filter || filter === 'all' || filter === 'actions') {
+          for (const a of actions.slice(0, maxItems)) {
+            const text = a.text.replace(/\s*—\s*(assigned to|done when:).*$/i, '').trim();
+            lines.push(`→ ${text.length > 100 ? text.slice(0, 97) + '...' : text}`);
+          }
+        }
+        if (!filter || filter === 'all' || filter === 'open') {
+          const deferralPatterns = /\b(revisit when|build when|defer until|trigger:|Phase 2:)\b/i;
+          const activeOpen = open.filter(o => !deferralPatterns.test(o.text || ''));
+          for (const o of activeOpen.slice(0, 5)) {
+            const text = o.text.length > 100 ? o.text.slice(0, 97) + '...' : o.text;
+            lines.push(`? ${text}`);
+          }
+        }
+        if (!filter || filter === 'all' || filter === 'decisions') {
+          for (const d of decisions.slice(0, maxItems)) {
+            const text = d.text.split(' — ')[0].trim();
+            lines.push(`✓ ${text.length > 100 ? text.slice(0, 97) + '...' : text}`);
+          }
+        }
+        const counts = `${actions.length} actions, ${open.length} open, ${decisions.length} decisions`;
+        return {
+          content: [{ type: 'text', text: `Work items (${counts}):\n${lines.join('\n')}` }],
+        };
+      }
+
       const sections = [];
 
       if (!filter || filter === 'all' || filter === 'actions') {
@@ -900,7 +968,12 @@ safeTool(
           sections.push(`ACTION ITEMS (${actions.length}):`);
           for (const a of actions.slice(0, maxItems)) {
             const status = a.meetingStatus === 'in-progress' ? ' [LIVE]' : '';
-            sections.push(`  → ${a.text}`);
+            const assigneeTag = a.assignee ? ` — assigned to ${a.assignee}` : '';
+            const priorityTag = a.priority ? ` [${a.priority}]` : '';
+            sections.push(`  →${priorityTag} ${a.text}${assigneeTag}`);
+            if (a.doneWhen) {
+              sections.push(`    done when: ${a.doneWhen}`);
+            }
             sections.push(`    from: ${a.meetingTitle || a.meeting}${status} (${a.date || 'unknown'})`);
           }
           sections.push('');
@@ -994,10 +1067,30 @@ safeTool(
       const recent2Files = new Set(completed.slice(0, 2).map(m => m.filename));
       const recent3Files = new Set(completed.slice(0, 3).map(m => m.filename));
 
-      // Decisions: last 2 meetings only, max 3 (compressed for brevity)
-      const recentDecisions = items
-        .filter(i => i.type === 'DECISION' && recent2Files.has(i.meeting))
-        .slice(0, 3);
+      // Decisions: last 2 meetings only, max 3, deduplicated (compressed for brevity)
+      // Dedup: skip decisions whose words overlap >60% with an already-included decision
+      const dedupDecisions = (candidates, max) => {
+        const tokenize = (text) => new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+        const overlap = (a, b) => {
+          const intersection = [...a].filter(w => b.has(w)).length;
+          const smaller = Math.min(a.size, b.size);
+          return smaller === 0 ? 0 : intersection / smaller;
+        };
+        const result = [];
+        const tokenSets = [];
+        for (const d of candidates) {
+          const tokens = tokenize(d.text);
+          if (tokenSets.some(prev => overlap(tokens, prev) > 0.6)) continue;
+          result.push(d);
+          tokenSets.push(tokens);
+          if (result.length >= max) break;
+        }
+        return result;
+      };
+      const recentDecisions = dedupDecisions(
+        items.filter(i => i.type === 'DECISION' && recent2Files.has(i.meeting)),
+        3
+      );
 
       // No-list: explicit rejections across ALL meetings (skip, defer, don't build, deprioritize)
       const rejectionPattern = /\b(skip|defer|deprioritiz|don't|do not|not build|not implement|remove|rip out|won't|will not|reject|abandon|drop|shelve|sunset|avoid)\b/i;
@@ -1073,9 +1166,53 @@ safeTool(
         lines.push('');
       }
 
+      // Load PROJECT_BRIEF.md if it exists and has user content
+      let briefInjected = false;
+      if (activeProject) {
+        try {
+          const briefPath = nodePath.join(activeProject.path, activeProject.meetingsDir || 'meetings', 'PROJECT_BRIEF.md');
+          const briefContent = fs.readFileSync(briefPath, 'utf-8');
+          const hasUserContent = briefContent.split('\n').some(l =>
+            l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--')
+          );
+          if (hasUserContent) {
+            // Extract non-boilerplate lines for a condensed brief
+            const userLines = briefContent.split('\n').filter(l =>
+              l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--')
+            ).slice(0, 5);
+            lines.push('PROJECT BRIEF:');
+            userLines.forEach(l => lines.push(`  ${l.trim()}`));
+            lines.push('');
+            briefInjected = true;
+          }
+        } catch {
+          // No brief file — that's fine
+        }
+      }
+
       // First meeting suggestion for new projects
       if (completed.length === 0 && activeProject) {
-        lines.push('🆕 NEW PROJECT — No meetings yet. Consider running a project intake meeting:');
+        if (!briefInjected && profile) {
+          // Sparse-brief detection: include scanner observations so the suggestion is specific
+          const parts = [];
+          const langs = (profile.languages || []).slice(0, 3).map(l => l.name);
+          if (langs.length > 0) parts.push(`${langs.join(', ')} project`);
+          const frameworks = (profile.frameworks || []).map(f => f.name);
+          if (frameworks.length > 0) parts.push(`using ${frameworks.join(', ')}`);
+          const dirs = profile.structure?.topDirs?.slice(0, 5);
+          if (dirs?.length > 0) parts.push(`dirs: ${dirs.join(', ')}`);
+          const fileCount = profile.structure?.totalFiles;
+          if (fileCount) parts.push(`${fileCount} files`);
+          if (parts.length > 0) {
+            lines.push(`🆕 NEW PROJECT — Detected: ${parts.join(' · ')}. Fill in PROJECT_BRIEF.md or run intake meeting:`);
+          } else {
+            lines.push('🆕 NEW PROJECT — No meetings yet. Fill in PROJECT_BRIEF.md or run intake meeting:');
+          }
+        } else if (!briefInjected) {
+          lines.push('🆕 NEW PROJECT — No meetings yet. Consider running a project intake meeting:');
+        } else {
+          lines.push('🆕 NEW PROJECT — Brief loaded. Consider running a project intake meeting:');
+        }
         lines.push(`  council_multi_consult(topic: "Project intake: understand ${activeProjectName}, identify priorities, and plan first steps", agents: ["project-manager", "architect", "critic"], type: "project-intake")`);
         lines.push('');
       }
@@ -1101,7 +1238,8 @@ safeTool(
         }
         for (const a of priorityActions) {
           const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
-          lines.push(`  • ${text}`);
+          const dw = a.doneWhen ? ` — done when: ${a.doneWhen}` : '';
+          lines.push(`  • ${text}${dw}`);
         }
       } else {
         lines.push('  None active. Use council_list_agents to discover agents, council_get_work_items for full history, or council_schedule_meeting to discuss next steps.');
@@ -1245,18 +1383,33 @@ safeTool(
         return { content: [{ type: 'text', text: 'No active items found. All work may already be complete.' }] };
       }
 
-      // Find best match by text substring
+      // Find best match by text: try substring first, then word-overlap scoring
       const q = text.toLowerCase();
-      const match = active.find(i => i.text.toLowerCase().includes(q));
+      let match = active.find(i => i.text.toLowerCase().includes(q));
 
       if (!match) {
-        const preview = active.slice(0, 5).map(i => `  • ${i.text.slice(0, 80)}`).join('\n');
-        return {
-          content: [{
-            type: 'text',
-            text: `No active action item matching "${text}" found.\n\nActive items:\n${preview}`,
-          }],
-        };
+        // Word-overlap fuzzy matching
+        const queryWords = new Set(q.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+        const scored = active.map(i => {
+          const itemWords = new Set(i.text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+          const overlap = [...queryWords].filter(w => itemWords.has(w)).length;
+          const score = queryWords.size > 0 ? overlap / queryWords.size : 0;
+          return { item: i, score, overlap };
+        }).filter(s => s.overlap > 0).sort((a, b) => b.score - a.score || b.overlap - a.overlap);
+
+        if (scored.length > 0 && scored[0].score >= 0.4) {
+          match = scored[0].item;
+        } else {
+          // Return top-3 candidates for single-retry resolution
+          const candidates = (scored.length > 0 ? scored : active.map(i => ({ item: i, score: 0 }))).slice(0, 3);
+          const preview = candidates.map((c, idx) => `  ${idx + 1}. ${c.item.text.slice(0, 100)}`).join('\n');
+          return {
+            content: [{
+              type: 'text',
+              text: `No confident match for "${text}".\n\nClosest candidates (use exact text prefix to retry):\n${preview}`,
+            }],
+          };
+        }
       }
 
       await councilRequest('/api/roadmap', 'POST', {

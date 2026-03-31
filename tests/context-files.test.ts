@@ -6,6 +6,8 @@ import {
   getContextHealth,
   parseLearningDate,
   generateSkeletonContext,
+  pruneStaleEntries,
+  purgeStaleFromFile,
   MAX_LEARNING_LINES,
 } from '../lib/context-files';
 import { writeFile, readFile, unlink, mkdir } from 'fs/promises';
@@ -321,6 +323,114 @@ describe('getContextHealth', () => {
     expect(health.totalLearnings).toBe(3);
     expect(health.oldestEntryDate).toBe('2026-03-01');
     expect(health.newestEntryDate).toBe('2026-03-01');
+  });
+});
+
+describe('pruneStaleEntries', () => {
+  it('removes entries older than staleDays', () => {
+    const entries = [
+      '- [2025-01-01] Very old entry',
+      '- [2026-03-25] Recent entry',
+      '- [2026-03-28] Very recent entry',
+    ];
+    const now = new Date('2026-03-30');
+    const { kept, pruned } = pruneStaleEntries(entries, 30, now);
+    expect(pruned).toBe(1);
+    expect(kept).toHaveLength(2);
+    expect(kept[0]).toContain('2026-03-25');
+  });
+
+  it('keeps entries without parseable dates', () => {
+    const entries = [
+      '- No date here',
+      '- [2025-01-01] Old entry',
+      '- [2026-03-28] Recent',
+    ];
+    const now = new Date('2026-03-30');
+    const { kept, pruned } = pruneStaleEntries(entries, 30, now);
+    expect(pruned).toBe(1);
+    expect(kept).toHaveLength(2);
+    expect(kept[0]).toContain('No date here');
+  });
+
+  it('returns 0 pruned when all entries are recent', () => {
+    const entries = [
+      '- [2026-03-28] Entry 1',
+      '- [2026-03-29] Entry 2',
+    ];
+    const now = new Date('2026-03-30');
+    const { kept, pruned } = pruneStaleEntries(entries, 30, now);
+    expect(pruned).toBe(0);
+    expect(kept).toHaveLength(2);
+  });
+
+  it('prunes all entries when all are stale', () => {
+    const entries = [
+      '- [2025-01-01] Old 1',
+      '- [2025-02-01] Old 2',
+    ];
+    const now = new Date('2026-03-30');
+    const { kept, pruned } = pruneStaleEntries(entries, 30, now);
+    expect(pruned).toBe(2);
+    expect(kept).toHaveLength(0);
+  });
+});
+
+describe('purgeStaleFromFile', () => {
+  it('removes stale entries from file on disk', async () => {
+    const content = `# test — Context\n\n## Meeting Learnings\n- [2025-01-01] Very old\n- [2026-03-28] Recent\n\n## Project Conventions\n_Reserved._\n\n## Domain Knowledge\n_Reserved._\n`;
+    await writeFile(TEST_FILE, content, 'utf-8');
+
+    const now = new Date('2026-03-30');
+    const pruned = await purgeStaleFromFile(TEST_FILE, 30, now);
+    expect(pruned).toBe(1);
+
+    const result = await readFile(TEST_FILE, 'utf-8');
+    expect(result).not.toContain('Very old');
+    expect(result).toContain('Recent');
+  });
+
+  it('returns 0 for nonexistent file', async () => {
+    const pruned = await purgeStaleFromFile('/nonexistent/file.context.md');
+    expect(pruned).toBe(0);
+  });
+
+  it('returns 0 when nothing is stale', async () => {
+    const content = `# test — Context\n\n## Meeting Learnings\n- [2026-03-28] Recent\n\n## Project Conventions\n_Reserved._\n\n## Domain Knowledge\n_Reserved._\n`;
+    await writeFile(TEST_FILE, content, 'utf-8');
+
+    const now = new Date('2026-03-30');
+    const pruned = await purgeStaleFromFile(TEST_FILE, 30, now);
+    expect(pruned).toBe(0);
+  });
+
+  it('preserves corrections when pruning learnings', async () => {
+    const content = `# test — Context\n\n## Meeting Learnings\n- [2025-01-01] Old learning\n- [2026-03-28] Recent learning\n\n## Corrections\n- [2025-01-01] [CORRECTION] Old correction persists\n\n## Project Conventions\n_Reserved._\n\n## Domain Knowledge\n_Reserved._\n`;
+    await writeFile(TEST_FILE, content, 'utf-8');
+
+    const now = new Date('2026-03-30');
+    await purgeStaleFromFile(TEST_FILE, 30, now);
+
+    const result = await readFile(TEST_FILE, 'utf-8');
+    expect(result).not.toContain('Old learning');
+    expect(result).toContain('Recent learning');
+    expect(result).toContain('Old correction persists'); // corrections NOT pruned
+  });
+});
+
+describe('appendContextLearnings stale pruning', () => {
+  it('prunes stale entries when appending new ones', async () => {
+    const content = `# test — Context\n\n## Meeting Learnings\n- [2025-01-01] Very old entry\n- [2026-03-28] Recent entry\n\n## Project Conventions\n_Reserved._\n\n## Domain Knowledge\n_Reserved._\n`;
+    await writeFile(TEST_FILE, content, 'utf-8');
+
+    // appendContextLearnings uses current date for stale check
+    // The 2025-01-01 entry is >30 days old so should be pruned
+    await appendContextLearnings(TEST_FILE, ['[2026-03-31] New entry']);
+
+    const result = await readFile(TEST_FILE, 'utf-8');
+    expect(result).not.toContain('Very old entry');
+    expect(result).toContain('Recent entry');
+    expect(result).toContain('New entry');
   });
 });
 

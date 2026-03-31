@@ -7,7 +7,7 @@
  */
 
 import type { TagIndex, TagEntry } from './tag-index';
-import { hashItem } from './utils';
+import { hashItem, stableActionKey } from './utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -106,22 +106,25 @@ export function getDoneItems(
   index: TagIndex,
   statusStore: Record<string, { status: string }>,
 ): DoneItem[] {
-  const resolvedSlugs = new Set(
-    index.resolved.map(r => r.id).filter((id): id is string => id !== null)
-  );
+  const resolvedSlugs = new Set([
+    ...index.resolved.map(r => r.id).filter((id): id is string => id !== null),
+    ...(index.closed ?? []).map(c => c.id).filter((id): id is string => id !== null),
+  ]);
 
   const allTags: TagEntry[] = [
     ...index.decisions,
     ...index.open,
     ...index.actions,
     ...index.resolved,
+    ...(index.closed ?? []),
   ];
 
   const doneItems: DoneItem[] = [];
 
   for (const tag of allTags) {
-    const hash = hashItem(tag.text, tag.meeting);
-    const stored = statusStore[hash];
+    const key = stableActionKey(tag.text, tag.meeting);
+    const legacyHash = hashItem(tag.text, tag.meeting);
+    const stored = statusStore[key] ?? statusStore[legacyHash];
 
     // Determine effective status (same logic as roadmap/route.ts)
     let effectiveStatus = 'active';

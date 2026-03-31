@@ -5,7 +5,7 @@ import {
   checkStaleness,
   getDoneItems,
 } from '@/lib/staleness';
-import { hashItem } from '@/lib/utils';
+import { hashItem, stableActionKey } from '@/lib/utils';
 import type { TagIndex } from '@/lib/tag-index';
 import type { DoneItem, PlannedMeetingInput } from '@/lib/staleness';
 
@@ -243,6 +243,7 @@ describe('getDoneItems', () => {
       open: [],
       actions: [],
       resolved: [],
+      closed: [],
       ideas: [],
       meetingCount: 1,
       builtAt: new Date().toISOString(),
@@ -253,7 +254,7 @@ describe('getDoneItems', () => {
   it('returns DECISION items as done by default', () => {
     const index = makeIndex({
       decisions: [{
-        type: 'DECISION', text: 'Use JWT', id: null,
+        type: 'DECISION', text: 'Use JWT', id: null, assignee: null, priority: null, doneWhen: null,
         meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
@@ -266,7 +267,7 @@ describe('getDoneItems', () => {
   it('returns RESOLVED items as done by default', () => {
     const index = makeIndex({
       resolved: [{
-        type: 'RESOLVED', text: 'Fixed auth flow', id: 'auth-flow',
+        type: 'RESOLVED', text: 'Fixed auth flow', id: 'auth-flow', assignee: null, priority: null, doneWhen: null,
         meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
@@ -278,12 +279,12 @@ describe('getDoneItems', () => {
   it('returns OPEN items that have been resolved by slug', () => {
     const index = makeIndex({
       open: [{
-        type: 'OPEN', text: 'How should auth work?', id: 'auth-flow',
+        type: 'OPEN', text: 'How should auth work?', id: 'auth-flow', assignee: null, priority: null, doneWhen: null,
         meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
       resolved: [{
-        type: 'RESOLVED', text: 'Decided on JWT', id: 'auth-flow',
+        type: 'RESOLVED', text: 'Decided on JWT', id: 'auth-flow', assignee: null, priority: null, doneWhen: null,
         meeting: 'test2.md', meetingTitle: 'Test2', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
@@ -296,7 +297,7 @@ describe('getDoneItems', () => {
   it('does not return active ACTION items', () => {
     const index = makeIndex({
       actions: [{
-        type: 'ACTION', text: 'Build the feature', id: null,
+        type: 'ACTION', text: 'Build the feature', id: null, assignee: null, priority: null, doneWhen: null,
         meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
@@ -308,12 +309,26 @@ describe('getDoneItems', () => {
   it('respects status store overrides', () => {
     const index = makeIndex({
       actions: [{
-        type: 'ACTION', text: 'Build the feature', id: null,
+        type: 'ACTION', text: 'Build the feature', id: null, assignee: null, priority: null, doneWhen: null,
         meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
         lineNumber: 1, date: '2026-03-28',
       }],
     });
-    // Override this action as done in status store
+    // Override this action as done in status store (stable key)
+    const key = stableActionKey('Build the feature', 'test.md');
+    const result = getDoneItems(index, { [key]: { status: 'done' } });
+    expect(result).toHaveLength(1);
+  });
+
+  it('recognizes done items via legacy hash key (backward compat)', () => {
+    const index = makeIndex({
+      actions: [{
+        type: 'ACTION', text: 'Build the feature', id: null, assignee: null, priority: null, doneWhen: null,
+        meeting: 'test.md', meetingTitle: 'Test', meetingStatus: 'complete',
+        lineNumber: 1, date: '2026-03-28',
+      }],
+    });
+    // Legacy hash key should still work
     const hash = hashItem('Build the feature', 'test.md');
     const result = getDoneItems(index, { [hash]: { status: 'done' } });
     expect(result).toHaveLength(1);

@@ -746,7 +746,7 @@ describe('buildRound1Prompt', () => {
     const result = buildRound1Prompt('Should we use Redis?', 2);
     expect(result).toContain('Should we use Redis?');
     expect(result).toContain('[DECISION]');
-    expect(result).toContain('[ACTION]');
+    expect(result).toContain('[ACTION @role');
     expect(result).toContain('[OPEN:');
   });
 
@@ -818,7 +818,7 @@ describe('buildRoundPrompt', () => {
   it('includes tagging instructions', () => {
     const result = buildRoundPrompt(2, 'Test topic', [round1Data]);
     expect(result).toContain('[DECISION]');
-    expect(result).toContain('[ACTION]');
+    expect(result).toContain('[ACTION @role');
     expect(result).toContain('[OPEN:');
   });
 
@@ -1020,7 +1020,7 @@ describe('buildOutcomeExtractionPrompt', () => {
     expect(prompt).toContain('Critic');
     expect(prompt).toContain('Consider gRPC for performance');
     expect(prompt).toContain('[DECISION]');
-    expect(prompt).toContain('[ACTION]');
+    expect(prompt).toContain('[ACTION @role');
     expect(prompt).toContain('[OPEN:');
   });
 

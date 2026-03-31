@@ -30,16 +30,20 @@ export async function writeActivityEntry(
   const logPath = await getLogPath();
   const now = new Date();
 
-  // Dedup: skip if an entry with same linkedMeeting + type exists within 2 hours
+  // Dedup: skip if an entry with same linkedMeeting + type already exists.
+  // Compare by basename to handle path format differences (absolute/relative, slashes).
   if (entry.linkedMeeting && existsSync(logPath)) {
-    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const entryBasename = path.basename(entry.linkedMeeting);
     const raw = await readFile(logPath, 'utf-8');
     const lines = raw.split('\n').filter(Boolean);
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const existing: ActivityEntry = JSON.parse(lines[i]);
-        if (existing.timestamp < twoHoursAgo) break; // past 2h window, stop scanning
-        if (existing.type === entry.type && existing.linkedMeeting === entry.linkedMeeting) {
+        if (
+          existing.type === entry.type &&
+          existing.linkedMeeting &&
+          path.basename(existing.linkedMeeting) === entryBasename
+        ) {
           return existing.id; // duplicate — return existing ID
         }
       } catch { /* skip malformed */ }

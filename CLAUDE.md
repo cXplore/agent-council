@@ -106,14 +106,20 @@ docs/                   # GitHub Pages static site
 | Activity backfill (git) | `app/api/activity/backfill/route.ts` |
 | Activity log lib | `lib/activity-log.ts` |
 | Activity feed component | `app/meetings/ActivityFeed.tsx` |
+| Activity feed utils | `lib/activity-feed-utils.ts` |
 | AI project scan | `app/api/setup/ai-scan/route.ts` |
 | Agent template merge | `app/api/agents/merge/route.ts` |
 | Agent context files | `app/api/agents/context/route.ts` |
 | Context file utility | `lib/context-files.ts` |
+| Project connect logic | `lib/connect-project.ts` |
 | Project brief template | `lib/context-files.ts` (generateProjectBrief, PROJECT_BRIEF_FILENAME) |
+| Project discovery | `app/api/setup/discover/route.ts` |
 | AI team suggestions | `app/api/agents/suggest-teams/route.ts` |
 | AI council context | `app/api/council/ai-context/route.ts` |
+| LLM status endpoint | `app/api/council/llm-status/route.ts` |
 | Quick consult (single agent) | `app/api/council/quick-consult/route.ts` |
+| LLM query abstraction | `lib/llm-query.ts` |
+| Run Meeting page | `app/run-meeting/page.tsx` |
 | Project status (tabs) | `app/api/projects/status/route.ts` |
 | Staleness detection | `lib/staleness.ts` |
 | Meeting type inference | `lib/meeting-type-inference.ts` |

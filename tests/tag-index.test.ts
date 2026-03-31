@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { hashItem } from '@/lib/utils';
+import { hashItem, stableActionKey } from '@/lib/utils';
 import { extractTags, buildTagIndex, recallByTopic } from '@/lib/tag-index';
 import { mkdtemp, writeFile, rm, readFile, stat, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -8,7 +8,7 @@ import path from 'node:path';
 // Test the tag extraction logic directly
 // These are the 4 targeted integration tests from the sprint planning meeting
 
-const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|CLOSED|IDEA)(?::([a-z0-9-]+))?((?:\s+[@!][a-z0-9-]+)*)[:\]]\s*(.+)/i;
 
 describe('Tag extraction regex', () => {
   it('matches bracket format tags', () => {
@@ -25,7 +25,7 @@ describe('Tag extraction regex', () => {
       expect(match, `Should match: ${c.input}`).not.toBeNull();
       expect(match![1].toUpperCase()).toBe(c.type);
       expect(match![2]?.toLowerCase() ?? null).toBe(c.slug);
-      expect(match![3].trim()).toBe(c.text);
+      expect(match![4].trim()).toBe(c.text);
     }
   });
 
@@ -162,8 +162,60 @@ describe('Roadmap item hashing', () => {
   });
 });
 
+describe('Stable action keys', () => {
+  it('produces human-readable slug with meeting date', () => {
+    const key = stableActionKey('Build the login endpoint for users', '2026-03-31-design-review-auth.md');
+    expect(key).toBe('build-the-login-endpoint-for-users--2026-03-31');
+  });
+
+  it('survives whitespace and punctuation changes', () => {
+    const key1 = stableActionKey('Build the login endpoint', '2026-03-31-meeting.md');
+    const key2 = stableActionKey('Build  the  login  endpoint', '2026-03-31-meeting.md');
+    const key3 = stableActionKey('Build the login endpoint.', '2026-03-31-meeting.md');
+    expect(key1).toBe(key2);
+    expect(key1).toBe(key3);
+  });
+
+  it('survives capitalization changes', () => {
+    const key1 = stableActionKey('Build the Login Endpoint', '2026-03-31-meeting.md');
+    const key2 = stableActionKey('build the login endpoint', '2026-03-31-meeting.md');
+    expect(key1).toBe(key2);
+  });
+
+  it('strips tag prefixes and modifiers', () => {
+    const key1 = stableActionKey('[ACTION @developer !high] Build the login endpoint', '2026-03-31-m.md');
+    const key2 = stableActionKey('Build the login endpoint', '2026-03-31-m.md');
+    expect(key1).toBe(key2);
+  });
+
+  it('strips done-when clauses', () => {
+    const key1 = stableActionKey('Build login — done when: tests pass', '2026-03-31-m.md');
+    const key2 = stableActionKey('Build login', '2026-03-31-m.md');
+    expect(key1).toBe(key2);
+  });
+
+  it('truncates at 60 chars for long text', () => {
+    const longText = 'Implement the comprehensive authentication system with full OAuth2 support and multi-factor authentication flow including TOTP';
+    const key = stableActionKey(longText, '2026-03-31-meeting.md');
+    // Slug portion should be from first 60 chars only
+    expect(key).toMatch(/--2026-03-31$/);
+    expect(key.split('--')[0].length).toBeLessThanOrEqual(60);
+  });
+
+  it('differentiates items from different meetings', () => {
+    const key1 = stableActionKey('Build the endpoint', '2026-03-31-meeting.md');
+    const key2 = stableActionKey('Build the endpoint', '2026-04-01-meeting.md');
+    expect(key1).not.toBe(key2);
+  });
+
+  it('handles empty text gracefully', () => {
+    const key = stableActionKey('', '2026-03-31-meeting.md');
+    expect(key).toBe('item--2026-03-31');
+  });
+});
+
 describe('Tag summary extraction', () => {
-  const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|IDEA)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
+  const TAG_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED|CLOSED|IDEA)(?::([a-z0-9-]+))?((?:\s+[@!][a-z0-9-]+)*)[:\]]\s*(.+)/i;
 
   function extractTagsFromSummary(content: string): { type: string; id: string | null; text: string }[] {
     const lines = content.split('\n');
@@ -177,7 +229,7 @@ describe('Tag summary extraction', () => {
         results.push({
           type: match[1].toUpperCase(),
           id: match[2]?.toLowerCase() ?? null,
-          text: match[3].trim(),
+          text: match[4].trim(),
         });
       }
     }
@@ -423,6 +475,152 @@ meeting-outcomes -->
     expect(tags.filter(t => t.type === 'DECISION')).toHaveLength(1);
     expect(tags.filter(t => t.type === 'OPEN')).toHaveLength(1);
     expect(tags.filter(t => t.type === 'RESOLVED')).toHaveLength(1);
+  });
+});
+
+describe('CLOSED tag type', () => {
+  it('matches [CLOSED:slug] in regex format', () => {
+    const content = `# Meeting
+
+## Summary
+
+- [CLOSED:old-question] No longer relevant after architecture change`;
+
+    const tags = extractTags(content, '2026-03-31-test.md');
+    const closed = tags.filter(t => t.type === 'CLOSED');
+    expect(closed).toHaveLength(1);
+    expect(closed[0].id).toBe('old-question');
+    expect(closed[0].text).toContain('No longer relevant');
+  });
+
+  it('picks up [CLOSED:slug] appended after JSON appendix', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [{ "text": "Migrate to new API" }],
+  "open_questions": [{ "text": "Support old API?", "slug": "old-api-support" }],
+  "resolved": []
+}
+meeting-outcomes -->
+
+[CLOSED:old-api-support] Abandoned — old API deprecated upstream`;
+
+    const tags = extractTags(content, '2026-03-31-closed.md');
+    const closed = tags.filter(t => t.type === 'CLOSED');
+    expect(closed).toHaveLength(1);
+    expect(closed[0].id).toBe('old-api-support');
+    expect(closed[0].text).toContain('Abandoned');
+  });
+
+  it('parses closed items from JSON appendix', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [],
+  "open_questions": [],
+  "resolved": [],
+  "closed": [{ "slug": "stale-topic", "reason": "Superseded by new design" }]
+}
+meeting-outcomes -->`;
+
+    const tags = extractTags(content, '2026-03-31-json-closed.md');
+    const closed = tags.filter(t => t.type === 'CLOSED');
+    expect(closed).toHaveLength(1);
+    expect(closed[0].id).toBe('stale-topic');
+    expect(closed[0].text).toBe('Superseded by new design');
+  });
+
+  it('CLOSED slugs suppress matching OPEN items in getUnresolved', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'closed-test-'));
+    try {
+      // Meeting with an OPEN question
+      await writeFile(path.join(dir, '2026-03-30-m1.md'), `# Meeting 1
+
+## Summary
+
+- [OPEN:stale-q] Should we support feature X?`);
+
+      // Later meeting that closes it
+      await writeFile(path.join(dir, '2026-03-31-m2.md'), `# Meeting 2
+
+## Summary
+
+- [CLOSED:stale-q] No longer needed after pivot`);
+
+      const { getUnresolved } = await import('@/lib/tag-index');
+      const result = await getUnresolved(dir);
+      const staleQ = result.open.find(o => o.id === 'stale-q');
+      expect(staleQ).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  it('buildTagIndex includes closed array', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'closed-index-'));
+    try {
+      await writeFile(path.join(dir, '2026-03-31-test.md'), `# Test
+
+## Summary
+
+- [CLOSED:old-item] Abandoned`);
+
+      const index = await buildTagIndex(dir);
+      expect(index.closed).toHaveLength(1);
+      expect(index.closed[0].id).toBe('old-item');
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+});
+
+describe('Embedded slug extraction from malformed open_questions', () => {
+  it('parses slug embedded in text like ": slug-name] actual text"', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "decisions": [],
+  "open_questions": [
+    { "text": ": my-slug] Whether the thing works properly" },
+    { "text": "Normal question without slug" },
+    { "text": ": another-slug] Second malformed entry" }
+  ]
+}
+meeting-outcomes -->`;
+
+    const tags = extractTags(content, '2026-03-31-test.md');
+    const open = tags.filter(t => t.type === 'OPEN');
+    expect(open).toHaveLength(3);
+    expect(open[0].id).toBe('my-slug');
+    expect(open[0].text).toBe('Whether the thing works properly');
+    expect(open[1].id).toBeNull(); // no slug to extract
+    expect(open[1].text).toBe('Normal question without slug');
+    expect(open[2].id).toBe('another-slug');
+    expect(open[2].text).toBe('Second malformed entry');
+  });
+
+  it('parses slug with proper slug field (takes precedence over embedded)', () => {
+    const content = `# Meeting
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "open_questions": [
+    { "text": ": embedded-slug] Some text", "slug": "proper-slug" }
+  ]
+}
+meeting-outcomes -->`;
+
+    const tags = extractTags(content, '2026-03-31-test.md');
+    const open = tags.filter(t => t.type === 'OPEN');
+    expect(open).toHaveLength(1);
+    expect(open[0].id).toBe('proper-slug'); // proper slug field wins
   });
 });
 
@@ -686,5 +884,179 @@ describe('buildTagIndex caching', () => {
     const parsed = JSON.parse(cacheContent);
     expect(parsed.index.decisions).toHaveLength(1);
     expect(parsed.mtimes).toHaveProperty('2026-01-01-test.md');
+  });
+});
+
+describe('Tag modifiers (@assignee, !priority)', () => {
+  it('regex matches tags with @role modifier', () => {
+    const input = '- [ACTION @developer] Build the login endpoint';
+    const match = input.match(TAG_REGEX);
+    expect(match).not.toBeNull();
+    expect(match![1].toUpperCase()).toBe('ACTION');
+    expect(match![3].trim()).toBe('@developer');
+    expect(match![4].trim()).toBe('Build the login endpoint');
+  });
+
+  it('regex matches tags with !priority modifier', () => {
+    const input = '- [ACTION !high] Fix the security bug';
+    const match = input.match(TAG_REGEX);
+    expect(match).not.toBeNull();
+    expect(match![1].toUpperCase()).toBe('ACTION');
+    expect(match![3].trim()).toBe('!high');
+    expect(match![4].trim()).toBe('Fix the security bug');
+  });
+
+  it('regex matches tags with both @role and !priority', () => {
+    const input = '- [ACTION @developer !high] Urgent security fix';
+    const match = input.match(TAG_REGEX);
+    expect(match).not.toBeNull();
+    expect(match![1].toUpperCase()).toBe('ACTION');
+    expect(match![3].trim()).toBe('@developer !high');
+    expect(match![4].trim()).toBe('Urgent security fix');
+  });
+
+  it('regex matches tags with slug and @role', () => {
+    const input = '- [OPEN:auth-flow @architect] How should auth work?';
+    const match = input.match(TAG_REGEX);
+    expect(match).not.toBeNull();
+    expect(match![1].toUpperCase()).toBe('OPEN');
+    expect(match![2]).toBe('auth-flow');
+    expect(match![3].trim()).toBe('@architect');
+    expect(match![4].trim()).toBe('How should auth work?');
+  });
+
+  it('regex still matches tags without modifiers', () => {
+    const input = '- [DECISION] Use JWT';
+    const match = input.match(TAG_REGEX);
+    expect(match).not.toBeNull();
+    expect(match![1].toUpperCase()).toBe('DECISION');
+    expect(match![3]).toBe(''); // empty modifier group
+    expect(match![4].trim()).toBe('Use JWT');
+  });
+
+  it('extractTags parses @role into assignee field', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION @developer] Build login endpoint
+- [ACTION @architect !high] Review auth design
+- [OPEN:perf @developer] Is latency acceptable?
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(3);
+
+    expect(tags[0].type).toBe('ACTION');
+    expect(tags[0].assignee).toBe('developer');
+    expect(tags[0].priority).toBeNull();
+    expect(tags[0].text).toBe('Build login endpoint');
+
+    expect(tags[1].type).toBe('ACTION');
+    expect(tags[1].assignee).toBe('architect');
+    expect(tags[1].priority).toBe('high');
+    expect(tags[1].text).toBe('Review auth design');
+
+    expect(tags[2].type).toBe('OPEN');
+    expect(tags[2].assignee).toBe('developer');
+    expect(tags[2].id).toBe('perf');
+  });
+
+  it('extractTags falls back to "assigned to X" in text for assignee', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION] Build login endpoint — assigned to developer
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].assignee).toBe('developer');
+  });
+
+  it('extractTags returns null assignee and priority when absent', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [DECISION] Use JWT for auth
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].assignee).toBeNull();
+    expect(tags[0].priority).toBeNull();
+  });
+});
+
+describe('done when: extraction', () => {
+  it('extracts "done when:" from action text with em-dash separator', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION @developer] Build login endpoint — done when: /api/login returns 200 with valid JWT
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].doneWhen).toBe('/api/login returns 200 with valid JWT');
+    expect(tags[0].text).toBe('Build login endpoint');
+  });
+
+  it('extracts "done when:" without em-dash', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION @developer] Add validation check done when: malformed actions produce a console warning
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].doneWhen).toBe('malformed actions produce a console warning');
+    expect(tags[0].text).toBe('Add validation check');
+  });
+
+  it('strips trailing periods from done-when criteria', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION] Fix the bug — done when: tests pass.
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].doneWhen).toBe('tests pass');
+  });
+
+  it('returns null doneWhen when absent', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [ACTION @developer] Build the feature
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].doneWhen).toBeNull();
+  });
+
+  it('extracts done-when from JSON appendix actions', () => {
+    const content = `# Test Meeting
+<!-- status: complete -->
+
+<!-- meeting-outcomes
+{
+  "schema_version": 1,
+  "actions": [
+    {"text": "Build the API — done when: GET /api/health returns 200", "assignee": "developer"}
+  ]
+}
+meeting-outcomes -->`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    const actions = tags.filter(t => t.type === 'ACTION');
+    expect(actions).toHaveLength(1);
+    expect(actions[0].doneWhen).toBe('GET /api/health returns 200');
+    expect(actions[0].text).not.toContain('done when');
+  });
+
+  it('decisions have null doneWhen', () => {
+    const content = `# Test Meeting
+
+## Summary
+- [DECISION] Use JWT for auth
+`;
+    const tags = extractTags(content, '2026-03-31-test.md');
+    expect(tags[0].doneWhen).toBeNull();
   });
 });

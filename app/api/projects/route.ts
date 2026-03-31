@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig, validateProjects } from '@/lib/config';
-import { generateSkeletonContext, generateProjectBrief, PROJECT_BRIEF_FILENAME } from '@/lib/context-files';
+import { connectProject } from '@/lib/connect-project';
 import type { ProjectProfile } from '@/lib/types';
 
 /** GET /api/projects — list all projects + active */
@@ -60,28 +59,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'add') {
-      // Add a new project
+      // Add a new project — delegates to shared connect logic
       const { name, projectPath, meetingsDir, agentsDir, profile } = body as {
         name?: string; projectPath?: string; meetingsDir?: string;
         agentsDir?: string; profile?: ProjectProfile;
       };
 
-      if (!name || !projectPath) {
+      if (!projectPath) {
         return NextResponse.json(
-          { error: 'name and projectPath are required' },
+          { error: 'projectPath is required' },
           { status: 400 }
         );
       }
 
-      // Validate project name: alphanumeric, hyphens, underscores, dots only
-      if (!/^[\w.-]{1,100}$/.test(name)) {
-        return NextResponse.json(
-          { error: 'Project name must be alphanumeric (hyphens, underscores, dots allowed), max 100 chars' },
-          { status: 400 }
-        );
-      }
-
-      // Validate path is absolute
       if (!path.isAbsolute(projectPath)) {
         return NextResponse.json(
           { error: 'projectPath must be an absolute path' },
@@ -89,98 +79,20 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Verify project directory exists
       try {
-        await stat(projectPath);
-      } catch {
-        return NextResponse.json(
-          { error: 'Project directory not found' },
-          { status: 404 }
-        );
-      }
-
-      // Auto-detect meetings dir if not provided
-      let resolvedMeetingsDir = meetingsDir || 'meetings';
-      if (!meetingsDir) {
-        const candidates = ['docs/10-meetings', 'docs/meetings', 'meetings', '.meetings'];
-        for (const candidate of candidates) {
-          try {
-            await stat(path.join(projectPath, candidate));
-            resolvedMeetingsDir = candidate;
-            break;
-          } catch {
-            // try next
-          }
-        }
-      }
-
-      // Check for agents
-      const resolvedAgentsDir = agentsDir || '.claude/agents';
-      let agentCount = 0;
-      let hasFacilitator = false;
-      try {
-        const agentFiles = await readdir(path.join(projectPath, resolvedAgentsDir));
-        const mdFiles = agentFiles.filter(f => f.endsWith('.md') && !f.endsWith('.context.md'));
-        agentCount = mdFiles.length;
-        hasFacilitator = mdFiles.includes('facilitator.md');
-      } catch {
-        // no agents dir
-      }
-
-      const config = await getConfig();
-      config.projects[name] = {
-        path: projectPath.replace(/\\/g, '/'),
-        meetingsDir: resolvedMeetingsDir,
-        agentsDir: resolvedAgentsDir,
-        ...(profile ? { profile } : {}),
-      };
-      config.activeProject = name;
-      await saveConfig(config);
-
-      // Ensure meetingsDir and agentsDir exist so first meeting doesn't ENOENT
-      const absMeetings = path.join(projectPath, resolvedMeetingsDir);
-      const absAgents = path.join(projectPath, resolvedAgentsDir);
-      await Promise.all([
-        mkdir(absMeetings, { recursive: true }),
-        mkdir(absAgents, { recursive: true }),
-      ]);
-
-      // Write skeleton context files so agents immediately know the project's stack
-      let contextFilesWritten = 0;
-      if (profile?.suggestedAgents) {
-        const contextPromises = profile.suggestedAgents.map(async (agent) => {
-          const contextPath = path.join(absAgents, `${agent}.context.md`);
-          try {
-            await stat(contextPath);
-            // Context file already exists — don't overwrite
-          } catch {
-            // File doesn't exist — write skeleton
-            await writeFile(contextPath, generateSkeletonContext(agent, profile), 'utf-8');
-            contextFilesWritten++;
-          }
+        const result = await connectProject({
+          projectPath,
+          meetingsDir,
+          agentsDir,
+          name,
+          profile,
         });
-        await Promise.all(contextPromises);
+        return NextResponse.json(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to add project';
+        const status = message.includes('not found') ? 404 : 400;
+        return NextResponse.json({ error: message }, { status });
       }
-
-      // Write project brief template if it doesn't exist yet
-      let briefCreated = false;
-      const briefPath = path.join(absMeetings, PROJECT_BRIEF_FILENAME);
-      try {
-        await stat(briefPath);
-        // Brief already exists — don't overwrite
-      } catch {
-        await writeFile(briefPath, generateProjectBrief(name, profile || undefined), 'utf-8');
-        briefCreated = true;
-      }
-
-      return NextResponse.json({
-        success: true,
-        project: config.projects[name],
-        agentCount,
-        hasFacilitator,
-        contextFilesWritten,
-        briefCreated,
-      });
     }
 
     if (action === 'remove') {

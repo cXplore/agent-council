@@ -19,7 +19,7 @@ import {
   formatManifestForMeetingFile,
   type ResolutionManifest,
 } from '@/lib/preflight-context';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { queryLLM } from '@/lib/llm-query';
 import { writeActivityEntry } from '@/lib/activity-log';
 import { createJob, updateJob, completeJob, failJob } from '@/lib/job-store';
 
@@ -50,7 +50,7 @@ const MEETING_TYPES = [
 /**
  * Load recent decisions + active work items as context for agents.
  */
-async function loadWorkContext(meetingsDir: string): Promise<string> {
+async function loadWorkContext(meetingsDir: string, topic?: string): Promise<string> {
   try {
     const [index, unresolved] = await Promise.all([
       buildTagIndex(meetingsDir),
@@ -62,19 +62,74 @@ async function loadWorkContext(meetingsDir: string): Promise<string> {
 
     const sections: string[] = [];
 
+    // Summary counts — gives agents a sense of the decision landscape
+    sections.push(
+      `Outcome totals: ${index.decisions.length} decisions, ${unresolved.actions.length} active actions, ${unresolved.open.length} open questions`
+    );
+
     const decisions = [...index.decisions].sort(sortByDate).slice(0, 5);
     if (decisions.length > 0) {
       sections.push('Recent decisions:\n' + decisions.map(d => `- ${d.text}`).join('\n'));
     }
 
-    const actions = unresolved.actions.slice(0, 3);
-    if (actions.length > 0) {
-      sections.push('Active action items:\n' + actions.map(a => `- ${a.text}`).join('\n'));
+    // Stale actions (>5 days old) — surface these so agents can address them
+    const now = Date.now();
+    const staleThresholdMs = 5 * 24 * 60 * 60 * 1000;
+    const staleActions = unresolved.actions.filter(a => {
+      if (!a.date) return false;
+      return now - new Date(a.date).getTime() > staleThresholdMs;
+    });
+
+    if (staleActions.length > 5) {
+      // Triage gate: when backlog is heavy, instruct agents to triage before producing new items
+      const shown = staleActions.slice(0, 5);
+      sections.push(
+        `⚠️ TRIAGE REQUIRED: ${staleActions.length} stale action items (>5 days old). Before generating new items, briefly assess these — are they done, still relevant, or should be dropped?\n` +
+        shown.map(a => `- [${a.date}]${a.assignee ? ` @${a.assignee}` : ''} ${a.text}`).join('\n') +
+        `\n  ...and ${staleActions.length - 5} more`
+      );
+    } else if (staleActions.length > 0) {
+      const shown = staleActions.slice(0, 5);
+      sections.push(
+        `Stale action items (${staleActions.length} total, >5 days old — consider closing, reassigning, or addressing):\n` +
+        shown.map(a => `- [${a.date}]${a.assignee ? ` @${a.assignee}` : ''} ${a.text}`).join('\n')
+      );
     }
 
+    const recentActions = unresolved.actions.filter(a => {
+      if (!a.date) return true;
+      return now - new Date(a.date).getTime() <= staleThresholdMs;
+    }).slice(0, 3);
+    if (recentActions.length > 0) {
+      sections.push('Recent action items:\n' + recentActions.map(a => `- ${a.text}`).join('\n'));
+    }
+
+    // Topic-relevant open questions and actions (if topic provided)
+    if (topic) {
+      try {
+        const [topicOpenQ, topicActions] = await Promise.all([
+          recallByTopic(meetingsDir, topic, { types: ['open'], limit: 3 }),
+          recallByTopic(meetingsDir, topic, { types: ['action'], limit: 5 }),
+        ]);
+        if (topicActions.length > 0) {
+          sections.push(
+            'Existing action items related to this topic (avoid creating duplicates):\n' +
+            topicActions.map(m => `- ${m.text}`).join('\n')
+          );
+        }
+        if (topicOpenQ.length > 0) {
+          sections.push(
+            'Open questions related to this topic:\n' +
+            topicOpenQ.map(m => `- ${m.text}`).join('\n')
+          );
+        }
+      } catch { /* recallByTopic failure is non-critical */ }
+    }
+
+    // Remaining open questions (not already shown via topic matching)
     const open = unresolved.open.slice(0, 2);
     if (open.length > 0) {
-      sections.push('Open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
+      sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
     return sections.length > 0 ? sections.join('\n\n') : '';
@@ -158,45 +213,7 @@ async function buildAgentPrompt(
   return parts.join('\n\n');
 }
 
-/**
- * Run a query with retry on transient failures (overloaded, network errors).
- * Uses exponential backoff: 2s, 4s for up to 2 retries.
- */
-async function queryWithRetry(
-  prompt: string,
-  options: Record<string, unknown>,
-  label: string,
-  maxRetries = 2,
-): Promise<string> {
-  let lastError: Error | undefined;
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      let answer = '';
-      for await (const message of query({ prompt, options })) {
-        if (message.type === 'assistant' && message.message?.content) {
-          for (const block of message.message.content) {
-            if ('text' in block && block.text) {
-              answer += block.text;
-            }
-          }
-        }
-      }
-      return answer.trim();
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const isRetryable = lastError.message.includes('overloaded')
-        || lastError.message.includes('529')
-        || lastError.message.includes('rate_limit')
-        || lastError.message.includes('ECONNRESET')
-        || lastError.message.includes('ETIMEDOUT');
-      if (!isRetryable || attempt >= maxRetries) throw lastError;
-      const delay = Math.pow(2, attempt + 1) * 1000;
-      console.warn(`${label} attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError ?? new Error('Query failed after retries');
-}
+// queryWithRetry is now provided by lib/llm-query.ts as queryLLM
 
 /**
  * Query a single agent and return the response text.
@@ -212,11 +229,7 @@ async function queryAgent(
   // file-reading tools. Tool presence overrides prompt instructions, causing agents
   // to spend all turns reading files instead of deliberating. Code awareness is
   // achieved through pre-flight context injection only.
-  const queryOptions: Record<string, unknown> = {
-    ...(systemPrompt ? { systemPrompt } : {}),
-  };
-
-  return queryWithRetry(question, queryOptions, `Agent ${agentName}`);
+  return queryLLM(question, { systemPrompt }, `Agent ${agentName}`);
 }
 
 /**
@@ -280,7 +293,7 @@ export async function POST(req: NextRequest) {
       if (jobId) updateJob(jobId, { status: 'running', progress: 'Loading context...' });
 
       // Load shared work context once
-      const workContext = await loadWorkContext(active.meetingsDir);
+      const workContext = await loadWorkContext(active.meetingsDir, topic);
 
       // Pre-flight context gathering: resolve relevant source files from the topic
       let preflightManifest: ResolutionManifest | undefined;
@@ -430,7 +443,7 @@ export async function POST(req: NextRequest) {
       if (!hasOutcomes) {
         try {
           const extractionPrompt = buildOutcomeExtractionPrompt(topic, allRounds);
-          const extractedText = await queryWithRetry(extractionPrompt, { maxTurns: 1 }, 'Outcome extraction');
+          const extractedText = await queryLLM(extractionPrompt, {}, 'Outcome extraction');
           // Parse the AI-extracted outcomes using the same tag parser
           if (extractedText.trim()) {
             const syntheticRound = [{ round: 0, responses: [{ agent: 'synthesizer', answer: extractedText }] }];
@@ -454,12 +467,14 @@ export async function POST(req: NextRequest) {
 
         await emitEvent('meeting_complete', meetingFilename, `${allRounds.length} round${allRounds.length > 1 ? 's' : ''} complete`);
 
-        // Log to activity feed
+        // Log to activity feed — lead with outcomes, not meeting topic
         const decisionCount = outcomes.decisions.length;
         const actionCount = outcomes.actions.length;
+        const openCount = outcomes.openQuestions.length;
         const outcomeCounts = [
           decisionCount > 0 ? `${decisionCount} decision${decisionCount > 1 ? 's' : ''}` : '',
           actionCount > 0 ? `${actionCount} action${actionCount > 1 ? 's' : ''}` : '',
+          openCount > 0 ? `${openCount} open` : '',
         ].filter(Boolean).join(', ');
         // Format: "[N decisions, N actions]: first decision truncated to 80 chars"
         const firstDecision = outcomes.decisions[0]?.text;
