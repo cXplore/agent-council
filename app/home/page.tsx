@@ -17,8 +17,8 @@ const QUICK_ACTIONS = [
   { label: 'Run a meeting', icon: '▶', action: 'meeting' as const, ready: true },
   { label: 'Ask an agent', icon: '?', action: 'ask' as const, ready: true },
   { label: 'Daily brief', icon: '☀', action: 'brief' as const, ready: true },
-  { label: 'Review code', icon: '◎', action: 'review' as const, ready: false },
-  { label: 'Write docs', icon: '✎', action: 'docs' as const, ready: false },
+  { label: 'Review code', icon: '◎', action: 'review' as const, ready: true },
+  { label: 'Write docs', icon: '✎', action: 'docs' as const, ready: true },
   { label: 'Health check', icon: '♡', action: 'health' as const, ready: true },
 ];
 
@@ -131,6 +131,54 @@ export default function HomePage() {
         const el = document.querySelector<HTMLInputElement>('[data-home-input]');
         if (el) el.form?.requestSubmit();
       }, 100);
+    } else if (action === 'docs') {
+      // Ask the architect to describe the current architecture
+      setAskedQuestion('Document architecture');
+      setPhase('thinking');
+      setAnswerAgent('architect');
+      fetch('/api/council/quick-consult', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: 'Write a brief architecture overview of this project. Cover: what it does, the main components, how they connect, key patterns used, and the tech stack. Write it as documentation someone new to the project could read. Be concise but thorough.',
+          agent: 'architect',
+          codeAware: true,
+        }),
+      })
+        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed'); }))
+        .then(data => {
+          setAnswer(data.answer || 'No response.');
+          setPhase('done');
+        })
+        .catch(err => {
+          setAnswer(`Error: ${err.message || 'Could not generate docs.'}`);
+          setPhase('done');
+        });
+      return;
+    } else if (action === 'review') {
+      // Ask the developer to review recent changes
+      setAskedQuestion('Review recent code changes');
+      setPhase('thinking');
+      setAnswerAgent('developer');
+      fetch('/api/council/quick-consult', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: 'Review the most recent code changes in this project. What was changed? Are there any concerns — bugs, missing error handling, inconsistencies, or things that could be improved? Be specific and concise. If everything looks good, say so briefly.',
+          agent: 'developer',
+          codeAware: true,
+        }),
+      })
+        .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Failed'); }))
+        .then(data => {
+          setAnswer(data.answer || 'No response.');
+          setPhase('done');
+        })
+        .catch(err => {
+          setAnswer(`Error: ${err.message || 'Could not get review.'}`);
+          setPhase('done');
+        });
+      return;
     } else if (action === 'health') {
       setPhase('thinking');
       setAnswerAgent('');
