@@ -171,6 +171,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // When codeAware: instruct agent to deliberate first, use tools sparingly
+    if (codeAware) {
+      promptParts.push('---\n\n## Important: Code-Aware Protocol\n\nYou have access to Read/Glob/Grep tools to inspect the codebase. However, context files and project state have been pre-injected above. Do NOT re-read files already in your context. Use tools only to verify specific claims or check files not already provided. Focus most of your response on answering the question, not reading files.');
+    }
+
     const systemPrompt = promptParts.length > 0 ? promptParts.join('\n\n') : undefined;
 
     // Code-aware mode: enable read-only tools and multiple turns

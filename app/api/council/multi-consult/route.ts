@@ -297,6 +297,10 @@ export async function POST(req: NextRequest) {
           if (preflightContext) {
             prompt += '\n\n---\n\n' + preflightContext;
           }
+          // When codeAware + pre-flight context: tell agents not to re-read injected files
+          if (codeAware && preflightContext) {
+            prompt += '\n\n---\n\n## Important: Code-Aware Meeting Protocol\n\nRelevant source files have been pre-injected above. Do NOT use file-reading tools to re-read files that are already in your context. Focus your tool use on files NOT in the pre-flight manifest — files you need to verify claims, check implementation status, or investigate related code. Spend most of your response deliberating on the topic, not reading files.';
+          }
           promptsMap.set(agentName, prompt);
         }),
       );
