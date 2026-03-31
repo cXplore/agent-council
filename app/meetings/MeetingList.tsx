@@ -142,6 +142,7 @@ export default function MeetingList(props: MeetingListProps) {
   const [runAgents, setRunAgents] = useState<Set<string>>(new Set(['project-manager', 'critic', 'north-star']));
   const [runRounds, setRunRounds] = useState(2);
   const [costEstimate, setCostEstimate] = useState<string | null>(null);
+  const [showRunOptions, setShowRunOptions] = useState(false);
 
   // Fetch cost estimate when agents or rounds change (debounced)
   useEffect(() => {
@@ -522,27 +523,14 @@ export default function MeetingList(props: MeetingListProps) {
             className="rounded-lg p-4 space-y-3 mb-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
           >
+            {/* Primary: just a topic input + run button */}
             <div className="flex gap-2">
-              <select
-                value={runType}
-                onChange={(e) => setRunType(e.target.value)}
-                className="text-sm px-3 py-2 rounded outline-none"
-                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              >
-                <option value="auto">Auto-detect type</option>
-                <option value="design-review">Design Review</option>
-                <option value="strategy">Strategy Session</option>
-                <option value="architecture">Architecture Review</option>
-                <option value="retrospective">Retrospective</option>
-                <option value="sprint-planning">Sprint Planning</option>
-                <option value="direction-check">Direction Check</option>
-              </select>
               <input
                 type="text"
                 value={runTopic}
                 onChange={(e) => setRunTopic(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && runTopic.trim() && runAgents.size >= 2) handleRunSubmit();
+                  if (e.key === 'Enter' && runTopic.trim()) handleRunSubmit();
                   if (e.key === 'Escape') setShowRunForm(false);
                 }}
                 placeholder="What should the agents discuss?"
@@ -550,72 +538,97 @@ export default function MeetingList(props: MeetingListProps) {
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 autoFocus
               />
+              <button
+                onClick={handleRunSubmit}
+                disabled={!runTopic.trim()}
+                className="text-sm px-4 py-1.5 rounded transition-colors"
+                style={{
+                  background: !runTopic.trim() ? 'rgba(124, 109, 216, 0.3)' : 'var(--accent)',
+                  color: 'white',
+                  opacity: !runTopic.trim() ? 0.5 : 1,
+                }}
+              >
+                Run
+              </button>
+              <button
+                onClick={() => setShowRunForm(false)}
+                className="text-sm px-2 py-1.5 rounded"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
             </div>
-            {/* Agent picker */}
-            <div className="flex flex-wrap gap-1.5">
-              {AGENT_OPTIONS.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => toggleRunAgent(a.id)}
-                  className="text-xs px-2.5 py-1 rounded-full transition-colors"
-                  style={{
-                    background: runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
-                    color: runAgents.has(a.id) ? '#a78bfa' : 'var(--text-muted)',
-                    border: `1px solid ${runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
-                  }}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-            {/* Rounds + actions */}
-            <div className="flex items-center gap-3 justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Rounds:</span>
-                {[1, 2, 3].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setRunRounds(n)}
-                    className="text-xs w-6 h-6 rounded transition-colors"
-                    style={{
-                      background: runRounds === n ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
-                      color: runRounds === n ? '#a78bfa' : 'var(--text-muted)',
-                      border: `1px solid ${runRounds === n ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
-                    }}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+            {/* Compact defaults summary + expandable options */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowRunOptions(v => !v)}
+                className="text-xs flex items-center gap-1"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <span style={{ fontSize: 10 }}>{showRunOptions ? '▾' : '▸'}</span>
+                {runAgents.size} agents · {runRounds} round{runRounds > 1 ? 's' : ''} · {runType === 'auto' ? 'auto type' : runType}
+              </button>
               {costEstimate && (
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }} title="Rough estimate based on published API pricing">
-                  Est. {costEstimate}
+                <span className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.5 }} title="Rough estimate">
+                  · {costEstimate}
                 </span>
               )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowRunForm(false)}
-                  className="text-sm px-3 py-1.5 rounded"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRunSubmit}
-                  disabled={!runTopic.trim() || runAgents.size < 2}
-                  className="text-sm px-4 py-1.5 rounded transition-colors"
-                  style={{
-                    background: (!runTopic.trim() || runAgents.size < 2) ? 'rgba(124, 109, 216, 0.3)' : 'var(--accent)',
-                    color: 'white',
-                    opacity: (!runTopic.trim() || runAgents.size < 2) ? 0.5 : 1,
-                  }}
-                >
-                  Run now
-                </button>
-              </div>
             </div>
-            {runAgents.size < 2 && (
-              <p className="text-xs" style={{ color: '#f87171' }}>Select at least 2 agents</p>
+            {showRunOptions && (
+              <div className="space-y-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="flex flex-wrap gap-1.5">
+                  {AGENT_OPTIONS.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => toggleRunAgent(a.id)}
+                      className="text-xs px-2.5 py-1 rounded-full transition-colors"
+                      style={{
+                        background: runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.15)' : 'var(--bg)',
+                        color: runAgents.has(a.id) ? 'var(--accent)' : 'var(--text-muted)',
+                        border: `1px solid ${runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.3)' : 'var(--border)'}`,
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={runType}
+                    onChange={(e) => setRunType(e.target.value)}
+                    className="text-xs px-2 py-1 rounded outline-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="auto">Auto type</option>
+                    <option value="design-review">Design Review</option>
+                    <option value="strategy">Strategy</option>
+                    <option value="architecture">Architecture</option>
+                    <option value="retrospective">Retrospective</option>
+                    <option value="sprint-planning">Sprint Planning</option>
+                    <option value="direction-check">Direction Check</option>
+                  </select>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Rounds:</span>
+                    {[1, 2, 3].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setRunRounds(n)}
+                        className="text-xs w-5 h-5 rounded transition-colors"
+                        style={{
+                          background: runRounds === n ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
+                          color: runRounds === n ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${runRounds === n ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {runAgents.size < 2 && (
+                  <p className="text-xs" style={{ color: 'var(--error)' }}>Select at least 2 agents</p>
+                )}
+              </div>
             )}
           </div>
         )}
