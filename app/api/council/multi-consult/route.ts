@@ -205,21 +205,16 @@ async function queryAgent(
   agentName: string,
   question: string,
   systemPrompt: string,
-  codeAware: boolean,
-  projectPath?: string,
+  _codeAware: boolean,
+  _projectPath?: string,
 ): Promise<string> {
-  const tools = codeAware ? ['Read', 'Glob', 'Grep'] : [];
-  const maxTurns = codeAware ? 5 : 1;
+  // DECISION (2026-03-31 design review): codeAware meetings do NOT give agents
+  // file-reading tools. Tool presence overrides prompt instructions, causing agents
+  // to spend all turns reading files instead of deliberating. Code awareness is
+  // achieved through pre-flight context injection only.
   const queryOptions: Record<string, unknown> = {
     ...(systemPrompt ? { systemPrompt } : {}),
-    tools,
-    maxTurns,
   };
-
-  if (codeAware && projectPath) {
-    queryOptions.cwd = projectPath;
-    queryOptions.permissionMode = 'acceptEdits';
-  }
 
   return queryWithRetry(question, queryOptions, `Agent ${agentName}`);
 }
@@ -313,9 +308,10 @@ export async function POST(req: NextRequest) {
           if (preflightContext) {
             prompt += '\n\n---\n\n' + preflightContext;
           }
-          // When codeAware + pre-flight context: tell agents not to re-read injected files
+          // DECISION (2026-03-31): codeAware agents get no tools, only injected context.
+          // Replace the old "don't re-read" instruction with a simpler "use injected context" note.
           if (codeAware && preflightContext) {
-            prompt += '\n\n---\n\n## Important: Code-Aware Meeting Protocol\n\nRelevant source files have been pre-injected above. Do NOT use file-reading tools to re-read files that are already in your context. Focus your tool use on files NOT in the pre-flight manifest — files you need to verify claims, check implementation status, or investigate related code. Spend most of your response deliberating on the topic, not reading files.';
+            prompt += '\n\n---\n\n## Code-Aware Context\n\nRelevant source files have been pre-injected above. Use this context to ground your analysis in the actual codebase. Focus entirely on deliberating the topic — do not attempt to read additional files.';
           }
           promptsMap.set(agentName, prompt);
         }),

@@ -307,7 +307,9 @@ export function generateMeetingFilename(type: string, topic: string, date?: stri
 
 /**
  * Summarize one round's responses into a compact context block for the next round.
- * Each agent's position is condensed to key points for cross-referencing.
+ * Tagged outcomes ([DECISION], [ACTION], [OPEN:...]) are always preserved verbatim.
+ * Remaining prose is condensed to stay within budget so round 2+ agents get
+ * the full signal without the noise.
  */
 export function summarizeRound(
   roundNumber: number,
@@ -316,12 +318,40 @@ export function summarizeRound(
   const lines: string[] = [`## Round ${roundNumber} Summary\n`];
   for (const { agent, answer } of responses) {
     const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-    const condensed = answer.length > 800
-      ? answer.slice(0, 800).replace(/\n[^\n]*$/, '') + '...'
-      : answer;
-    lines.push(`### ${displayName}\n${condensed}\n`);
+    lines.push(`### ${displayName}\n${condenseSmart(answer)}\n`);
   }
   return lines.join('\n');
+}
+
+/**
+ * Smart condensation: extract tagged outcomes verbatim, condense remaining prose.
+ * This ensures round 2+ agents see all decisions/actions/questions from round 1
+ * without losing them to blind truncation.
+ */
+function condenseSmart(text: string): string {
+  if (text.length <= 1200) return text;
+
+  const taggedLines: string[] = [];
+  const proseLines: string[] = [];
+
+  for (const line of text.split('\n')) {
+    if (/^\s*[-*]*\s*\[(DECISION|ACTION|OPEN:[^\]]+)\]/.test(line)) {
+      taggedLines.push(line);
+    } else {
+      proseLines.push(line);
+    }
+  }
+
+  // Budget: ~600 chars for prose, unlimited for tagged outcomes
+  const prose = proseLines.join('\n');
+  const condensedProse = prose.length > 600
+    ? prose.slice(0, 600).replace(/\n[^\n]*$/, '') + '\n\n*(condensed)*'
+    : prose;
+
+  if (taggedLines.length > 0) {
+    return condensedProse + '\n\n**Tagged outcomes:**\n' + taggedLines.join('\n');
+  }
+  return condensedProse;
 }
 
 /**

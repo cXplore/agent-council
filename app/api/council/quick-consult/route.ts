@@ -184,27 +184,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // When codeAware: instruct agent to deliberate first, use tools sparingly
+    // DECISION (2026-03-31 design review): codeAware does NOT give agents tools.
+    // Tool presence overrides prompt instructions, causing agents to read instead
+    // of deliberate. Code awareness is achieved through pre-flight context injection.
     if (codeAware) {
-      promptParts.push('---\n\n## Important: Code-Aware Protocol\n\nYou have access to Read/Glob/Grep tools to inspect the codebase. However, context files and project state have been pre-injected above. Do NOT re-read files already in your context. Use tools only to verify specific claims or check files not already provided. Focus most of your response on answering the question, not reading files.');
+      promptParts.push('---\n\n## Code-Aware Context\n\nRelevant source files and project context have been pre-injected above. Use this context to ground your answer in the actual codebase. Focus entirely on answering the question — do not attempt to read additional files.');
     }
 
     const systemPrompt = promptParts.length > 0 ? promptParts.join('\n\n') : undefined;
 
-    // Code-aware mode: enable read-only tools and multiple turns
-    const tools = codeAware ? ['Read', 'Glob', 'Grep'] : [];
-    const maxTurns = codeAware ? 5 : 1;
     const queryOptions: Record<string, unknown> = {
       ...(systemPrompt ? { systemPrompt } : {}),
-      tools,
-      maxTurns,
     };
-
-    // Set working directory to the project path for code-aware queries
-    if (codeAware && active.projectPath) {
-      queryOptions.cwd = active.projectPath;
-      queryOptions.permissionMode = 'acceptEdits'; // read-only tools are safe
-    }
 
     const answer = await queryWithRetry(question, queryOptions);
 

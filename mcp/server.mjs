@@ -1201,7 +1201,7 @@ safeTool(
   'council_ai_context',
   'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer (takes 30-60s). Call when you want deep context about project direction — e.g., at the start of a session, or before making architectural decisions. Uses the Agent SDK to analyze recent meetings, decisions, actions, and open questions, then produces a cohesive narrative. Use codeAware=true to ground the narrative in actual code state (slower but more accurate — the AI will Read/Glob/Grep the project to verify claims).',
   {
-    codeAware: z.boolean().optional().default(false).describe('When true, the AI inspects the project codebase using Read/Glob/Grep to verify decisions and ground the narrative in actual code state. Slower but more accurate.'),
+    codeAware: z.boolean().optional().default(false).describe('When true, relevant source files are pre-injected into context for code-grounded analysis. The AI does not get file-reading tools. Slower but more accurate.'),
   },
   async ({ codeAware }) => {
     try {
@@ -1406,7 +1406,7 @@ safeTool(
       .optional()
       .describe('Which agent to consult (default: critic)'),
     codeAware: z.boolean().optional()
-      .describe('When true, the agent can read the project codebase (Read/Glob/Grep) to ground its answer in actual code. Slower but more accurate for technical questions. Default: false.'),
+      .describe('When true, relevant source files are pre-injected into the agent context so it can ground its answer in actual code. The agent does not get file-reading tools — all code context comes from pre-flight injection. Default: false.'),
     topic: z.string().optional()
       .describe('When provided, auto-searches relevant decisions and open questions from past meetings and injects them into the agent context. Grounds the response in institutional memory. Example: "error handling", "MCP tools", "meeting viewer".'),
   },
@@ -1446,7 +1446,7 @@ safeTool(
       .optional()
       .describe('Meeting type for the generated file (default: direction-check)'),
     codeAware: z.boolean().optional()
-      .describe('When true, agents can read the project codebase. Slower but more grounded. Default: false.'),
+      .describe('When true, relevant source files are pre-injected into agent context for code-grounded deliberation. Agents do not get file-reading tools — all code awareness comes from pre-flight injection. Default: false.'),
     writeMeeting: z.boolean().optional()
       .describe('Write results to a meeting file (default: true). Set false to get responses only.'),
   },

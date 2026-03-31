@@ -699,13 +699,27 @@ describe('summarizeRound', () => {
     expect(result).toContain('I disagree because Y.');
   });
 
-  it('truncates long answers at ~800 chars', () => {
-    const longAnswer = 'A'.repeat(1000);
+  it('condenses long answers while preserving tagged outcomes', () => {
+    const longProse = 'A'.repeat(1200);
+    const longAnswer = `${longProse}\n\n- [DECISION] Use Redis for caching — fast and simple\n- [ACTION] Set up Redis cluster — done when: cluster responds to PING\n- [OPEN:cache-ttl] What TTL should we use?`;
     const result = summarizeRound(1, [
       { agent: 'architect', answer: longAnswer },
     ]);
-    expect(result).toContain('...');
-    expect(result.length).toBeLessThan(longAnswer.length + 200);
+    // Tags must be preserved verbatim
+    expect(result).toContain('[DECISION] Use Redis for caching');
+    expect(result).toContain('[ACTION] Set up Redis cluster');
+    expect(result).toContain('[OPEN:cache-ttl]');
+    // Prose is condensed
+    expect(result).toContain('(condensed)');
+  });
+
+  it('condenses prose-only long answers', () => {
+    const longAnswer = 'A'.repeat(1500);
+    const result = summarizeRound(1, [
+      { agent: 'architect', answer: longAnswer },
+    ]);
+    expect(result).toContain('(condensed)');
+    expect(result.length).toBeLessThan(longAnswer.length);
   });
 
   it('keeps short answers intact', () => {
