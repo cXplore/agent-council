@@ -971,7 +971,7 @@ safeTool(
 // Tool: Session brief — opinionated 5-line brief for starting a coding session
 safeTool(
   'council_session_brief',
-  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2), and aging items that need attention (stale actions, at-risk open questions). Call this at the START of any session.',
+  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2), aging items that need attention (stale actions, at-risk open questions), and a NOT DOING list (explicit rejections — things decided against). Call this at the START of any session.',
   {},
   async () => {
     try {
@@ -994,9 +994,16 @@ safeTool(
       const recent2Files = new Set(completed.slice(0, 2).map(m => m.filename));
       const recent3Files = new Set(completed.slice(0, 3).map(m => m.filename));
 
-      // Decisions: last 2 meetings only, max 5
+      // Decisions: last 2 meetings only, max 3 (compressed for brevity)
       const recentDecisions = items
         .filter(i => i.type === 'DECISION' && recent2Files.has(i.meeting))
+        .slice(0, 3);
+
+      // No-list: explicit rejections across ALL meetings (skip, defer, don't build, deprioritize)
+      const rejectionPattern = /\b(skip|defer|deprioritiz|don't|do not|not build|not implement|remove|rip out|won't|will not|reject|abandon|drop|shelve|sunset|avoid)\b/i;
+      const allDecisions = items.filter(i => i.type === 'DECISION');
+      const rejections = allDecisions
+        .filter(i => rejectionPattern.test(i.text))
         .slice(0, 5);
 
       // Actions: active only, prefer last 2 meetings, max 3
@@ -1072,8 +1079,10 @@ safeTool(
       if (recentDecisions.length > 0) {
         lines.push('RECENT DECISIONS:');
         recentDecisions.forEach(d => {
-          const text = d.text.length > 120 ? d.text.slice(0, 117) + '...' : d.text;
-          lines.push(`  • ${text}`);
+          // One-line: just the decision text (before the rationale dash), truncated
+          const text = d.text.split(' — ')[0].trim();
+          const short = text.length > 100 ? text.slice(0, 97) + '...' : text;
+          lines.push(`  • ${short}`);
         });
         lines.push('');
       }
@@ -1094,7 +1103,21 @@ safeTool(
       if (recentOpen.length > 0) {
         lines.push('');
         lines.push('OPEN:');
-        recentOpen.forEach(o => lines.push(`  ? ${o.text}`));
+        recentOpen.forEach(o => {
+          const text = o.text.length > 100 ? o.text.slice(0, 97) + '...' : o.text;
+          lines.push(`  ? ${text}`);
+        });
+      }
+
+      // No-list: things explicitly decided against
+      if (rejections.length > 0) {
+        lines.push('');
+        lines.push('NOT DOING:');
+        rejections.forEach(r => {
+          const text = r.text.split(' — ')[0].trim();
+          const short = text.length > 100 ? text.slice(0, 97) + '...' : text;
+          lines.push(`  ✗ ${short}`);
+        });
       }
 
       // Needs Attention: aging items that fell off the recency window
