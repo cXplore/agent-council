@@ -198,3 +198,31 @@ export function getProjectConfig(config: CouncilConfig, name: string): { agentsD
     meetingsDir: resolveProjectDir(project, 'meetingsDir'),
   };
 }
+
+/** Get current usage settings with defaults */
+export function getUsageSettings(config: CouncilConfig): import('./types').UsageSettings {
+  const { USAGE_PROFILES } = require('./types') as typeof import('./types');
+  if (config.usage) return config.usage;
+  return { profile: 'standard', ...USAGE_PROFILES.standard };
+}
+
+/** Update usage settings and persist to config file */
+export async function setUsageSettings(settings: Partial<import('./types').UsageSettings>): Promise<import('./types').UsageSettings> {
+  const { USAGE_PROFILES } = require('./types') as typeof import('./types');
+  const config = await getConfig();
+  const current = config.usage ?? { profile: 'standard' as const, ...USAGE_PROFILES.standard };
+  const updated = { ...current, ...settings };
+
+  // If profile changed, apply its defaults (but keep any explicit overrides)
+  if (settings.profile && settings.profile !== current.profile) {
+    const profileDefaults = USAGE_PROFILES[settings.profile];
+    if (profileDefaults) {
+      updated.defaultRounds = settings.defaultRounds ?? profileDefaults.defaultRounds;
+      updated.maxTokens = settings.maxTokens ?? profileDefaults.maxTokens;
+    }
+  }
+
+  config.usage = updated;
+  await saveConfig(config);
+  return updated;
+}

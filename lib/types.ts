@@ -73,6 +73,27 @@ export interface ProjectConfig {
   profile?: ProjectProfile;
 }
 
+/** Usage profile — controls token/cost trade-offs */
+export type UsageProfile = 'lean' | 'standard' | 'deep';
+
+export interface UsageSettings {
+  /** Overall usage profile */
+  profile: UsageProfile;
+  /** Default rounds for meetings (overridable per-meeting) */
+  defaultRounds: number;
+  /** Max tokens per agent response */
+  maxTokens: number;
+  /** Default model override (uses agent frontmatter if not set) */
+  defaultModel?: string;
+}
+
+/** Pre-defined usage profiles */
+export const USAGE_PROFILES: Record<UsageProfile, Omit<UsageSettings, 'profile' | 'defaultModel'>> = {
+  lean: { defaultRounds: 1, maxTokens: 2048 },
+  standard: { defaultRounds: 2, maxTokens: 4096 },
+  deep: { defaultRounds: 3, maxTokens: 8192 },
+};
+
 /** Top-level council configuration */
 export interface CouncilConfig {
   /** Connected projects keyed by name */
@@ -87,6 +108,8 @@ export interface CouncilConfig {
   port: number;
   /** Paths discovered by scanning nearby directories but not yet connected */
   discoveredPaths?: string[];
+  /** Usage profile — controls token/cost trade-offs */
+  usage?: UsageSettings;
 }
 
 export interface SuggestedMeeting {

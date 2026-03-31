@@ -63,6 +63,8 @@ function SettingsInner() {
   const [mergeStatus, setMergeStatus] = useState<string | null>(null);
   const [projectList, setProjectList] = useState<{ name: string; path: string }[]>([]);
   const [llmStatus, setLlmStatus] = useState<{ available: boolean; backend: string; providers: Record<string, boolean> } | null>(null);
+  const [usageSettings, setUsageSettings] = useState<{ profile: string; defaultRounds: number; maxTokens: number; defaultModel?: string } | null>(null);
+  const [usageSaving, setUsageSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { document.title = 'Settings — Agent Council'; }, []);
@@ -74,12 +76,14 @@ function SettingsInner() {
       fetch('/api/agents/check').then(r => r.ok ? r.json() : null),
       fetch('/api/projects').then(r => r.ok ? r.json() : null),
       fetch('/api/council/llm-status').then(r => r.ok ? r.json() : null),
-    ]).then(([h, m, tc, p, llm]) => {
+      fetch('/api/settings/usage').then(r => r.ok ? r.json() : null),
+    ]).then(([h, m, tc, p, llm, usage]) => {
       setHealth(h);
       setMcp(m);
       setTemplateCheck(tc);
       if (p?.projects) setProjectList(p.projects);
       setLlmStatus(llm);
+      setUsageSettings(usage);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -197,6 +201,117 @@ function SettingsInner() {
               <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
                 Add API keys to <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>.env.local</code> to enable providers.
                 Each agent can use a different provider — set <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>model: openai/gpt-5.4</code> in agent frontmatter.
+              </p>
+            </motion.div>
+          )}
+
+          {/* Usage Profile */}
+          {usageSettings && (
+            <motion.div {...staggerFadeUp(sectionIndex++)}
+              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <h2 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Usage Profile</h2>
+              {/* Profile selector */}
+              <div className="flex gap-2 mb-4">
+                {(['lean', 'standard', 'deep'] as const).map(profile => {
+                  const isActive = usageSettings.profile === profile;
+                  const labels = { lean: 'Lean', standard: 'Standard', deep: 'Deep' };
+                  const descriptions = { lean: '1 round · shorter responses · cheaper models', standard: '2 rounds · balanced · default', deep: '3 rounds · thorough · best models' };
+                  return (
+                    <button
+                      key={profile}
+                      disabled={usageSaving}
+                      onClick={async () => {
+                        setUsageSaving(true);
+                        try {
+                          const res = await fetch('/api/settings/usage', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ profile }),
+                          });
+                          if (res.ok) setUsageSettings(await res.json());
+                        } catch { /* ignore */ }
+                        finally { setUsageSaving(false); }
+                      }}
+                      className="flex-1 rounded-lg p-3 text-left transition-colors"
+                      style={{
+                        background: isActive ? 'var(--accent-muted)' : 'var(--bg)',
+                        border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                      }}
+                    >
+                      <div className="text-sm font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {labels[profile]}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {descriptions[profile]}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Fine-tuning */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Default rounds</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3].map(n => (
+                      <button
+                        key={n}
+                        disabled={usageSaving}
+                        onClick={async () => {
+                          setUsageSaving(true);
+                          try {
+                            const res = await fetch('/api/settings/usage', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ defaultRounds: n }),
+                            });
+                            if (res.ok) setUsageSettings(await res.json());
+                          } catch { /* ignore */ }
+                          finally { setUsageSaving(false); }
+                        }}
+                        className="w-8 h-8 rounded text-sm transition-colors"
+                        style={{
+                          background: usageSettings.defaultRounds === n ? 'var(--accent-muted)' : 'var(--bg)',
+                          color: usageSettings.defaultRounds === n ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${usageSettings.defaultRounds === n ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Max tokens per response</label>
+                  <select
+                    disabled={usageSaving}
+                    value={usageSettings.maxTokens}
+                    onChange={async (e) => {
+                      const maxTokens = parseInt(e.target.value);
+                      setUsageSaving(true);
+                      try {
+                        const res = await fetch('/api/settings/usage', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ maxTokens }),
+                        });
+                        if (res.ok) setUsageSettings(await res.json());
+                      } catch { /* ignore */ }
+                      finally { setUsageSaving(false); }
+                    }}
+                    className="text-sm px-3 py-1.5 rounded outline-none w-full"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  >
+                    <option value="1024">1,024 — brief</option>
+                    <option value="2048">2,048 — lean</option>
+                    <option value="4096">4,096 — standard</option>
+                    <option value="8192">8,192 — thorough</option>
+                    <option value="16384">16,384 — deep</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+                Profile sets defaults. You can override rounds per-meeting in the Run meeting form.
               </p>
             </motion.div>
           )}

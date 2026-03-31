@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { getConfig, getActiveProjectConfig, getProjectConfigByName } from '@/lib/config';
+import { getConfig, getActiveProjectConfig, getProjectConfigByName, getUsageSettings } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
 import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
 import {
@@ -132,20 +132,16 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
       sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
-    // Quality digest: surface tag validation warnings so agents maintain quality standards
+    // Quality digest: compact ≤2 line pattern summary
     if (index.validationWarnings.length > 0) {
       const byCat: Record<string, number> = {};
-      for (const w of index.validationWarnings) {
-        byCat[w.type] = (byCat[w.type] ?? 0) + 1;
-      }
-      const parts: string[] = [];
-      if (byCat['missing-assignee']) parts.push(`${byCat['missing-assignee']} ACTIONs missing @role`);
-      if (byCat['missing-done-when']) parts.push(`${byCat['missing-done-when']} ACTIONs missing "done when:"`);
-      if (byCat['missing-rationale']) parts.push(`${byCat['missing-rationale']} DECISIONs missing "because:" rationale`);
-      sections.push(
-        `Quality issues in past outcomes (${index.validationWarnings.length} total): ${parts.join(', ')}. ` +
-        'Ensure YOUR outputs include @role assignments on ACTIONs, "done when:" completion criteria, and "because:" rationale on DECISIONs.'
-      );
+      for (const w of index.validationWarnings) byCat[w.type] = (byCat[w.type] ?? 0) + 1;
+      const gaps = [
+        byCat['missing-assignee'] && `@role (${byCat['missing-assignee']})`,
+        byCat['missing-done-when'] && `"done when:" (${byCat['missing-done-when']})`,
+        byCat['missing-rationale'] && `"because:" (${byCat['missing-rationale']})`,
+      ].filter(Boolean).join(', ');
+      sections.push(`Quality gaps in past outcomes — missing: ${gaps}. Include all three in YOUR tags.`);
     }
 
     // Compact slug list for dedup: all active OPEN slugs so agents avoid creating duplicates
@@ -257,12 +253,13 @@ async function queryAgent(
   question: string,
   systemPrompt: string,
   model?: string,
+  maxTokens?: number,
 ): Promise<string> {
   // DECISION (2026-03-31 design review): codeAware meetings do NOT give agents
   // file-reading tools. Tool presence overrides prompt instructions, causing agents
   // to spend all turns reading files instead of deliberating. Code awareness is
   // achieved through pre-flight context injection only.
-  return queryLLM(question, { systemPrompt, model }, `Agent ${agentName}`);
+  return queryLLM(question, { systemPrompt, model, maxTokens }, `Agent ${agentName}`);
 }
 
 /**
@@ -292,7 +289,10 @@ export async function POST(req: NextRequest) {
     const topic: string = typeof body?.topic === 'string' ? body.topic.trim() : '';
     const agents: string[] = Array.isArray(body?.agents) ? body.agents : [];
     const type: string = typeof body?.type === 'string' ? body.type : 'direction-check';
-    const roundCount: number = Math.min(3, Math.max(1, typeof body?.rounds === 'number' ? body.rounds : 1));
+    // Use usage profile defaults for rounds if not explicitly set
+    const config = await getConfig();
+    const usageSettings = getUsageSettings(config);
+    const roundCount: number = Math.min(3, Math.max(1, typeof body?.rounds === 'number' ? body.rounds : usageSettings.defaultRounds));
     const codeAware: boolean = body?.codeAware === true;
     const writeMeeting: boolean = body?.writeMeeting !== false;
     const asyncMode: boolean = body?.async === true;
@@ -450,9 +450,9 @@ export async function POST(req: NextRequest) {
             if (meetingFilename) {
               emitEvent('agent_speaking', meetingFilename, agentName);
             }
-            const config = agentConfigs.get(agentName) ?? { prompt: '' };
+            const agentConfig = agentConfigs.get(agentName) ?? { prompt: '' };
             const answer = await queryAgent(
-              agentName, question, config.prompt, config.model,
+              agentName, question, agentConfig.prompt, agentConfig.model, usageSettings.maxTokens,
             );
             return { agent: agentName, answer };
           }),

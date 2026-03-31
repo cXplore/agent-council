@@ -80,6 +80,18 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
       sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
+    // Quality digest: compact ≤2 line pattern summary
+    if (index.validationWarnings.length > 0) {
+      const byCat: Record<string, number> = {};
+      for (const w of index.validationWarnings) byCat[w.type] = (byCat[w.type] ?? 0) + 1;
+      const gaps = [
+        byCat['missing-assignee'] && `@role (${byCat['missing-assignee']})`,
+        byCat['missing-done-when'] && `"done when:" (${byCat['missing-done-when']})`,
+        byCat['missing-rationale'] && `"because:" (${byCat['missing-rationale']})`,
+      ].filter(Boolean).join(', ');
+      sections.push(`Quality gaps in past outcomes — missing: ${gaps}. Include all three in YOUR tags.`);
+    }
+
     // Compact slug list for dedup
     const existingSlugs = unresolved.open
       .filter(o => o.id)

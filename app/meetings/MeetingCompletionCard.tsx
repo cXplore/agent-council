@@ -101,6 +101,17 @@ function extractFromSummary(content: string) {
   };
 }
 
+function analyzeQuality(actions: string[], decisions: string[]): { total: number; issues: string[] } {
+  const issues: string[] = [];
+  const noRole = actions.filter(a => !/@\w+/.test(a)).length;
+  const noDoneWhen = actions.filter(a => !/done when[:\s]/i.test(a)).length;
+  const noRationale = decisions.filter(d => !/because[:\s]/i.test(d)).length;
+  if (noRole > 0) issues.push(`${noRole} action${noRole > 1 ? 's' : ''} missing @role`);
+  if (noDoneWhen > 0) issues.push(`${noDoneWhen} action${noDoneWhen > 1 ? 's' : ''} missing "done when:"`);
+  if (noRationale > 0) issues.push(`${noRationale} decision${noRationale > 1 ? 's' : ''} missing rationale`);
+  return { total: noRole + noDoneWhen + noRationale, issues };
+}
+
 export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss, onDismissCard }: Props) {
   const [expanded, setExpanded] = useState(true);
   const { decisions, actions, open, overflow } = useMemo(() => extractFromSummary(content), [content]);
@@ -118,6 +129,14 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
   if (totalActions > 0) countParts.push(`${totalActions} action${totalActions > 1 ? 's' : ''}`);
   if (totalOpen > 0) countParts.push(`${totalOpen} open`);
   const countSummary = countParts.length > 0 ? countParts.join(' · ') : null;
+
+  // Quality analysis — check ALL outcomes (full lists, not sliced)
+  const quality = useMemo(() => {
+    const jsonResult = extractFromJSON(content);
+    const fullActions = jsonResult?.actions ?? actions;
+    const fullDecisions = jsonResult?.decisions ?? decisions;
+    return analyzeQuality(fullActions, fullDecisions);
+  }, [content, actions, decisions]);
 
   const hasContent = decisions.length > 0 || actions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
 
@@ -253,6 +272,16 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
                 </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Quality warnings */}
+        {quality.total > 0 && (
+          <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
+            <div className="text-xs font-medium mb-1" style={{ color: '#fbbf24' }}>Quality ({quality.total} issue{quality.total > 1 ? 's' : ''})</div>
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              {quality.issues.join(' · ')}
             </div>
           </div>
         )}

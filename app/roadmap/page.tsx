@@ -22,6 +22,7 @@ interface RoadmapItem {
   itemStatus: 'active' | 'done' | 'stale' | 'working';
   statusNote?: string;
   statusUpdatedAt?: string;
+  warnings?: Array<'missing-assignee' | 'missing-done-when' | 'missing-rationale'>;
 }
 
 interface RoadmapResponse {
@@ -109,6 +110,26 @@ function AgeBadge({ date, status }: { date: string | null; status: RoadmapItem['
       title={`From meeting on ${date} (${ageDays}d ago)`}
     >
       {ageDays}d
+    </span>
+  );
+}
+
+const WARNING_LABELS: Record<string, string> = {
+  'missing-assignee': 'No @role',
+  'missing-done-when': 'No "done when:"',
+  'missing-rationale': 'No "because:"',
+};
+
+function WarningIndicator({ warnings }: { warnings: Array<'missing-assignee' | 'missing-done-when' | 'missing-rationale'> }) {
+  const tooltip = warnings.map(w => WARNING_LABELS[w] ?? w).join(', ');
+  return (
+    <span
+      className="text-xs flex-shrink-0 cursor-help"
+      style={{ color: 'var(--warning)', opacity: 0.8 }}
+      title={tooltip}
+      aria-label={`Quality warnings: ${tooltip}`}
+    >
+      {'\u26A0'}
     </span>
   );
 }
@@ -311,6 +332,9 @@ function ItemRow({
       >
         {item.text}
       </span>
+      {item.warnings && item.warnings.length > 0 && item.itemStatus === 'active' && (
+        <WarningIndicator warnings={item.warnings} />
+      )}
       <ActionButtons item={item} onStatusChange={onStatusChange} />
     </MotionOrDiv>
   );

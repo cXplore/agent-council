@@ -62,6 +62,8 @@ export interface RoadmapItem extends TagEntry {
   completedAt?: string;
   /** Key of the canonical item this is a duplicate of (read-path tombstone) */
   duplicateOf?: string;
+  /** Validation warnings for this item (missing @role, done when, rationale) */
+  warnings?: Array<'missing-assignee' | 'missing-done-when' | 'missing-rationale'>;
 }
 
 interface RoadmapResponse {
@@ -160,6 +162,15 @@ export async function GET(req: NextRequest) {
       ...(index.closed ?? []).map(c => c.id).filter((id): id is string => id !== null),
     ]);
 
+    // Build per-item warning lookup from validation warnings
+    const warningsByKey = new Map<string, Array<'missing-assignee' | 'missing-done-when' | 'missing-rationale'>>();
+    for (const w of index.validationWarnings) {
+      const key = `${w.tag.text}::${w.tag.meeting}`;
+      const arr = warningsByKey.get(key) ?? [];
+      arr.push(w.type);
+      warningsByKey.set(key, arr);
+    }
+
     // Enrich all items with hash and status
     const allTags = [...index.decisions, ...index.open, ...index.actions, ...index.resolved, ...(index.closed ?? []), ...index.ideas];
     const items: RoadmapItem[] = allTags.map(tag => {
@@ -179,6 +190,7 @@ export async function GET(req: NextRequest) {
         defaultStatus = 'done';
       }
 
+      const itemWarnings = warningsByKey.get(`${tag.text}::${tag.meeting}`);
       return {
         ...tag,
         hash,
@@ -189,6 +201,7 @@ export async function GET(req: NextRequest) {
         filesChanged: stored?.filesChanged,
         completedAt: stored?.completedAt,
         duplicateOf: stored?.duplicateOf,
+        ...(itemWarnings?.length ? { warnings: itemWarnings } : {}),
       };
     });
 
