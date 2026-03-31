@@ -141,6 +141,23 @@ export default function MeetingList(props: MeetingListProps) {
   const [runType, setRunType] = useState('auto');
   const [runAgents, setRunAgents] = useState<Set<string>>(new Set(['project-manager', 'critic', 'north-star']));
   const [runRounds, setRunRounds] = useState(2);
+  const [costEstimate, setCostEstimate] = useState<string | null>(null);
+
+  // Fetch cost estimate when agents or rounds change (debounced)
+  useEffect(() => {
+    if (!showRunForm || runAgents.size < 2) { setCostEstimate(null); return; }
+    const timer = setTimeout(() => {
+      fetch('/api/settings/cost-estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agents: [...runAgents], rounds: runRounds }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.display) setCostEstimate(data.display); })
+        .catch(() => setCostEstimate(null));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [showRunForm, runAgents, runRounds]);
 
   const handlePlanSubmit = () => {
     if (!planTopic.trim()) return;
@@ -570,6 +587,11 @@ export default function MeetingList(props: MeetingListProps) {
                   </button>
                 ))}
               </div>
+              {costEstimate && (
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }} title="Rough estimate based on published API pricing">
+                  Est. {costEstimate}
+                </span>
+              )}
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowRunForm(false)}

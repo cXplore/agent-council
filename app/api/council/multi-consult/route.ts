@@ -552,7 +552,10 @@ export async function POST(req: NextRequest) {
       // Fire and forget — runMeeting completes the job when done
       runMeeting(job.id).then(
         (result) => completeJob(job.id, result),
-        (err) => failJob(job.id, err instanceof Error ? err.message : 'Meeting failed'),
+        (err) => {
+          const errorType = err && typeof err === 'object' && 'type' in err ? (err as { type: string }).type : 'unknown';
+          failJob(job.id, err instanceof Error ? err.message : 'Meeting failed', { errorType });
+        },
       );
       return NextResponse.json({
         jobId: job.id,
@@ -567,8 +570,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error('Multi-consult error:', err);
+    const errorType = err && typeof err === 'object' && 'type' in err ? (err as { type: string }).type : 'unknown';
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Failed to run multi-consult' },
+      { error: err instanceof Error ? err.message : 'Failed to run multi-consult', errorType },
       { status: 500 },
     );
   }

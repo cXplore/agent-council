@@ -31,6 +31,38 @@ export type QueryOptions = {
   model?: string; // "provider/model" format, e.g. "anthropic/claude-opus-4.6"
 };
 
+/** Structured error types for LLM failures — callers can display actionable guidance. */
+export type LLMErrorType = 'auth_failure' | 'rate_limit' | 'model_error' | 'timeout' | 'no_provider' | 'unknown';
+
+export class LLMError extends Error {
+  type: LLMErrorType;
+  constructor(type: LLMErrorType, message: string) {
+    super(message);
+    this.name = 'LLMError';
+    this.type = type;
+  }
+}
+
+/** Classify a raw error into a structured LLMError. */
+function classifyError(err: Error): LLMError {
+  const msg = err.message.toLowerCase();
+  if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') ||
+      msg.includes('authentication') || msg.includes('invalid api key') ||
+      msg.includes('not found') || msg.includes('invalid_api_key')) {
+    return new LLMError('auth_failure', `Authentication failed: ${err.message}. Check your API key in Settings.`);
+  }
+  if (msg.includes('429') || msg.includes('rate_limit') || msg.includes('rate limit') || msg.includes('overloaded') || msg.includes('529')) {
+    return new LLMError('rate_limit', `Rate limited: ${err.message}. Wait a moment and try again.`);
+  }
+  if (msg.includes('timeout') || msg.includes('etimedout') || msg.includes('econnreset') || msg.includes('econnrefused')) {
+    return new LLMError('timeout', `Connection failed: ${err.message}. Check your network and try again.`);
+  }
+  if (msg.includes('model') || msg.includes('does not exist') || msg.includes('not supported')) {
+    return new LLMError('model_error', `Model error: ${err.message}. Check your model configuration.`);
+  }
+  return new LLMError('unknown', err.message);
+}
+
 /**
  * Detect which providers are available based on env vars.
  */
@@ -139,13 +171,13 @@ export async function queryLLM(
   const backend = detectBackend();
 
   if (backend === 'none') {
-    throw new Error(
-      'No LLM credentials found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ' +
-      'or CLAUDE_CODE_OAUTH_TOKEN to enable AI features.',
+    throw new LLMError(
+      'no_provider',
+      'No LLM credentials found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY in Settings.',
     );
   }
 
-  let lastError: Error | undefined;
+  let lastError: LLMError | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -157,22 +189,17 @@ export async function queryLLM(
         return await queryViaAISDK(prompt, options);
       }
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      const msg = lastError.message;
-      const isRetryable =
-        msg.includes('overloaded') ||
-        msg.includes('529') ||
-        msg.includes('rate_limit') ||
-        msg.includes('ECONNRESET') ||
-        msg.includes('ETIMEDOUT');
+      const raw = err instanceof Error ? err : new Error(String(err));
+      lastError = raw instanceof LLMError ? raw : classifyError(raw);
+      const isRetryable = lastError.type === 'rate_limit' || lastError.type === 'timeout';
       if (!isRetryable || attempt >= maxRetries) throw lastError;
       const delay = Math.pow(2, attempt + 1) * 1000;
-      console.warn(`${label} attempt ${attempt + 1} failed (${msg}), retrying in ${delay}ms...`);
+      console.warn(`${label} attempt ${attempt + 1} failed (${lastError.type}: ${lastError.message}), retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 
-  throw lastError ?? new Error('Query failed after retries');
+  throw lastError ?? new LLMError('unknown', 'Query failed after retries');
 }
 
 /**

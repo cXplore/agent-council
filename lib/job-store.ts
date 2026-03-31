@@ -13,6 +13,8 @@ export interface Job<T = unknown> {
   progress?: string;
   result?: T;
   error?: string;
+  /** Structured error type from LLMError (auth_failure, rate_limit, etc.) */
+  errorType?: string;
   createdAt: number;
   completedAt?: number;
 }
@@ -62,6 +64,6 @@ export function completeJob<T>(id: string, result: T): void {
   updateJob(id, { status: 'complete', result, completedAt: Date.now() });
 }
 
-export function failJob(id: string, error: string): void {
-  updateJob(id, { status: 'failed', error, completedAt: Date.now() });
+export function failJob(id: string, error: string, meta?: { errorType?: string }): void {
+  updateJob(id, { status: 'failed', error, errorType: meta?.errorType, completedAt: Date.now() });
 }

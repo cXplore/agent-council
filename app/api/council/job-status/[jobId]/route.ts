@@ -38,6 +38,7 @@ export async function GET(
     return NextResponse.json({
       status: 'failed',
       error: job.error,
+      errorType: job.errorType,
       elapsed: job.completedAt ? job.completedAt - job.createdAt : undefined,
     });
   }

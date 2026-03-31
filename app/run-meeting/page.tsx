@@ -40,7 +40,7 @@ type RunState =
   | { phase: 'idle' }
   | { phase: 'running'; jobId?: string; progress?: string; meetingFile?: string }
   | { phase: 'done'; meetingFile: string; outcomes?: Outcomes; elapsed?: number }
-  | { phase: 'error'; message: string };
+  | { phase: 'error'; message: string; errorType?: string };
 
 type ProjectInfo = {
   name: string;
@@ -185,7 +185,7 @@ export default function RunMeetingPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        setRunState({ phase: 'error', message: err.error || 'Failed to start meeting' });
+        setRunState({ phase: 'error', message: err.error || 'Failed to start meeting', errorType: err.errorType });
         return;
       }
 
@@ -212,7 +212,7 @@ export default function RunMeetingPage() {
             });
           } else if (status.status === 'failed') {
             if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-            setRunState({ phase: 'error', message: status.error || 'Meeting failed' });
+            setRunState({ phase: 'error', message: status.error || 'Meeting failed', errorType: status.errorType });
           }
         } catch {
           // Polling error — continue trying
@@ -741,6 +741,19 @@ export default function RunMeetingPage() {
           fontSize: 13,
         }}>
           <strong>Error:</strong> {runState.message}
+          {runState.errorType && runState.errorType !== 'unknown' && (
+            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+              {runState.errorType === 'auth_failure' && (
+                <>Your API key is missing or invalid. Go to <a href="/settings" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Settings</a> to configure it, or set <code style={{ fontSize: 11, padding: '1px 4px', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>ANTHROPIC_API_KEY</code> in <code style={{ fontSize: 11, padding: '1px 4px', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>.env.local</code>.</>
+              )}
+              {runState.errorType === 'rate_limit' && 'You hit the API rate limit. Wait a minute and try again.'}
+              {runState.errorType === 'timeout' && 'The LLM request timed out. Check your network connection and try again.'}
+              {runState.errorType === 'model_error' && 'The requested model is not available. Check your provider configuration.'}
+              {runState.errorType === 'no_provider' && (
+                <>No API key configured. Set <code style={{ fontSize: 11, padding: '1px 4px', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>ANTHROPIC_API_KEY</code> in <code style={{ fontSize: 11, padding: '1px 4px', background: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>.env.local</code> and restart the server.</>
+              )}
+            </div>
+          )}
           <div style={{ marginTop: 8 }}>
             <button
               onClick={() => setRunState({ phase: 'idle' })}
