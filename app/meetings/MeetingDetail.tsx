@@ -934,8 +934,13 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           };
           return (
             <div
-              className="sticky top-0 z-20 flex items-center gap-1 px-3 py-2 mb-4 -mx-6 -mt-8 rounded-b-lg"
-              style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+              className="sticky top-0 z-20 flex items-center gap-1.5 px-3 py-2.5 mb-4 -mx-6 -mt-8 rounded-b-xl"
+              style={{
+                background: 'rgba(8, 8, 10, 0.85)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                borderBottom: '1px solid var(--border)',
+              }}
             >
               {viewRound !== null && (
                 <button
@@ -960,10 +965,10 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                         contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
                       }
                     }}
-                    className="text-xs px-2.5 py-1.5 rounded-md transition-colors"
+                    className="text-xs px-3 py-1.5 rounded-lg transition-all duration-200"
                     style={isActive
-                      ? { background: 'var(--accent)', color: 'white' }
-                      : { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
+                      ? { background: 'var(--accent)', color: 'white', boxShadow: 'var(--shadow-glow-sm)' }
+                      : { background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', backdropFilter: 'blur(8px)' }
                     }
                     title={isActive ? `Showing Round ${roundNum} only` : `Round ${roundNum}: ${agents.join(', ')}`}
                     aria-label={`${isActive ? 'Viewing' : 'View'} Round ${roundNum} (${agents.length} agents)`}

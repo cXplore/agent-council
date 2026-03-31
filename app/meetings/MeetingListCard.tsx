@@ -152,21 +152,29 @@ export default function MeetingListCard({
       tabIndex={0}
       onClick={() => onSelect(m.filename)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(m.filename); } }}
-      className="w-full text-left rounded-lg p-4 transition-colors hover:brightness-110 group cursor-pointer"
+      className="w-full text-left rounded-xl p-4 card-hover group cursor-pointer"
       style={{
         background: 'var(--bg-card)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         border: focused
           ? '1px solid var(--accent)'
           : m.status === 'in-progress'
             ? '1px solid var(--live-green)'
             : '1px solid var(--border)',
+        boxShadow: m.status === 'in-progress'
+          ? '0 0 20px rgba(74, 222, 128, 0.1)'
+          : focused
+            ? 'var(--shadow-glow-sm)'
+            : 'var(--shadow-sm)',
       }}
     >
       <div className="flex items-center gap-3 mb-1">
         <span
-          className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${m.status === 'in-progress' ? 'animate-pulse' : ''}`}
+          className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${m.status === 'in-progress' ? 'pulse-soft' : ''}`}
           style={{
             background: m.status === 'in-progress' ? 'var(--live-green)' : 'var(--text-muted)',
+            boxShadow: m.status === 'in-progress' ? '0 0 8px rgba(74, 222, 128, 0.4)' : 'none',
           }}
         />
         <span

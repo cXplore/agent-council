@@ -125,7 +125,10 @@ export default function MeetingOutcomes({ content, open, isLive, onClose }: Meet
         width: 320,
         minWidth: 320,
         background: 'var(--bg-card)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         borderLeft: '1px solid var(--border)',
+        boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.2)',
       }}
     >
       {/* Header */}

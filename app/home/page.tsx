@@ -246,8 +246,14 @@ export default function HomePage() {
               className="mb-4"
             >
               <div
-                className="flex items-center rounded-lg overflow-hidden"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                className="flex items-center rounded-xl overflow-hidden"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-card)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                }}
               >
                 {selectedAgent && (
                   <button
@@ -312,13 +318,14 @@ export default function HomePage() {
                   key={qa.action}
                   onClick={() => qa.ready ? handleQuickAction(qa.action) : undefined}
                   disabled={!qa.ready}
-                  className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs px-3.5 py-2 rounded-lg transition-all duration-200"
                   style={{
-                    color: qa.ready ? 'var(--text-muted)' : 'var(--text-muted)',
-                    border: `1px solid ${qa.ready ? 'var(--border)' : 'var(--border)'}`,
-                    background: (qa.action === 'ask' && selectedAgent) ? 'var(--accent-muted)' : 'transparent',
-                    opacity: qa.ready ? 1 : 0.4,
+                    color: qa.ready ? 'var(--text-secondary)' : 'var(--text-muted)',
+                    border: `1px solid ${qa.ready ? 'var(--border)' : 'var(--border-subtle)'}`,
+                    background: (qa.action === 'ask' && selectedAgent) ? 'var(--accent-muted)' : 'var(--bg-card)',
+                    opacity: qa.ready ? 1 : 0.35,
                     cursor: qa.ready ? 'pointer' : 'default',
+                    backdropFilter: 'blur(8px)',
                   }}
                   title={qa.ready ? undefined : 'Coming soon'}
                 >
@@ -381,7 +388,14 @@ export default function HomePage() {
             )}
             <div
               className="rounded-lg p-4 text-sm leading-relaxed mb-4 prose prose-sm prose-invert max-w-none"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                boxShadow: 'var(--shadow-sm)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+              }}
             >
               <ReactMarkdown>{answer}</ReactMarkdown>
             </div>

@@ -85,8 +85,14 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
 
   return (
     <div
-      className="rounded-lg mb-6 overflow-hidden"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      className="rounded-xl mb-6 overflow-hidden"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
     >
       <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">

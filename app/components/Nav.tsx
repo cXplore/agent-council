@@ -282,7 +282,9 @@ export default function Nav() {
     <nav
       className="sticky top-0 z-50 px-4 sm:px-6 py-3"
       style={{
-        background: 'var(--bg-card)',
+        background: 'rgba(12, 12, 16, 0.75)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border)',
       }}
     >
