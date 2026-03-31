@@ -33,3 +33,57 @@ export function inferMeetingType(topic: string, fallback = 'strategy'): string {
 
   return fallback;
 }
+
+/**
+ * Infer the full meeting configuration from a topic string.
+ * Returns type, agents, and rounds based on facilitator protocol:
+ * - Direction check: 2 agents, 1 round
+ * - Quick consult: 3 agents, 1 round
+ * - Full meeting: 4 agents, 2 rounds (mandatory triad + specialist)
+ */
+export function inferMeetingConfig(topic: string): {
+  type: string;
+  agents: string[];
+  rounds: number;
+} {
+  const type = inferMeetingType(topic);
+
+  // Specialist agents chosen by meeting type
+  const SPECIALISTS: Record<string, string[]> = {
+    'design-review': ['designer'],
+    'architecture': ['architect'],
+    'sprint-planning': ['developer'],
+    'incident-review': ['developer'],
+    'retrospective': ['developer'],
+    'standup': [],
+    'strategy': [],
+  };
+
+  const specialists = SPECIALISTS[type] ?? [];
+  const triad = ['project-manager', 'critic', 'north-star'];
+
+  // Short topics (< 20 words, no question marks) → direction check (lean)
+  const wordCount = topic.trim().split(/\s+/).length;
+  const isQuestion = topic.includes('?');
+
+  if (wordCount <= 8 && !isQuestion) {
+    // Very short → direction check: 2 agents, 1 round
+    return {
+      type: 'direction-check',
+      agents: ['project-manager', 'critic'],
+      rounds: 1,
+    };
+  }
+
+  if (type === 'standup') {
+    return { type, agents: ['project-manager', 'critic'], rounds: 1 };
+  }
+
+  // Most meetings: triad + specialist, 2 rounds
+  const agents = [...triad, ...specialists.filter(s => !triad.includes(s))];
+  return {
+    type,
+    agents,
+    rounds: 2,
+  };
+}

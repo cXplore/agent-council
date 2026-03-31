@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import type { MeetingData } from './useMeetingData';
 import type { MeetingListItem } from '@/lib/types';
 import MeetingListCard, { formatType, getTypeColor } from './MeetingListCard';
-import { inferMeetingType } from '@/lib/meeting-type-inference';
+import { inferMeetingType, inferMeetingConfig } from '@/lib/meeting-type-inference';
 import { renderInline } from './render-inline';
 import ActivityFeed from './ActivityFeed';
 import DecisionSearch from './DecisionSearch';
@@ -177,8 +177,13 @@ export default function MeetingList(props: MeetingListProps) {
 
   const handleRunSubmit = async () => {
     const topic = runTopic.trim();
-    if (!topic || runAgents.size < 2) return;
-    const resolvedType = runType === 'auto' ? inferMeetingType(topic) : runType;
+    if (!topic) return;
+    // Auto-config: if user hasn't expanded options, use smart defaults from the topic
+    const useAutoConfig = !showRunOptions;
+    const autoConfig = useAutoConfig ? inferMeetingConfig(topic) : null;
+    const resolvedType = autoConfig ? autoConfig.type : (runType === 'auto' ? inferMeetingType(topic) : runType);
+    const resolvedAgents = autoConfig ? autoConfig.agents : [...runAgents];
+    const resolvedRounds = autoConfig ? autoConfig.rounds : runRounds;
     setRunningMeeting(true);
     setRunError(null);
     setShowRunForm(false);
@@ -190,9 +195,9 @@ export default function MeetingList(props: MeetingListProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           topic,
-          agents: [...runAgents],
+          agents: resolvedAgents,
           type: resolvedType,
-          rounds: runRounds,
+          rounds: resolvedRounds,
           writeMeeting: true,
         }),
       });
@@ -566,7 +571,10 @@ export default function MeetingList(props: MeetingListProps) {
                 style={{ color: 'var(--text-muted)' }}
               >
                 <span style={{ fontSize: 10 }}>{showRunOptions ? '▾' : '▸'}</span>
-                {runAgents.size} agents · {runRounds} round{runRounds > 1 ? 's' : ''} · {runType === 'auto' ? 'auto type' : runType}
+                {showRunOptions
+                  ? `${runAgents.size} agents · ${runRounds} round${runRounds > 1 ? 's' : ''} · ${runType === 'auto' ? 'auto type' : runType}`
+                  : 'auto — agents, rounds & type chosen from topic'
+                }
               </button>
               {costEstimate && (
                 <span className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.5 }} title="Rough estimate">
