@@ -132,6 +132,22 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
       sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
+    // Quality digest: surface tag validation warnings so agents maintain quality standards
+    if (index.validationWarnings.length > 0) {
+      const byCat: Record<string, number> = {};
+      for (const w of index.validationWarnings) {
+        byCat[w.type] = (byCat[w.type] ?? 0) + 1;
+      }
+      const parts: string[] = [];
+      if (byCat['missing-assignee']) parts.push(`${byCat['missing-assignee']} ACTIONs missing @role`);
+      if (byCat['missing-done-when']) parts.push(`${byCat['missing-done-when']} ACTIONs missing "done when:"`);
+      if (byCat['missing-rationale']) parts.push(`${byCat['missing-rationale']} DECISIONs missing "because:" rationale`);
+      sections.push(
+        `Quality issues in past outcomes (${index.validationWarnings.length} total): ${parts.join(', ')}. ` +
+        'Ensure YOUR outputs include @role assignments on ACTIONs, "done when:" completion criteria, and "because:" rationale on DECISIONs.'
+      );
+    }
+
     // Compact slug list for dedup: all active OPEN slugs so agents avoid creating duplicates
     const existingSlugs = unresolved.open
       .filter(o => o.id)

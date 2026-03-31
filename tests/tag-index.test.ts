@@ -576,6 +576,44 @@ meeting-outcomes -->`;
       await rm(dir, { recursive: true });
     }
   });
+
+  it('items with duplicateOf in status store are filtered from getUnresolved', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'dedup-test-'));
+    try {
+      // Meeting with two similar action items
+      await writeFile(path.join(dir, '2026-03-30-m1.md'), `# Meeting 1
+
+## Summary
+
+- [ACTION @developer] Build the search feature
+- [ACTION @developer] Implement search functionality`);
+
+      // Mark the second as a duplicate of the first via status store
+      const { stableActionKey } = await import('@/lib/utils');
+      const canonicalKey = stableActionKey('Build the search feature', '2026-03-30-m1.md');
+      const duplicateKey = stableActionKey('Implement search functionality', '2026-03-30-m1.md');
+      const statusStore = {
+        statuses: {
+          [duplicateKey]: {
+            status: 'done',
+            duplicateOf: canonicalKey,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      };
+      await writeFile(path.join(dir, '.council-action-status.json'), JSON.stringify(statusStore));
+
+      const { getUnresolved } = await import('@/lib/tag-index');
+      const result = await getUnresolved(dir);
+
+      // Only the canonical item should remain
+      const searchActions = result.actions.filter(a => a.text.toLowerCase().includes('search'));
+      expect(searchActions).toHaveLength(1);
+      expect(searchActions[0].text).toContain('Build the search feature');
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
 });
 
 describe('Embedded slug extraction from malformed open_questions', () => {

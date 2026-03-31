@@ -62,6 +62,7 @@ function SettingsInner() {
   const [templateCheck, setTemplateCheck] = useState<AgentCheckResponse | null>(null);
   const [mergeStatus, setMergeStatus] = useState<string | null>(null);
   const [projectList, setProjectList] = useState<{ name: string; path: string }[]>([]);
+  const [llmStatus, setLlmStatus] = useState<{ available: boolean; backend: string; providers: Record<string, boolean> } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { document.title = 'Settings — Agent Council'; }, []);
@@ -72,11 +73,13 @@ function SettingsInner() {
       fetch('/api/setup/mcp').then(r => r.ok ? r.json() : null),
       fetch('/api/agents/check').then(r => r.ok ? r.json() : null),
       fetch('/api/projects').then(r => r.ok ? r.json() : null),
-    ]).then(([h, m, tc, p]) => {
+      fetch('/api/council/llm-status').then(r => r.ok ? r.json() : null),
+    ]).then(([h, m, tc, p, llm]) => {
       setHealth(h);
       setMcp(m);
       setTemplateCheck(tc);
       if (p?.projects) setProjectList(p.projects);
+      setLlmStatus(llm);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -152,6 +155,49 @@ function SettingsInner() {
                   <div className="mt-1 font-medium" style={{ color: 'var(--text-primary)' }}>{health.node}</div>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {/* AI Providers */}
+          {llmStatus && (
+            <motion.div {...staggerFadeUp(sectionIndex++)}
+              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>AI Providers</h2>
+                <span className="text-xs" style={{ color: llmStatus.available ? 'var(--live-green)' : 'var(--text-muted)' }}>
+                  {llmStatus.available ? 'ready' : 'no providers configured'}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {[
+                  { key: 'anthropic', label: 'Anthropic', env: 'ANTHROPIC_API_KEY', models: 'Claude Opus, Sonnet, Haiku' },
+                  { key: 'openai', label: 'OpenAI', env: 'OPENAI_API_KEY', models: 'GPT-5.4, GPT-4o' },
+                  { key: 'google', label: 'Google', env: 'GOOGLE_GENERATIVE_AI_API_KEY', models: 'Gemini 2.5 Pro' },
+                  { key: 'agent-sdk', label: 'Claude Code', env: 'CLAUDE_CODE_OAUTH_TOKEN', models: 'Via Claude subscription' },
+                ].map(provider => {
+                  const active = llmStatus.providers[provider.key] ?? false;
+                  return (
+                    <div key={provider.key} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'var(--live-green)' : 'var(--border)' }} />
+                        <span className="text-sm" style={{ color: active ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                          {provider.label}
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {provider.models}
+                        </span>
+                      </div>
+                      <span className="text-xs font-mono" style={{ color: active ? 'var(--live-green)' : 'var(--text-muted)', opacity: 0.7 }}>
+                        {active ? 'configured' : provider.env}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+                Add API keys to <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>.env.local</code> to enable providers.
+                Each agent can use a different provider — set <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>model: openai/gpt-5.4</code> in agent frontmatter.
+              </p>
             </motion.div>
           )}
 
