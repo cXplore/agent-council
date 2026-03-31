@@ -21,6 +21,7 @@ function extractFromSummary(content: string) {
   const start = summaryIdx >= 0 ? summaryIdx : 0;
 
   const decisions: string[] = [];
+  const actions: string[] = [];
   const open: { slug: string | null; text: string }[] = [];
   const resolvedSlugs = new Set<string>();
 
@@ -32,6 +33,7 @@ function extractFromSummary(content: string) {
     const text = m[3].trim();
     if (type === 'RESOLVED' && slug) resolvedSlugs.add(slug);
     if (type === 'DECISION') decisions.push(text);
+    if (type === 'ACTION') actions.push(text);
     if (type === 'OPEN') open.push({ slug, text });
   }
 
@@ -40,18 +42,31 @@ function extractFromSummary(content: string) {
     .filter(item => !item.slug || !resolvedSlugs.has(item.slug))
     .map(item => item.text);
 
-  return { decisions: decisions.slice(0, 3), open: filteredOpen.slice(0, 2) };
+  const totalDecisions = decisions.length;
+  const totalActions = actions.length;
+  const totalOpen = filteredOpen.length;
+
+  return {
+    decisions: decisions.slice(0, 3),
+    actions: actions.slice(0, 3),
+    open: filteredOpen.slice(0, 2),
+    overflow: {
+      decisions: Math.max(0, totalDecisions - 3),
+      actions: Math.max(0, totalActions - 3),
+      open: Math.max(0, totalOpen - 2),
+    },
+  };
 }
 
 export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss }: Props) {
   const [expanded, setExpanded] = useState(true);
-  const { decisions, open } = useMemo(() => extractFromSummary(content), [content]);
+  const { decisions, actions, open, overflow } = useMemo(() => extractFromSummary(content), [content]);
   const activeSuggestions = useMemo(
     () => (recommendedMeetings ?? []).filter(r => !dismissedSuggestions.has(r.text)).slice(0, 2),
     [recommendedMeetings, dismissedSuggestions]
   );
 
-  const hasContent = decisions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
+  const hasContent = decisions.length > 0 || actions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
 
   // Fallback: no extracted outcomes — show a simple "complete" line instead of nothing
   if (!hasContent) {
@@ -94,6 +109,31 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
                   <span>{renderInline(d)}</span>
                 </li>
               ))}
+              {overflow.decisions > 0 && (
+                <li className="text-xs" style={{ color: 'var(--text-muted)', paddingLeft: '0.75rem' }}>
+                  …and {overflow.decisions} more
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        {/* Action items */}
+        {actions.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#34d399' }}>Actions</div>
+            <ul className="space-y-1">
+              {actions.map((a, i) => (
+                <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <span style={{ color: '#34d399', flexShrink: 0 }}>·</span>
+                  <span>{renderInline(a)}</span>
+                </li>
+              ))}
+              {overflow.actions > 0 && (
+                <li className="text-xs" style={{ color: 'var(--text-muted)', paddingLeft: '0.75rem' }}>
+                  …and {overflow.actions} more
+                </li>
+              )}
             </ul>
           </div>
         )}
@@ -109,6 +149,11 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
                   <span>{renderInline(q)}</span>
                 </li>
               ))}
+              {overflow.open > 0 && (
+                <li className="text-xs" style={{ color: 'var(--text-muted)', paddingLeft: '0.75rem' }}>
+                  …and {overflow.open} more
+                </li>
+              )}
             </ul>
           </div>
         )}

@@ -228,10 +228,14 @@ Use `[IDEA]` to capture promising proposals that are deferred — not rejected, 
 - If the question isn't being tracked for resolution, plain `[OPEN]` (no ID) is fine
 - **3-meeting carry-forward rule:** Open questions that have not been addressed after 3 subsequent meetings should be archived (resolved with "Archived — no progress after 3 meetings") or escalated. When writing the carry-forward section, only include open questions from the last 3 meetings. Older unresolved items are noise, not context.
 
+**Summary prose rule:** Before the tagged sections, write 1-2 sentences of prose that lead with the conclusion. The first sentence MUST state what was decided or concluded — never open with setup like "This meeting discussed..." or "The team reviewed...". Good: "We decided to defer the rating system and fix input quality first." Bad: "This retrospective evaluated whether meeting summaries are useful."
+
 Append a summary section to the hub file:
 
 ```markdown
 ## Summary
+
+[1-2 sentence prose leading with the conclusion — what was decided, not what was discussed]
 
 ### Decisions Made
 - [DECISION] [Decision 1] — [Brief rationale]
