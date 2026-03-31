@@ -115,6 +115,20 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     }
   }, [justCompleted, toast]);
 
+  // Browser tab title flash on meeting complete (user may have tabbed away)
+  useEffect(() => {
+    if (!justCompleted) return;
+    const originalTitle = document.title;
+    let count = 0;
+    const interval = setInterval(() => {
+      document.title = count % 2 === 0 ? '\u2713 Meeting Complete' : originalTitle;
+      if (++count >= 6) { clearInterval(interval); document.title = originalTitle; }
+    }, 800);
+    const onFocus = () => { document.title = originalTitle; clearInterval(interval); };
+    window.addEventListener('focus', onFocus);
+    return () => { clearInterval(interval); window.removeEventListener('focus', onFocus); document.title = originalTitle; };
+  }, [justCompleted]);
+
   // Scroll to highlighted decision text when navigating from decision search
   useEffect(() => {
     if (!highlightText || !detail?.content || !contentRef.current) return;
@@ -474,6 +488,27 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                 Auto-refresh paused
               </span>
             )}
+          </div>
+        );
+      })()}
+
+      {/* Current moment strip — shows which agent is actively speaking during live meetings */}
+      {isLive && !connectionLost && latestEvent?.includes('thinking') && (() => {
+        const agentName = latestEvent.replace(' is thinking...', '');
+        const color = getAgentColor(agentName);
+        return (
+          <div
+            className="px-6 py-1.5 flex items-center gap-2 text-xs"
+            style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+          >
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse shrink-0"
+              style={{ background: color }}
+            />
+            <span className="font-semibold tracking-wide uppercase" style={{ color, fontSize: '0.65rem' }}>
+              {agentName}
+            </span>
+            <span style={{ color: 'var(--text-muted)' }}>is responding...</span>
           </div>
         );
       })()}

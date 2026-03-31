@@ -178,11 +178,29 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
         {children}
       </h1>
     ),
-    h2: ({ children }) => (
-      <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
-        {children}
-      </h2>
-    ),
+    h2: ({ children }) => {
+      const text = extractText(children);
+      const roundMatch = text.match(/^Round (\d+)/);
+      if (roundMatch) {
+        return (
+          <div className="flex items-center gap-3 mt-10 mb-4" role="separator">
+            <div className="h-px flex-1" style={{ background: 'var(--border)', opacity: 0.6 }} />
+            <span
+              className="text-xs font-semibold tracking-widest uppercase px-2"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {text}
+            </span>
+            <div className="h-px flex-1" style={{ background: 'var(--border)', opacity: 0.6 }} />
+          </div>
+        );
+      }
+      return (
+        <h2 className="text-lg font-semibold mt-8 mb-4" style={{ color: 'var(--accent)' }}>
+          {children}
+        </h2>
+      );
+    },
     h3: ({ children }) => (
       <h3 className="text-base font-semibold mt-6 mb-3" style={{ color: 'var(--text-primary)' }}>
         {children}
