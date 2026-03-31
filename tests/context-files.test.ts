@@ -17,12 +17,20 @@ import os from 'os';
 const TEST_DIR = path.join(os.tmpdir(), 'agent-council-context-test');
 const TEST_FILE = path.join(TEST_DIR, 'test-agent.context.md');
 
+// Use dates within the last 7 days to avoid stale pruning (30-day threshold)
+const today = new Date();
+const d = (daysAgo: number) => {
+  const dt = new Date(today);
+  dt.setDate(dt.getDate() - daysAgo);
+  return dt.toISOString().slice(0, 10);
+};
+
 const SAMPLE_CONTEXT = `# test-agent — Context
 
 ## Meeting Learnings
-- [2026-03-01] First learning
-- [2026-03-02] Second learning
-- [2026-03-03] Third learning
+- [${d(3)}] First learning
+- [${d(2)}] Second learning
+- [${d(1)}] Third learning
 
 ## Project Conventions
 _Reserved for project-specific patterns._
@@ -83,10 +91,10 @@ describe('parseLearningDate', () => {
 describe('appendContextLearnings', () => {
   it('appends entries to existing file', async () => {
     await writeFile(TEST_FILE, SAMPLE_CONTEXT, 'utf-8');
-    await appendContextLearnings(TEST_FILE, ['[2026-03-04] New learning']);
+    await appendContextLearnings(TEST_FILE, [`[${d(0)}] New learning`]);
     const content = await readFile(TEST_FILE, 'utf-8');
-    expect(content).toContain('[2026-03-04] New learning');
-    expect(content).toContain('[2026-03-01] First learning');
+    expect(content).toContain(`[${d(0)}] New learning`);
+    expect(content).toContain(`[${d(3)}] First learning`);
   });
 
   it('auto-prefixes entries with dash', async () => {
@@ -109,9 +117,9 @@ describe('appendContextLearnings', () => {
     await writeFile(TEST_FILE, SAMPLE_CONTEXT, 'utf-8');
     // Add entries to exceed maxLines=5 (already have 3)
     await appendContextLearnings(TEST_FILE, [
-      '[2026-03-04] Fourth',
-      '[2026-03-05] Fifth',
-      '[2026-03-06] Sixth',
+      `[${d(0)}] Fourth`,
+      `[${d(0)}] Fifth`,
+      `[${d(0)}] Sixth`,
     ], 5);
     const content = await readFile(TEST_FILE, 'utf-8');
     // First entry should be trimmed
@@ -281,8 +289,8 @@ describe('getContextHealth', () => {
     expect(health.agent).toBe('test-agent');
     expect(health.totalLearnings).toBe(3);
     expect(health.totalCorrections).toBe(0);
-    expect(health.oldestEntryDate).toBe('2026-03-01');
-    expect(health.newestEntryDate).toBe('2026-03-03');
+    expect(health.oldestEntryDate).toBe(d(3));
+    expect(health.newestEntryDate).toBe(d(1));
     expect(health.capacityUsed).toBe(Math.round((3 / MAX_LEARNING_LINES) * 100));
   });
 
