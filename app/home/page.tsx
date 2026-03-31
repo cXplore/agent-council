@@ -14,9 +14,12 @@ const AGENTS = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: 'Run a meeting', icon: '▶', action: 'meeting' as const },
-  { label: 'Ask an agent', icon: '?', action: 'ask' as const },
-  { label: 'Daily brief', icon: '☀', action: 'brief' as const },
+  { label: 'Run a meeting', icon: '▶', action: 'meeting' as const, ready: true },
+  { label: 'Ask an agent', icon: '?', action: 'ask' as const, ready: true },
+  { label: 'Daily brief', icon: '☀', action: 'brief' as const, ready: true },
+  { label: 'Review code', icon: '◎', action: 'review' as const, ready: false },
+  { label: 'Write docs', icon: '✎', action: 'docs' as const, ready: false },
+  { label: 'Health check', icon: '♡', action: 'health' as const, ready: false },
 ];
 
 type Phase = 'idle' | 'thinking' | 'done';
@@ -115,7 +118,7 @@ export default function HomePage() {
     }
   };
 
-  const handleQuickAction = (action: 'meeting' | 'ask' | 'brief') => {
+  const handleQuickAction = (action: string) => {
     if (action === 'meeting') {
       setSelectedAgent(null);
       // Focus input
@@ -224,17 +227,21 @@ export default function HomePage() {
             )}
 
             {/* Quick actions */}
-            <div className="flex gap-2 justify-center">
+            <div className="flex flex-wrap gap-2 justify-center">
               {QUICK_ACTIONS.map(qa => (
                 <button
                   key={qa.action}
-                  onClick={() => handleQuickAction(qa.action)}
+                  onClick={() => qa.ready ? handleQuickAction(qa.action) : undefined}
+                  disabled={!qa.ready}
                   className="text-xs px-3 py-1.5 rounded-lg transition-colors"
                   style={{
-                    color: 'var(--text-muted)',
-                    border: '1px solid var(--border)',
+                    color: qa.ready ? 'var(--text-muted)' : 'var(--text-muted)',
+                    border: `1px solid ${qa.ready ? 'var(--border)' : 'var(--border)'}`,
                     background: (qa.action === 'ask' && selectedAgent) ? 'var(--accent-muted)' : 'transparent',
+                    opacity: qa.ready ? 1 : 0.4,
+                    cursor: qa.ready ? 'pointer' : 'default',
                   }}
+                  title={qa.ready ? undefined : 'Coming soon'}
                 >
                   <span className="mr-1.5">{qa.icon}</span>
                   {qa.label}
