@@ -125,7 +125,8 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     if (isLive) {
       wasLiveRef.current = true;
     } else if (wasLiveRef.current && detail?.status === 'complete') {
-      // Meeting just transitioned from in-progress to complete
+      // Meeting just transitioned from in-progress to complete — show completion card
+      setCompletionCardDismissed(false);
       wasLiveRef.current = false;
       setJustCompleted(true);
       // Auto-dismiss the completion banner after 8 seconds
@@ -1165,7 +1166,10 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             <div className="space-y-6">
               <div className="prose prose-sm prose-invert max-w-none meeting-new-content">
                 <ReactMarkdown components={mdComponents}>
-                  {detail.content.replace(/<!--[\s\S]*?-->\n?/g, '')}
+                  {detail.content
+                    .replace(/^---\n[\s\S]*?\n---\n?/, '')
+                    .replace(/<!--[\s\S]*?-->\n?/g, '')
+                    .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, '')}
                 </ReactMarkdown>
               </div>
               <div
@@ -1184,9 +1188,13 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           ) : (
             <div className="prose prose-sm prose-invert max-w-none">
               {(() => {
-                const fullClean = detail.content.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const stripAppendix = (s: string) => s
+                  .replace(/^---\n[\s\S]*?\n---\n?/, '')  // strip YAML frontmatter
+                  .replace(/<!--[\s\S]*?-->\n?/g, '')     // strip HTML comments
+                  .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, ''); // strip JSON appendix
+                const fullClean = stripAppendix(detail.content);
                 const clean = viewRound !== null ? getContentForRound(fullClean, viewRound) : fullClean;
-                const cleanSeen = seenContent.replace(/<!--[\s\S]*?-->\n?/g, '');
+                const cleanSeen = stripAppendix(seenContent);
                 const hasNew = clean.length > cleanSeen.length && cleanSeen.length > 0;
                 let splitIdx = cleanSeen.length;
                 if (hasNew) {

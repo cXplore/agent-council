@@ -113,7 +113,7 @@ function analyzeQuality(actions: string[], decisions: string[]): { total: number
 }
 
 export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss, onDismissCard }: Props) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const { decisions, actions, open, overflow } = useMemo(() => extractFromSummary(content), [content]);
   const activeSuggestions = useMemo(
     () => (recommendedMeetings ?? []).filter(r => !dismissedSuggestions.has(r.text)).slice(0, 2),

@@ -163,6 +163,13 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   const router = useRouter();
   const [meetings, setMeetings] = useState<MeetingListItem[]>([]);
   const [selected, setSelected] = useState<string | null>(searchParams.get('file'));
+  // Sync selection with URL — when nav link clears ?file=, deselect the meeting
+  useEffect(() => {
+    const fileParam = searchParams.get('file');
+    if (!fileParam && selected) {
+      setSelected(null);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
   const [detail, setDetail] = useState<MeetingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tagSummary, setTagSummary] = useState<MeetingData['tagSummary']>(null);
