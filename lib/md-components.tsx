@@ -180,7 +180,7 @@ export function createMeetingComponents(getAgentColor: (name: string) => string)
     ),
     h2: ({ children }) => {
       const text = extractText(children);
-      const roundMatch = text.match(/^Round (\d+)/);
+      const roundMatch = text.match(/^Round \d+( of \d+)?$/);
       if (roundMatch) {
         return (
           <div className="flex items-center gap-3 mt-10 mb-4" role="separator">

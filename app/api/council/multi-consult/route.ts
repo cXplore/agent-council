@@ -438,14 +438,22 @@ export async function POST(req: NextRequest) {
         // Log to activity feed
         const decisionCount = outcomes.decisions.length;
         const actionCount = outcomes.actions.length;
-        const outcomeSummary = [
+        const outcomeCounts = [
           decisionCount > 0 ? `${decisionCount} decision${decisionCount > 1 ? 's' : ''}` : '',
           actionCount > 0 ? `${actionCount} action${actionCount > 1 ? 's' : ''}` : '',
         ].filter(Boolean).join(', ');
+        // Format: "[N decisions, N actions]: first decision truncated to 80 chars"
+        const firstDecision = outcomes.decisions[0]?.text;
+        const decisionPreview = firstDecision
+          ? firstDecision.length > 80 ? firstDecision.slice(0, 77) + '...' : firstDecision
+          : shortTopic;
+        const summaryText = outcomeCounts
+          ? `[${outcomeCounts}]: ${decisionPreview}`
+          : `Meeting complete: ${shortTopic}`;
         await writeActivityEntry({
           source: 'meeting',
           type: 'meeting_complete',
-          summary: `Meeting complete: ${shortTopic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
+          summary: summaryText,
           linkedMeeting: meetingFilename,
         }).catch(() => {}); // fire-and-forget
       }

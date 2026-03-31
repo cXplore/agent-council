@@ -50,6 +50,7 @@ export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [newSinceLastVisit, setNewSinceLastVisit] = useState(0);
+  const [lastVisitTimestamp, setLastVisitTimestamp] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/activity?limit=20')
@@ -61,18 +62,40 @@ export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
           try {
             const lastVisit = localStorage.getItem('council-last-visit');
             if (lastVisit) {
+              setLastVisitTimestamp(lastVisit);
               const count = data.entries.filter((e: ActivityEntry) => e.timestamp > lastVisit).length;
               setNewSinceLastVisit(count);
             }
           } catch { /* ignore */ }
-          // Update last visit timestamp
-          try { localStorage.setItem('council-last-visit', new Date().toISOString()); } catch { /* ignore */ }
         }
       })
       .catch(() => {});
   }, []);
 
-  if (entries.length === 0) return null;
+  // Mark as seen after 3 seconds of visibility (avoids overwriting on quick refresh/reload)
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const timer = setTimeout(() => {
+      try { localStorage.setItem('council-last-visit', new Date().toISOString()); } catch { /* ignore */ }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [entries.length]);
+
+  if (entries.length === 0) {
+    return (
+      <div
+        className="rounded-lg mb-6 overflow-hidden px-4 py-6 text-center"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      >
+        <span className="text-xs uppercase tracking-wide font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>
+          Recent Activity
+        </span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Activity will appear here when the worker runs or meetings complete.
+        </span>
+      </div>
+    );
+  }
 
   const DEFAULT_SHOWN = 5;
   const shown = expanded ? entries : entries.slice(0, DEFAULT_SHOWN);
@@ -124,12 +147,16 @@ export default function ActivityFeed({ onSelectMeeting }: ActivityFeedProps) {
           const typeConf = TYPE_CONFIG[entry.type] ?? { label: entry.type, color: 'var(--text-muted)', icon: '\u2022' };
           const isFlag = entry.type === 'flag';
           const isNavigable = entry.linkedMeeting && onSelectMeeting;
+          const isNew = lastVisitTimestamp && entry.timestamp > lastVisitTimestamp;
 
           return (
             <div
               key={entry.id}
               className={`px-4 py-2.5 flex items-start gap-3 ${isNavigable ? 'cursor-pointer hover:brightness-110' : ''}`}
-              style={isFlag ? { background: 'rgba(234, 179, 8, 0.06)' } : undefined}
+              style={{
+                ...(isFlag ? { background: 'rgba(234, 179, 8, 0.06)' } : {}),
+                ...(isNew ? { borderLeft: '2px solid rgba(124, 109, 216, 0.5)', background: 'rgba(124, 109, 216, 0.04)' } : {}),
+              }}
               onClick={isNavigable ? () => onSelectMeeting(entry.linkedMeeting!.replace(/.*[\\/]/, '')) : undefined}
             >
               {/* Type badge (primary) */}

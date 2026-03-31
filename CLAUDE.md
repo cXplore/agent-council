@@ -102,6 +102,10 @@ docs/                   # GitHub Pages static site
 | RSS feed API | `app/api/meetings/feed/route.ts` |
 | Key terms API | `app/api/meetings/terms/route.ts` |
 | Meeting template API | `app/api/meetings/template/route.ts` |
+| Activity feed API | `app/api/activity/route.ts` |
+| Activity backfill (git) | `app/api/activity/backfill/route.ts` |
+| Activity log lib | `lib/activity-log.ts` |
+| Activity feed component | `app/meetings/ActivityFeed.tsx` |
 | AI project scan | `app/api/setup/ai-scan/route.ts` |
 | Agent template merge | `app/api/agents/merge/route.ts` |
 | Agent context files | `app/api/agents/context/route.ts` |

@@ -23,14 +23,32 @@ async function getLogPath(): Promise<string> {
   return path.join(active.meetingsDir, 'activity.log');
 }
 
-/** Append a new entry to the activity log. Returns the generated ID. */
+/** Append a new entry to the activity log. Returns the generated ID, or existing ID if deduplicated. */
 export async function writeActivityEntry(
   entry: Omit<ActivityEntry, 'id' | 'timestamp'>
 ): Promise<string> {
   const logPath = await getLogPath();
+  const now = new Date();
+
+  // Dedup: skip if an entry with same linkedMeeting + type exists within 2 hours
+  if (entry.linkedMeeting && existsSync(logPath)) {
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+    const raw = await readFile(logPath, 'utf-8');
+    const lines = raw.split('\n').filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const existing: ActivityEntry = JSON.parse(lines[i]);
+        if (existing.timestamp < twoHoursAgo) break; // past 2h window, stop scanning
+        if (existing.type === entry.type && existing.linkedMeeting === entry.linkedMeeting) {
+          return existing.id; // duplicate — return existing ID
+        }
+      } catch { /* skip malformed */ }
+    }
+  }
+
   const full: ActivityEntry = {
     id: generateId(),
-    timestamp: new Date().toISOString(),
+    timestamp: now.toISOString(),
     ...entry,
   };
   const line = JSON.stringify(full) + '\n';
