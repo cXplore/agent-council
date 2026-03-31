@@ -217,14 +217,14 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(199, 75, 138, 0.05) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 30% 50%, rgba(212, 147, 92, 0.04) 0%, transparent 60%)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(176, 112, 224, 0.05) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 70% 60%, rgba(224, 112, 160, 0.03) 0%, transparent 60%)' }}>
       <div style={{ maxWidth: 620, width: '100%' }}>
         {/* Header */}
         <div className="text-center mb-12">
           <h1
             className="text-4xl font-extrabold tracking-tight mb-3"
             style={{
-              background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent-warm) 50%, var(--accent-pink) 100%)',
+              background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 50%, var(--accent-pink) 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               letterSpacing: '-0.03em',

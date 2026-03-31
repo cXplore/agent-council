@@ -7,40 +7,40 @@
 }
 
 :root {
-  /* Surfaces — deep space with warm undertone */
-  --bg: #06050a;
-  --bg-card: rgba(20, 16, 22, 0.85);
-  --bg-elevated: rgba(32, 26, 36, 0.9);
-  --bg-solid: #140f18;
+  /* Surfaces — deep indigo cosmic */
+  --bg: #070610;
+  --bg-card: rgba(16, 14, 30, 0.85);
+  --bg-elevated: rgba(24, 20, 44, 0.9);
+  --bg-solid: #100e1c;
 
-  /* Borders — warm white opacity */
-  --border: rgba(255, 220, 200, 0.08);
-  --border-focus: rgba(255, 220, 200, 0.18);
-  --border-subtle: rgba(255, 220, 200, 0.04);
-  --border-glow: rgba(155, 109, 216, 0.30);
+  /* Borders — cool soft */
+  --border: rgba(200, 180, 255, 0.07);
+  --border-focus: rgba(200, 180, 255, 0.16);
+  --border-subtle: rgba(200, 180, 255, 0.03);
+  --border-glow: rgba(180, 120, 220, 0.30);
 
-  /* Text — warm cream tones */
-  --text-primary: #f2ece4;
-  --text-secondary: #b8a89a;
-  --text-muted: #7a6e62;
+  /* Text — clean whites with slight warmth */
+  --text-primary: #eceaf2;
+  --text-secondary: #a8a4b4;
+  --text-muted: #686474;
 
-  /* Accent — digital purple-pink (interactive elements, buttons) */
-  --accent: #9b6dd8;
-  --accent-hover: #b485f0;
-  --accent-muted: rgba(155, 109, 216, 0.15);
-  --accent-glow: rgba(155, 109, 216, 0.30);
+  /* Accent — purple-pink gradient family */
+  --accent: #b070e0;
+  --accent-hover: #c88cf0;
+  --accent-muted: rgba(176, 112, 224, 0.14);
+  --accent-glow: rgba(176, 112, 224, 0.28);
 
-  /* Warm accent — copper/amber (glows, highlights, warmth) */
-  --accent-warm: #d4935c;
-  --accent-warm-muted: rgba(212, 147, 92, 0.15);
+  /* Secondary — pink (same family, warmer) */
+  --accent-pink: #e070a0;
+  --accent-pink-muted: rgba(224, 112, 160, 0.14);
 
-  /* Secondary — pink-magenta (for special highlights) */
-  --accent-pink: #c74b8a;
-  --accent-pink-muted: rgba(199, 75, 138, 0.15);
+  /* Tertiary — cyan (cool contrast for data/tech elements) */
+  --accent-cyan: #50d0c8;
+  --accent-cyan-muted: rgba(80, 208, 200, 0.10);
 
-  /* Tertiary — cyan-blue (cool contrast) */
-  --accent-cyan: #4ecdc4;
-  --accent-cyan-muted: rgba(78, 205, 196, 0.12);
+  /* Warm — kept minimal, only for special decorative use */
+  --accent-warm: #e0a060;
+  --accent-warm-muted: rgba(224, 160, 96, 0.12);
 
   /* Status */
   --live-green: #4ade80;
@@ -50,17 +50,17 @@
   --success: var(--live-green);
   --text-on-accent: #ffffff;
 
-  /* Semantic tag colors — warm-cosmic palette, distinct but harmonious */
-  --color-decision: #7cb8f0;
-  --color-decision-bg: rgba(124, 184, 240, 0.1);
-  --color-open: #e8a060;
-  --color-open-bg: rgba(232, 160, 96, 0.1);
-  --color-action: #5ce8a0;
-  --color-action-bg: rgba(92, 232, 160, 0.1);
-  --color-resolved: #8a7e72;
-  --color-resolved-bg: rgba(138, 126, 114, 0.08);
-  --color-idea: #d090f0;
-  --color-idea-bg: rgba(208, 144, 240, 0.1);
+  /* Semantic tag colors — cosmic palette */
+  --color-decision: #70b0f0;
+  --color-decision-bg: rgba(112, 176, 240, 0.1);
+  --color-open: #f0a860;
+  --color-open-bg: rgba(240, 168, 96, 0.1);
+  --color-action: #50e0a0;
+  --color-action-bg: rgba(80, 224, 160, 0.1);
+  --color-resolved: #706880;
+  --color-resolved-bg: rgba(112, 104, 128, 0.08);
+  --color-idea: #d080f0;
+  --color-idea-bg: rgba(208, 128, 240, 0.1);
   --color-suggestion: #b485f0;
   --color-suggestion-bg: rgba(180, 133, 240, 0.08);
 
@@ -96,9 +96,9 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:foc
 body {
   background: var(--bg);
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(199, 75, 138, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(212, 147, 92, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 30% at 20% 10%, rgba(78, 205, 196, 0.04) 0%, transparent 40%);
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(176, 112, 224, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(224, 112, 160, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 20% 90%, rgba(80, 208, 200, 0.03) 0%, transparent 40%);
   color: var(--text-primary);
   min-height: 100vh;
 }

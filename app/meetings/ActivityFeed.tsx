@@ -151,7 +151,7 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
 
           const entryStyle: React.CSSProperties = {
             ...(isFlag ? { background: 'rgba(234, 179, 8, 0.06)' } : {}),
-            ...(isNew ? { borderLeft: '2px solid var(--accent-warm)', background: 'rgba(212, 147, 92, 0.04)' } : {}),
+            ...(isNew ? { borderLeft: '2px solid var(--accent-pink)', background: 'rgba(224, 112, 160, 0.04)' } : {}),
             display: 'flex',
             color: 'inherit',
             textDecoration: 'none',
