@@ -145,7 +145,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
     return (
       <div
         className="mx-6 mt-4 mb-2 rounded-xl text-sm px-4 py-2.5 flex items-center gap-2"
-        style={{ border: '1px solid rgba(96, 165, 250, 0.15)', background: 'rgba(96, 165, 250, 0.03)' }}
+        style={{ border: '1px solid var(--border)', background: 'var(--bg-card)' }}
       >
         <span className="text-xs" style={{ color: 'var(--color-decision)' }}>{'\u2714'}</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Meeting complete — scroll up to view full outcomes</span>
@@ -159,15 +159,15 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
   return (
     <div
       className="mx-6 mt-4 mb-2 rounded-xl text-sm overflow-hidden"
-      style={{ border: '1px solid rgba(96, 165, 250, 0.25)', background: 'rgba(96, 165, 250, 0.04)' }}
+      style={{ border: '1px solid var(--border)', background: 'var(--bg-card)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
     >
       {/* Header with outcome counts */}
-      <div className="flex items-center" style={{ background: 'rgba(96, 165, 250, 0.06)', borderBottom: expanded ? '1px solid rgba(96, 165, 250, 0.15)' : undefined }}>
+      <div className="flex items-center" style={{ borderBottom: expanded ? '1px solid var(--border-subtle)' : undefined }}>
         <button
           onClick={() => setExpanded(e => !e)}
           className="flex-1 px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors text-left"
         >
-          <span className="text-xs font-medium" style={{ color: 'var(--color-decision)' }}>{'\u2714'} Meeting complete</span>
+          <span className="text-xs font-medium" style={{ color: 'var(--live-green)' }}>{'\u2714'} Meeting complete</span>
           {countSummary && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {countSummary}</span>}
           <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
         </button>

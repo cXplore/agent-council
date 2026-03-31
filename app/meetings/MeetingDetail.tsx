@@ -206,32 +206,43 @@ export default function MeetingDetail(props: MeetingDetailProps) {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg)' }}>
-      {/* Sticky header */}
+      {/* Compact header — one line: back + title + actions */}
       <div
-        className="sticky top-0 z-10 px-6 py-3 flex items-center gap-4 min-w-0"
+        className="sticky top-0 z-10 px-5 py-2.5 flex items-center gap-3 min-w-0"
         style={{
-          background: 'var(--bg-elevated)',
+          background: 'rgba(8, 7, 16, 0.9)',
+          backdropFilter: 'blur(16px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(150%)',
           borderBottom: '1px solid var(--border)',
         }}
       >
         <button
           onClick={onBack}
-          className="text-sm hover:underline shrink-0"
-          style={{ color: 'var(--accent)' }}
+          className="text-xs hover:opacity-80 shrink-0 transition-opacity"
+          style={{ color: 'var(--text-muted)' }}
         >
-          &larr; All meetings
+          &larr;
         </button>
 
         {detail && (
           <>
-            <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
-              {detail.project && (
-                <span className="font-normal" style={{ color: 'var(--text-muted)' }}>
-                  {detail.project}
-                  <span className="mx-1" style={{ opacity: 0.5 }}>&rsaquo;</span>
-                </span>
+            {/* Participants as small dots */}
+            <div className="flex items-center gap-1 shrink-0">
+              {detail.participants.slice(0, 4).map((p) => (
+                <span
+                  key={p}
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: getAgentColor(p) }}
+                  title={p}
+                />
+              ))}
+              {detail.participants.length > 4 && (
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>+{detail.participants.length - 4}</span>
               )}
-              {detail.title || formatType(detail.type)}
+            </div>
+
+            <span className="text-sm font-medium flex-1 min-w-0 truncate" style={{ color: 'var(--text-primary)' }}>
+              {(detail.title || formatType(detail.type)).slice(0, 80)}
             </span>
 
             <div className="relative">
@@ -574,61 +585,12 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         );
       })()}
 
-      {/* Objective — compact, truncated with tooltip for full text */}
-      {detail && (() => {
-        const obj = detail.objective || detail.content?.match(/<!--\s*objective:\s*"?(.+?)"?\s*-->/)?.[1];
-        if (!obj) return null;
-        const short = obj.length > 120 ? obj.slice(0, 117) + '...' : obj;
-        return (
-          <div
-            className="px-6 py-1.5 text-xs"
-            style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}
-            title={obj}
-          >
-            {short}
-          </div>
-        );
-      })()}
+      {/* Objective + Participants integrated into compact header above */}
 
-      {/* Participants bar */}
-      {detail && detail.participants.length > 0 && (
-        <div
-          className="px-6 py-2 text-xs flex items-center gap-3 flex-wrap"
-          style={{
-            background: 'var(--bg)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <span style={{ color: 'var(--text-muted)' }}>Participants:</span>
-          {detail.participants.map((p) => {
-            const hasSpoken = detail.content?.includes(`**${p}:**`) ?? false;
-            const initial = p.charAt(0).toUpperCase();
-            const color = getAgentColor(p);
-            return (
-              <a
-                key={p}
-                href={`/agents?agent=${encodeURIComponent(p)}`}
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded hover:brightness-125 transition-all cursor-pointer"
-                style={{
-                  color,
-                  background: `${color.replace(')', ', 0.12)').replace('hsl(', 'hsla(')}`,
-                  opacity: hasSpoken ? 1 : 0.4,
-                }}
-                title={hasSpoken ? `${p} has spoken \u2014 click to view profile` : `${p} \u2014 waiting to speak`}
-              >
-                <span
-                  className="inline-flex items-center justify-center rounded-full text-xs font-bold"
-                  style={{ width: 16, height: 16, background: color, color: '#0a0a0b', fontSize: '0.6rem' }}
-                >
-                  {initial}
-                </span>
-                {p}
-              </a>
-            );
-          })}
-        </div>
-      )}
-
+      {/* Stats, contribution bars, terms, recommended meetings — hidden to declutter.
+          Available in outcomes panel and roadmap. */}
+      {false as boolean && detail && (
+      <>
       {/* Meeting stats for completed meetings */}
       {detail && detail.status === 'complete' && detail.content && (() => {
         const wordCounts: Record<string, number> = {};
@@ -870,6 +832,9 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             })}
           </div>
         </div>
+      )}
+
+      </>
       )}
 
       {/* Completion card -- shown at top of completed meetings, dismissable */}
