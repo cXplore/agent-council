@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfigByName, getUsageSettings } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
@@ -428,8 +428,9 @@ export async function POST(req: NextRequest) {
         await writeFile(meetingFilePath, buildMeetingContent([], 'in-progress'), 'utf-8');
       }
 
-      // Run rounds
+      // Run rounds — wrapped in try-catch to clean up meeting file on failure
       const allRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }> = [];
+      try {
 
       if (meetingFilename) {
         await emitEvent('meeting_starting', meetingFilename, `${agents.length} agents, ${roundCount} round${roundCount > 1 ? 's' : ''}`);
@@ -544,6 +545,13 @@ export async function POST(req: NextRequest) {
         ...(meetingFile ? { meetingFile } : {}),
         generatedAt: new Date().toISOString(),
       };
+      } catch (roundErr) {
+        // Meeting file was created but rounds failed — delete the orphaned file
+        if (meetingFilePath) {
+          try { await unlink(meetingFilePath); } catch { /* ignore */ }
+        }
+        throw roundErr;
+      }
     }
 
     // Async mode: return job ID immediately, run meeting in background
