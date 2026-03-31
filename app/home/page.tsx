@@ -19,7 +19,7 @@ const QUICK_ACTIONS = [
   { label: 'Daily brief', icon: '☀', action: 'brief' as const, ready: true },
   { label: 'Review code', icon: '◎', action: 'review' as const, ready: false },
   { label: 'Write docs', icon: '✎', action: 'docs' as const, ready: false },
-  { label: 'Health check', icon: '♡', action: 'health' as const, ready: false },
+  { label: 'Health check', icon: '♡', action: 'health' as const, ready: true },
 ];
 
 type Phase = 'idle' | 'thinking' | 'done';
@@ -131,6 +131,31 @@ export default function HomePage() {
         const el = document.querySelector<HTMLInputElement>('[data-home-input]');
         if (el) el.form?.requestSubmit();
       }, 100);
+    } else if (action === 'health') {
+      setPhase('thinking');
+      setAnswerAgent('');
+      setAskedQuestion('Health check');
+      fetch('/api/health-check')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data?.checks) {
+            setAnswer('Could not run health check.');
+            setPhase('done');
+            return;
+          }
+          const icons: Record<string, string> = { good: '●', warn: '◐', bad: '○' };
+          const colors: Record<string, string> = { good: 'green', warn: 'yellow', bad: 'red' };
+          const lines = data.checks.map((c: { label: string; status: string; detail: string }) =>
+            `- **${c.label}** ${icons[c.status] || '?'} ${c.detail}`
+          );
+          const overallLabel = data.overall === 'good' ? 'Healthy' : data.overall === 'warn' ? 'Needs attention' : 'Issues found';
+          setAnswer(`## ${overallLabel}\n\n${lines.join('\n')}`);
+          setPhase('done');
+        })
+        .catch(() => {
+          setAnswer('Error: Could not reach the server.');
+          setPhase('done');
+        });
     }
   };
 
