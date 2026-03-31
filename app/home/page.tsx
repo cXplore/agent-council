@@ -31,26 +31,28 @@ export default function HomePage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
   const [askedQuestion, setAskedQuestion] = useState('');
+  const [conversationHistory, setConversationHistory] = useState<{ question: string; answer: string }[]>([]);
   const [answerAgent, setAnswerAgent] = useState('');
   const [meetingCount, setMeetingCount] = useState<number | null>(null);
   const [activeActions, setActiveActions] = useState<number | null>(null);
 
+  const [brief, setBrief] = useState<{
+    project: string; stack: string | null; focus: string | null;
+    meetings: { total: number; live: number };
+    decisions: { total: number; recent: { text: string; date: string | null }[] };
+    actions: { active: number; items: { text: string }[] };
+    open: { count: number; items: { text: string; slug: string | null }[] };
+  } | null>(null);
+
   useEffect(() => {
     document.title = 'Agent Council';
-    // Load quick stats
-    fetch('/api/meetings')
-      .then(r => r.ok ? r.json() : [])
-      .then(meetings => setMeetingCount(Array.isArray(meetings) ? meetings.length : 0))
-      .catch(() => {});
-    fetch('/api/council/llm-status')
-      .then(r => r.ok ? r.json() : null)
-      .catch(() => {});
-    fetch('/api/roadmap')
+    fetch('/api/brief')
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.items) {
-          const active = data.items.filter((i: { itemStatus: string }) => i.itemStatus === 'active' || i.itemStatus === 'working');
-          setActiveActions(active.length);
+        if (data) {
+          setBrief(data);
+          setMeetingCount(data.meetings?.total ?? 0);
+          setActiveActions(data.actions?.active ?? 0);
         }
       })
       .catch(() => {});
@@ -61,19 +63,30 @@ export default function HomePage() {
     if (!text) return;
 
     if (selectedAgent) {
-      // Ask a specific agent
+      // Ask a specific agent — include conversation history for follow-ups
       setAskedQuestion(text);
       setPhase('thinking');
       setAnswerAgent(selectedAgent);
       try {
+        // Build question with conversation history for context
+        let fullQuestion = text;
+        if (conversationHistory.length > 0) {
+          const historyContext = conversationHistory
+            .slice(-3) // Last 3 exchanges max
+            .map(h => `User: ${h.question}\nAgent: ${h.answer.slice(0, 500)}`)
+            .join('\n\n');
+          fullQuestion = `Previous conversation:\n${historyContext}\n\nNew question: ${text}`;
+        }
         const res = await fetch('/api/council/quick-consult', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: text, agent: selectedAgent, topic: text }),
+          body: JSON.stringify({ question: fullQuestion, agent: selectedAgent, topic: text }),
         });
         if (res.ok) {
           const data = await res.json();
-          setAnswer(data.answer || 'No response.');
+          const agentAnswer = data.answer || 'No response.';
+          setAnswer(agentAnswer);
+          setConversationHistory(prev => [...prev, { question: text, answer: agentAnswer }]);
           setPhase('done');
         } else {
           const err = await res.json().catch(() => ({}));
@@ -98,9 +111,22 @@ export default function HomePage() {
       // Toggle agent selection mode
       if (!selectedAgent) setSelectedAgent('critic');
     } else if (action === 'brief') {
-      setInput("What should we focus on today? Give a quick status of the project.");
+      // Build a context-rich question from the brief data
+      const parts = ['Give me a daily brief.'];
+      if (brief) {
+        if (brief.actions.items.length > 0) {
+          parts.push(`Active actions: ${brief.actions.items.map(a => a.text).join('; ')}.`);
+        }
+        if (brief.decisions.recent.length > 0) {
+          parts.push(`Recent decisions: ${brief.decisions.recent.slice(0, 3).map(d => d.text).join('; ')}.`);
+        }
+        if (brief.open.items.length > 0) {
+          parts.push(`Open questions: ${brief.open.items.map(o => o.text).join('; ')}.`);
+        }
+        parts.push('What should I focus on? What\'s at risk? Keep it concise.');
+      }
+      setInput(parts.join(' '));
       setSelectedAgent('project-manager');
-      // Auto-submit after a tick
       setTimeout(() => {
         const el = document.querySelector<HTMLInputElement>('[data-home-input]');
         if (el) el.form?.requestSubmit();
@@ -114,6 +140,7 @@ export default function HomePage() {
     setAnswer('');
     setAnswerAgent('');
     setSelectedAgent(null);
+    setConversationHistory([]);
   };
 
   return (
@@ -125,10 +152,17 @@ export default function HomePage() {
             Agent Council
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            {meetingCount !== null && activeActions !== null
-              ? `${meetingCount} meetings · ${activeActions} active actions`
-              : 'Your agent team'}
+            {brief
+              ? `${brief.project}${brief.stack ? ` · ${brief.stack}` : ''}`
+              : meetingCount !== null
+                ? `${meetingCount} meetings · ${activeActions ?? 0} active actions`
+                : 'Your agent team'}
           </p>
+          {brief?.focus && (
+            <p className="text-xs mt-1" style={{ color: 'var(--accent)', opacity: 0.8 }}>
+              Focus: {brief.focus}
+            </p>
+          )}
         </div>
 
         {/* Main input */}
@@ -243,7 +277,22 @@ export default function HomePage() {
         {/* Response */}
         {phase === 'done' && (
           <div>
-            {/* Show the question */}
+            {/* Previous exchanges (if follow-up conversation) */}
+            {conversationHistory.length > 1 && (
+              <div className="space-y-2 mb-3 opacity-60">
+                {conversationHistory.slice(0, -1).map((h, i) => (
+                  <div key={i}>
+                    <div className="text-xs px-3 py-1.5 rounded" style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+                      {h.question.slice(0, 80)}{h.question.length > 80 ? '...' : ''}
+                    </div>
+                    <div className="text-xs px-3 py-1.5 mt-1" style={{ color: 'var(--text-muted)' }}>
+                      {h.answer.slice(0, 120)}{h.answer.length > 120 ? '...' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Current question */}
             <div
               className="rounded-lg px-4 py-2.5 text-sm mb-3"
               style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
