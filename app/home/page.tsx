@@ -254,6 +254,10 @@ export default function HomePage() {
               {selectedAgent
                 ? 'Ask a direct question — one agent responds'
                 : 'Type a topic to start a meeting, or pick an agent to ask directly'}
+              {' · '}
+              <a href="/run-meeting" style={{ color: 'var(--text-muted)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                Advanced
+              </a>
             </p>
           </>
         )}
