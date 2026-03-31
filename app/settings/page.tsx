@@ -63,7 +63,7 @@ function SettingsInner() {
   const [mergeStatus, setMergeStatus] = useState<string | null>(null);
   const [projectList, setProjectList] = useState<{ name: string; path: string }[]>([]);
   const [llmStatus, setLlmStatus] = useState<{ available: boolean; backend: string; providers: Record<string, boolean> } | null>(null);
-  const [usageSettings, setUsageSettings] = useState<{ profile: string; defaultRounds: number; maxTokens: number; defaultModel?: string } | null>(null);
+  const [usageSettings, setUsageSettings] = useState<{ profile: string; maxRounds: number; maxAgents: number; maxTokens: number; defaultModel?: string; defaultRounds?: number } | null>(null);
   const [usageSaving, setUsageSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -290,12 +290,12 @@ function SettingsInner() {
                   );
                 })}
               </div>
-              {/* Fine-tuning */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Budget constraints — caps, not locks */}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Default rounds</label>
+                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Max rounds</label>
                   <div className="flex gap-1">
-                    {[1, 2, 3].map(n => (
+                    {[1, 2, 3, 5].map(n => (
                       <button
                         key={n}
                         disabled={usageSaving}
@@ -305,17 +305,48 @@ function SettingsInner() {
                             const res = await fetch('/api/settings/usage', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ defaultRounds: n }),
+                              body: JSON.stringify({ maxRounds: n }),
                             });
                             if (res.ok) setUsageSettings(await res.json());
                           } catch { /* ignore */ }
                           finally { setUsageSaving(false); }
                         }}
-                        className="w-8 h-8 rounded text-sm transition-colors"
+                        className="w-7 h-7 rounded text-xs transition-colors"
                         style={{
-                          background: usageSettings.defaultRounds === n ? 'var(--accent-muted)' : 'var(--bg)',
-                          color: usageSettings.defaultRounds === n ? 'var(--accent)' : 'var(--text-muted)',
-                          border: `1px solid ${usageSettings.defaultRounds === n ? 'var(--accent)' : 'var(--border)'}`,
+                          background: usageSettings.maxRounds === n ? 'var(--accent-muted)' : 'var(--bg)',
+                          color: usageSettings.maxRounds === n ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${usageSettings.maxRounds === n ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs block mb-1.5" style={{ color: 'var(--text-muted)' }}>Max agents</label>
+                  <div className="flex gap-1">
+                    {[2, 3, 4, 5, 6].map(n => (
+                      <button
+                        key={n}
+                        disabled={usageSaving}
+                        onClick={async () => {
+                          setUsageSaving(true);
+                          try {
+                            const res = await fetch('/api/settings/usage', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ maxAgents: n }),
+                            });
+                            if (res.ok) setUsageSettings(await res.json());
+                          } catch { /* ignore */ }
+                          finally { setUsageSaving(false); }
+                        }}
+                        className="w-7 h-7 rounded text-xs transition-colors"
+                        style={{
+                          background: usageSettings.maxAgents === n ? 'var(--accent-muted)' : 'var(--bg)',
+                          color: usageSettings.maxAgents === n ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${usageSettings.maxAgents === n ? 'var(--accent)' : 'var(--border)'}`,
                         }}
                       >
                         {n}
@@ -384,7 +415,7 @@ function SettingsInner() {
                 </div>
               </div>
               <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-                Profile sets defaults. You can override rounds per-meeting in the Run meeting form.
+                Profile sets budget caps. The facilitator decides agents and rounds within these limits based on the topic. You can override per-meeting.
               </p>
             </motion.div>
           )}

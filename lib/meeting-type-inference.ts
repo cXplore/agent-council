@@ -41,11 +41,13 @@ export function inferMeetingType(topic: string, fallback = 'strategy'): string {
  * - Quick consult: 3 agents, 1 round
  * - Full meeting: 4 agents, 2 rounds (mandatory triad + specialist)
  */
-export function inferMeetingConfig(topic: string): {
+export function inferMeetingConfig(topic: string, budget?: { maxRounds?: number; maxAgents?: number }): {
   type: string;
   agents: string[];
   rounds: number;
 } {
+  const maxRounds = budget?.maxRounds ?? 3;
+  const maxAgents = budget?.maxAgents ?? 5;
   const type = inferMeetingType(topic);
 
   // Specialist agents chosen by meeting type
@@ -80,10 +82,9 @@ export function inferMeetingConfig(topic: string): {
   }
 
   // Most meetings: triad + specialist, 2 rounds
-  const agents = [...triad, ...specialists.filter(s => !triad.includes(s))];
-  return {
-    type,
-    agents,
-    rounds: 2,
-  };
+  const allAgents = [...triad, ...specialists.filter(s => !triad.includes(s))];
+  // Apply budget caps — trim agents (keep most important first), cap rounds
+  const agents = allAgents.slice(0, maxAgents);
+  const rounds = Math.min(2, maxRounds);
+  return { type, agents, rounds };
 }

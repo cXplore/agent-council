@@ -77,23 +77,27 @@ export interface ProjectConfig {
 export type UsageProfile = 'lean' | 'standard' | 'deep';
 
 export interface UsageSettings {
-  /** Overall usage profile */
+  /** Overall usage profile — sets budget constraints, not hard locks */
   profile: UsageProfile;
-  /** Default rounds for meetings (overridable per-meeting) */
-  defaultRounds: number;
+  /** Max rounds the facilitator can use (facilitator decides actual rounds within this cap) */
+  maxRounds: number;
+  /** Max agents per meeting */
+  maxAgents: number;
   /** Max tokens per agent response */
   maxTokens: number;
   /** Default model override (uses agent frontmatter if not set) */
   defaultModel?: string;
   /** LLM backend preference — user explicitly chooses, no silent fallback */
   llmBackend?: 'auto' | 'oauth' | 'api-key';
+  // Legacy field — kept for backward compat during migration
+  defaultRounds?: number;
 }
 
-/** Pre-defined usage profiles */
-export const USAGE_PROFILES: Record<UsageProfile, Omit<UsageSettings, 'profile' | 'defaultModel'>> = {
-  lean: { defaultRounds: 1, maxTokens: 2048 },
-  standard: { defaultRounds: 2, maxTokens: 4096 },
-  deep: { defaultRounds: 3, maxTokens: 8192 },
+/** Pre-defined usage profiles — budget envelopes, not hard settings */
+export const USAGE_PROFILES: Record<UsageProfile, Pick<UsageSettings, 'maxRounds' | 'maxAgents' | 'maxTokens'>> = {
+  lean: { maxRounds: 2, maxAgents: 3, maxTokens: 2048 },
+  standard: { maxRounds: 3, maxAgents: 5, maxTokens: 4096 },
+  deep: { maxRounds: 5, maxAgents: 6, maxTokens: 8192 },
 };
 
 /** Top-level council configuration */

@@ -17,7 +17,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { profile, defaultRounds, maxTokens, defaultModel, llmBackend } = body;
+    const { profile, maxRounds, maxAgents, maxTokens, defaultModel, llmBackend } = body;
 
     // Validate
     if (profile && !['lean', 'standard', 'deep'].includes(profile)) {
@@ -26,8 +26,11 @@ export async function POST(req: NextRequest) {
     if (llmBackend !== undefined && !['auto', 'oauth', 'api-key'].includes(llmBackend)) {
       return NextResponse.json({ error: 'llmBackend must be auto, oauth, or api-key' }, { status: 400 });
     }
-    if (defaultRounds !== undefined && (typeof defaultRounds !== 'number' || defaultRounds < 1 || defaultRounds > 3)) {
-      return NextResponse.json({ error: 'defaultRounds must be 1-3' }, { status: 400 });
+    if (maxRounds !== undefined && (typeof maxRounds !== 'number' || maxRounds < 1 || maxRounds > 5)) {
+      return NextResponse.json({ error: 'maxRounds must be 1-5' }, { status: 400 });
+    }
+    if (maxAgents !== undefined && (typeof maxAgents !== 'number' || maxAgents < 2 || maxAgents > 6)) {
+      return NextResponse.json({ error: 'maxAgents must be 2-6' }, { status: 400 });
     }
     if (maxTokens !== undefined && (typeof maxTokens !== 'number' || maxTokens < 512 || maxTokens > 16384)) {
       return NextResponse.json({ error: 'maxTokens must be 512-16384' }, { status: 400 });
@@ -35,7 +38,8 @@ export async function POST(req: NextRequest) {
 
     const updated = await setUsageSettings({
       ...(profile ? { profile: profile as UsageProfile } : {}),
-      ...(defaultRounds !== undefined ? { defaultRounds } : {}),
+      ...(maxRounds !== undefined ? { maxRounds } : {}),
+      ...(maxAgents !== undefined ? { maxAgents } : {}),
       ...(maxTokens !== undefined ? { maxTokens } : {}),
       ...(defaultModel !== undefined ? { defaultModel: defaultModel || undefined } : {}),
       ...(llmBackend !== undefined ? { llmBackend } : {}),

@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const agents: string[] = Array.isArray(body?.agents) ? body.agents : [];
     const config = await getConfig();
     const usageSettings = getUsageSettings(config);
-    const rounds: number = typeof body?.rounds === 'number' ? body.rounds : usageSettings.defaultRounds;
+    const rounds: number = typeof body?.rounds === 'number' ? body.rounds : (usageSettings.maxRounds ?? usageSettings.defaultRounds ?? 2);
 
     // Load model from each agent's frontmatter
     const active = getActiveProjectConfig(config);

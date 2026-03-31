@@ -199,11 +199,25 @@ export function getProjectConfig(config: CouncilConfig, name: string): { agentsD
   };
 }
 
-/** Get current usage settings with defaults */
+/** Get current usage settings with defaults. Handles migration from defaultRounds → maxRounds. */
 export function getUsageSettings(config: CouncilConfig): import('./types').UsageSettings {
   const { USAGE_PROFILES } = require('./types') as typeof import('./types');
-  if (config.usage) return config.usage;
-  return { profile: 'standard', ...USAGE_PROFILES.standard };
+  const defaults = { profile: 'standard' as const, ...USAGE_PROFILES.standard };
+  if (!config.usage) return defaults;
+  // Migrate legacy defaultRounds → maxRounds
+  const usage = { ...config.usage };
+  if (usage.defaultRounds && !usage.maxRounds) {
+    usage.maxRounds = usage.defaultRounds;
+  }
+  if (!usage.maxAgents) {
+    const profileDefaults = USAGE_PROFILES[usage.profile ?? 'standard'];
+    usage.maxAgents = profileDefaults?.maxAgents ?? 5;
+  }
+  if (!usage.maxRounds) {
+    const profileDefaults = USAGE_PROFILES[usage.profile ?? 'standard'];
+    usage.maxRounds = profileDefaults?.maxRounds ?? 3;
+  }
+  return usage;
 }
 
 /** Update usage settings and persist to config file */
@@ -213,11 +227,12 @@ export async function setUsageSettings(settings: Partial<import('./types').Usage
   const current = config.usage ?? { profile: 'standard' as const, ...USAGE_PROFILES.standard };
   const updated = { ...current, ...settings };
 
-  // If profile changed, apply its defaults (but keep any explicit overrides)
+  // If profile changed, apply its budget envelope (but keep explicit overrides)
   if (settings.profile && settings.profile !== current.profile) {
     const profileDefaults = USAGE_PROFILES[settings.profile];
     if (profileDefaults) {
-      updated.defaultRounds = settings.defaultRounds ?? profileDefaults.defaultRounds;
+      updated.maxRounds = settings.maxRounds ?? profileDefaults.maxRounds;
+      updated.maxAgents = settings.maxAgents ?? profileDefaults.maxAgents;
       updated.maxTokens = settings.maxTokens ?? profileDefaults.maxTokens;
     }
   }
