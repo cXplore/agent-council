@@ -6,6 +6,7 @@ import { parseFrontmatter } from '@/lib/agent-templates';
 import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
 import {
   generateMeetingFilename,
+  buildRound1Prompt,
   buildRoundPrompt,
   formatOutcomesAppendix,
   extractStructuredOutcomes,
@@ -392,8 +393,8 @@ export async function POST(req: NextRequest) {
         }
 
         const question = round === 1
-          ? topic
-          : buildRoundPrompt(round, topic, allRounds);
+          ? buildRound1Prompt(topic, roundCount)
+          : buildRoundPrompt(round, topic, allRounds, roundCount);
 
         const responses = await Promise.all(
           agents.map(async (agentName) => {

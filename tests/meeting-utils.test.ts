@@ -9,6 +9,7 @@ import {
   formatOutcomesAppendix,
   generateMeetingFilename,
   summarizeRound,
+  buildRound1Prompt,
   buildRoundPrompt,
   extractStructuredOutcomes,
   buildOutcomeExtractionPrompt,
@@ -723,6 +724,31 @@ describe('summarizeRound', () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildRound1Prompt
+// ---------------------------------------------------------------------------
+
+describe('buildRound1Prompt', () => {
+  it('includes the topic and tagging instructions', () => {
+    const result = buildRound1Prompt('Should we use Redis?', 2);
+    expect(result).toContain('Should we use Redis?');
+    expect(result).toContain('[DECISION]');
+    expect(result).toContain('[ACTION]');
+    expect(result).toContain('[OPEN:');
+  });
+
+  it('includes round count context', () => {
+    const result = buildRound1Prompt('Test topic', 3);
+    expect(result).toContain('3 rounds');
+  });
+
+  it('handles single-round meetings', () => {
+    const result = buildRound1Prompt('Quick question', 1);
+    expect(result).toContain('1 round)');
+    expect(result).toContain('[DECISION]');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // buildRoundPrompt
 // ---------------------------------------------------------------------------
 
@@ -773,6 +799,24 @@ describe('buildRoundPrompt', () => {
     const result = buildRoundPrompt(2, 'Test topic', []);
     expect(result).toContain('Round 2');
     expect(result).toContain('Test topic');
+  });
+
+  it('includes tagging instructions', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data]);
+    expect(result).toContain('[DECISION]');
+    expect(result).toContain('[ACTION]');
+    expect(result).toContain('[OPEN:');
+  });
+
+  it('emphasizes outcomes on final round', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data], 2);
+    expect(result).toContain('final round');
+    expect(result).toContain('Synthesize');
+  });
+
+  it('does not emphasize final round for non-final rounds', () => {
+    const result = buildRoundPrompt(2, 'Test topic', [round1Data], 3);
+    expect(result).not.toContain('final round');
   });
 });
 

@@ -325,6 +325,46 @@ export function summarizeRound(
 }
 
 /**
+ * Outcome tagging instructions injected into agent prompts so that
+ * structured outcome extraction can parse tags deterministically.
+ */
+const TAGGING_INSTRUCTIONS = `
+## Outcome Tagging
+
+When you reach a conclusion, recommendation, or identify an unresolved question, tag it inline using this exact format:
+
+- \`[DECISION] What was decided — brief rationale\` for choices that constrain future work
+- \`[ACTION] Specific task — done when: verifiable outcome — assigned to role\` for concrete next steps
+- \`[OPEN:kebab-slug] Unresolved question — revisit when: trigger condition\` for things that need more info
+
+Rules:
+- Only tag genuinely important items — not every statement
+- Decisions need rationale ("because..."). A decision without rationale is just an opinion.
+- Actions need a clear "done when" so someone can verify completion
+- Open questions need a trigger condition for when to revisit
+- Place tags at the START of a bullet point line
+`.trim();
+
+/**
+ * Build the prompt for Round 1 — the initial topic with tagging instructions.
+ */
+export function buildRound1Prompt(
+  topic: string,
+  totalRounds: number,
+): string {
+  const parts = [
+    `You are participating in a structured multi-agent meeting (${totalRounds} round${totalRounds > 1 ? 's' : ''}).`,
+    '',
+    `**Topic:** ${topic}`,
+    '',
+    'Give your initial analysis from the perspective of your role. Be specific and concrete — reference real constraints, tradeoffs, and evidence.',
+    '',
+    TAGGING_INSTRUCTIONS,
+  ];
+  return parts.join('\n');
+}
+
+/**
  * Build the prompt for Round N that includes previous rounds' context,
  * instructing agents to respond to each other's positions.
  */
@@ -332,15 +372,22 @@ export function buildRoundPrompt(
   roundNumber: number,
   topic: string,
   previousRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+  totalRounds?: number,
 ): string {
+  const isFinalRound = totalRounds ? roundNumber >= totalRounds : false;
   const roundSummaries = previousRounds.map(r => summarizeRound(r.round, r.responses));
+
+  const closingInstruction = isFinalRound
+    ? `\n---\n\nThis is the **final round**. Synthesize the discussion into clear outcomes. Tag your conclusions:\n\n${TAGGING_INSTRUCTIONS}\n\nAddress specific points from your colleagues. Where is there consensus? What remains unresolved? End with tagged outcomes.`
+    : `\n---\n\nNow give your Round ${roundNumber} response. Address specific points from your colleagues. Where do you agree? Where do you push back? What synthesis emerges?\n\n${TAGGING_INSTRUCTIONS}`;
+
   return [
     `You are participating in Round ${roundNumber} of a structured multi-agent meeting.`,
     `The topic is: ${topic}\n`,
     `You have heard your colleagues' responses from previous rounds. Now respond to what they said — agree, challenge, build on their ideas, or synthesize. Reference specific colleagues by name.`,
     `\n---\n\n## Previous Rounds\n`,
     ...roundSummaries,
-    `\n---\n\nNow give your Round ${roundNumber} response. Address specific points from your colleagues. Where do you agree? Where do you push back? What synthesis emerges?`,
+    closingInstruction,
   ].join('\n');
 }
 
