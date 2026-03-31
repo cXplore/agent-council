@@ -88,7 +88,6 @@ docs/                   # GitHub Pages static site
 | Dashboard | `app/dashboard/page.tsx` |
 | Analytics API | `app/api/meetings/analytics/route.ts` |
 | Export API | `app/api/meetings/export/route.ts` |
-| Validation API | `app/api/meetings/validate/route.ts` |
 | Templates API | `app/api/setup/templates/route.ts` |
 | Roadmap API | `app/api/roadmap/route.ts` |
 | Tag index | `lib/tag-index.ts` |
@@ -99,9 +98,7 @@ docs/                   # GitHub Pages static site
 | Settings page | `app/settings/page.tsx` |
 | 404 page | `app/not-found.tsx` |
 | Health check API | `app/api/health/route.ts` |
-| RSS feed API | `app/api/meetings/feed/route.ts` |
 | Key terms API | `app/api/meetings/terms/route.ts` |
-| Meeting template API | `app/api/meetings/template/route.ts` |
 | Activity feed API | `app/api/activity/route.ts` |
 | Activity backfill (git) | `app/api/activity/backfill/route.ts` |
 | Activity log lib | `lib/activity-log.ts` |
@@ -123,6 +120,14 @@ docs/                   # GitHub Pages static site
 | Project status (tabs) | `app/api/projects/status/route.ts` |
 | Staleness detection | `lib/staleness.ts` |
 | Meeting type inference | `lib/meeting-type-inference.ts` |
+| Multi-consult API | `app/api/council/multi-consult/route.ts` |
+| Cost estimate API | `app/api/settings/cost-estimate/route.ts` |
+| Cost estimate lib | `lib/cost-estimate.ts` |
+| Usage settings API | `app/api/settings/usage/route.ts` |
+| Preflight context | `lib/preflight-context.ts` |
+| Project setup | `lib/project-setup.ts` |
+| Job store (async meetings) | `lib/job-store.ts` |
+| Design system | `DESIGN.md` |
 | Agent templates | `templates/agents/*.md` |
 | Team presets | `templates/presets/*.json` |
 | GitHub Pages | `docs/index.html` |
@@ -175,8 +180,9 @@ Personal tool phase — build what improves tomorrow's session. External sharing
 
 ## Feature Tiers
 
-- **Tier 1 — Core (maintain actively):** Meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config system, autonomous work loop
-- **Tier 2 — Useful (keep, low maintenance):** Roadmap page, settings, keyboard shortcuts, meeting management, export, welcome page
-- **Tier 3 — Decorative (let decay):** Dashboard analytics, RSS feed, key terms API, validation API, template generator API, command palette, print CSS, share preview metadata
+- **Tier 1 — Core (maintain actively):** Meeting viewer, MCP server, agent browser, setup wizard, tag parsing, config system, multi-consult API, run-meeting UI, activity feed
+- **Tier 2 — Useful (keep, low maintenance):** Roadmap page, settings, keyboard shortcuts, meeting management, export, welcome page, cost estimates, usage profiles, decision search
+- **Tier 3 — Decorative (let decay):** Dashboard analytics, key terms API, command palette, print CSS, share preview metadata
+- **Removed:** RSS feed, validation API, template generator API (deleted 2026-03-31, zero usage)
 
 If a Tier 3 feature breaks, evaluate removal before fixing.

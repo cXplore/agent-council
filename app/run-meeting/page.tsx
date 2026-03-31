@@ -265,7 +265,7 @@ export default function RunMeetingPage() {
       {llmStatus?.available && (
         <div style={{
           padding: '8px 14px',
-          background: 'rgba(34, 197, 94, 0.08)',
+          background: 'var(--live-green-muted)',
           border: '1px solid rgba(34, 197, 94, 0.2)',
           borderRadius: 8,
           marginBottom: 20,
@@ -288,9 +288,9 @@ export default function RunMeetingPage() {
               width: '100%',
               padding: '8px 10px',
               fontSize: 13,
-              background: 'var(--bg-secondary, #1a1a2e)',
-              color: 'var(--text-primary, #e0e0e0)',
-              border: '1px solid var(--border-color, #333)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border)',
               borderRadius: 8,
             }}
           >
@@ -305,7 +305,7 @@ export default function RunMeetingPage() {
       {selectedProject && (
         <div style={{
           marginBottom: 20,
-          border: '1px solid var(--border-color, #333)',
+          border: '1px solid var(--border)',
           borderRadius: 8,
           overflow: 'hidden',
         }}>
@@ -317,7 +317,7 @@ export default function RunMeetingPage() {
             <div style={{ padding: '10px 14px' }}>
               {/* Project description */}
               {brief.profile.projectDescription && (
-                <div style={{ fontSize: 12, color: 'var(--text-secondary, #aaa)', marginBottom: 8, lineHeight: 1.4 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.4 }}>
                   {brief.profile.projectDescription}
                 </div>
               )}
@@ -328,8 +328,8 @@ export default function RunMeetingPage() {
                   <span key={l.name} style={{
                     padding: '2px 8px',
                     fontSize: 11,
-                    background: 'rgba(99, 102, 241, 0.15)',
-                    color: '#a5b4fc',
+                    background: 'var(--accent-muted)',
+                    color: 'var(--accent)',
                     borderRadius: 4,
                   }}>
                     {l.name} {l.percentage}%
@@ -340,7 +340,7 @@ export default function RunMeetingPage() {
                     padding: '2px 8px',
                     fontSize: 11,
                     background: 'rgba(34, 197, 94, 0.15)',
-                    color: '#86efac',
+                    color: 'var(--color-action)',
                     borderRadius: 4,
                   }}>
                     {f.name}{f.version ? ` ${f.version}` : ''}
@@ -351,7 +351,7 @@ export default function RunMeetingPage() {
                     padding: '2px 8px',
                     fontSize: 11,
                     background: 'rgba(251, 191, 36, 0.15)',
-                    color: '#fcd34d',
+                    color: 'var(--color-open)',
                     borderRadius: 4,
                   }}>
                     {brief.profile.testInfo.frameworks.join(', ')} ({brief.profile.testInfo.fileCount} files)
@@ -367,7 +367,7 @@ export default function RunMeetingPage() {
                       padding: '2px 8px',
                       fontSize: 11,
                       background: 'rgba(239, 68, 68, 0.1)',
-                      color: '#fca5a5',
+                      color: 'var(--error)',
                       borderRadius: 4,
                     }}>
                       {g}
@@ -381,13 +381,13 @@ export default function RunMeetingPage() {
                 <span>{brief.meetingCount} meeting{brief.meetingCount !== 1 ? 's' : ''}</span>
                 {brief.synthesis?.suggestedFirstTopic && !topic && (
                   <>
-                    <span style={{ color: 'var(--border-color, #555)' }}>·</span>
+                    <span style={{ color: 'var(--text-muted)' }}>·</span>
                     <button
                       onClick={useSuggestedTopic}
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#a5b4fc',
+                        color: 'var(--accent)',
                         cursor: 'pointer',
                         fontSize: 11,
                         padding: 0,
@@ -425,9 +425,9 @@ export default function RunMeetingPage() {
             width: '100%',
             padding: '10px 12px',
             fontSize: 14,
-            background: 'var(--bg-secondary, #1a1a2e)',
-            color: 'var(--text-primary, #e0e0e0)',
-            border: '1px solid var(--border-color, #333)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
             borderRadius: 8,
             resize: 'vertical',
             fontFamily: 'inherit',
@@ -454,9 +454,9 @@ export default function RunMeetingPage() {
                   padding: '6px 12px',
                   fontSize: 12,
                   fontWeight: selected ? 600 : 400,
-                  background: selected ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                  color: selected ? '#a5b4fc' : 'var(--text-muted)',
-                  border: `1px solid ${selected ? 'rgba(99, 102, 241, 0.4)' : 'var(--border-color, #333)'}`,
+                  background: selected ? 'var(--accent-muted)' : 'transparent',
+                  color: selected ? 'var(--accent)' : 'var(--text-muted)',
+                  border: `1px solid ${selected ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
                   borderRadius: 6,
                   cursor: 'pointer',
                   transition: 'all 0.15s',
@@ -468,7 +468,7 @@ export default function RunMeetingPage() {
           })}
         </div>
         {selectedAgents.length < 2 && (
-          <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Select at least 2 agents</p>
+          <p style={{ fontSize: 11, color: 'var(--error)', marginTop: 4 }}>Select at least 2 agents</p>
         )}
       </div>
 
@@ -504,9 +504,9 @@ export default function RunMeetingPage() {
                 width: '100%',
                 padding: '8px 10px',
                 fontSize: 13,
-                background: 'var(--bg-secondary, #1a1a2e)',
-                color: 'var(--text-primary, #e0e0e0)',
-                border: '1px solid var(--border-color, #333)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
               }}
             >
@@ -528,9 +528,9 @@ export default function RunMeetingPage() {
                 width: '100%',
                 padding: '8px 10px',
                 fontSize: 13,
-                background: 'var(--bg-secondary, #1a1a2e)',
-                color: 'var(--text-primary, #e0e0e0)',
-                border: '1px solid var(--border-color, #333)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
                 borderRadius: 8,
               }}
             >
@@ -556,7 +556,7 @@ export default function RunMeetingPage() {
           checked={codeAware}
           onChange={e => setCodeAware(e.target.checked)}
           disabled={runState.phase === 'running'}
-          style={{ accentColor: '#6366f1' }}
+          style={{ accentColor: 'var(--accent)' }}
         />
         <span style={{ fontWeight: 500 }}>Code-aware</span>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -573,7 +573,7 @@ export default function RunMeetingPage() {
           padding: '12px 20px',
           fontSize: 14,
           fontWeight: 600,
-          background: canRun ? '#6366f1' : 'var(--bg-secondary, #1a1a2e)',
+          background: canRun ? 'var(--accent)' : 'var(--bg-card)',
           color: canRun ? '#fff' : 'var(--text-muted)',
           border: 'none',
           borderRadius: 8,
@@ -591,7 +591,7 @@ export default function RunMeetingPage() {
           marginTop: 16,
           padding: '12px 14px',
           background: 'rgba(99, 102, 241, 0.08)',
-          border: '1px solid rgba(99, 102, 241, 0.2)',
+          border: '1px solid var(--accent-muted)',
           borderRadius: 8,
           fontSize: 13,
         }}>
@@ -601,16 +601,16 @@ export default function RunMeetingPage() {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: '#6366f1',
+              background: 'var(--accent)',
               animation: 'pulse 1.5s infinite',
             }} />
             {runState.progress || 'Running...'}
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
             {runState.meetingFile ? (
-              <>Watch live: <a href={`/meetings?file=${encodeURIComponent(runState.meetingFile)}`} style={{ color: '#a5b4fc' }}>{runState.meetingFile.replace(/\.md$/, '')}</a></>
+              <>Watch live: <a href={`/meetings?file=${encodeURIComponent(runState.meetingFile)}`} style={{ color: 'var(--accent)' }}>{runState.meetingFile.replace(/\.md$/, '')}</a></>
             ) : (
-              <>Watch at <a href="/meetings" style={{ color: '#a5b4fc' }}>Meetings</a></>
+              <>Watch at <a href="/meetings" style={{ color: 'var(--accent)' }}>Meetings</a></>
             )}
           </p>
         </div>
@@ -633,7 +633,7 @@ export default function RunMeetingPage() {
             gap: 8,
             fontSize: 13,
           }}>
-            <span style={{ color: '#22c55e', fontWeight: 600 }}>&#x2713; Meeting complete</span>
+            <span style={{ color: 'var(--live-green)', fontWeight: 600 }}>&#x2713; Meeting complete</span>
             {runState.elapsed && (
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 — {Math.round(runState.elapsed / 1000)}s
@@ -643,7 +643,7 @@ export default function RunMeetingPage() {
               {runState.meetingFile && (
                 <a
                   href={`/meetings?file=${encodeURIComponent(runState.meetingFile)}`}
-                  style={{ color: '#22c55e', fontWeight: 500, fontSize: 12 }}
+                  style={{ color: 'var(--live-green)', fontWeight: 500, fontSize: 12 }}
                 >
                   View full &#x2192;
                 </a>
@@ -655,7 +655,7 @@ export default function RunMeetingPage() {
                   fontSize: 11,
                   background: 'transparent',
                   color: 'var(--text-muted)',
-                  border: '1px solid var(--border-color, #333)',
+                  border: '1px solid var(--border)',
                   borderRadius: 5,
                   cursor: 'pointer',
                 }}
@@ -670,12 +670,12 @@ export default function RunMeetingPage() {
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(runState.outcomes.decisions?.length ?? 0) > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa', marginBottom: 3 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-decision)', marginBottom: 3 }}>
                     Decisions ({runState.outcomes.decisions!.length})
                   </div>
                   {runState.outcomes.decisions!.slice(0, 3).map((d, i) => (
                     <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 10, marginBottom: 2, display: 'flex', gap: 6 }}>
-                      <span style={{ color: '#60a5fa', flexShrink: 0 }}>&#xb7;</span>
+                      <span style={{ color: 'var(--color-decision)', flexShrink: 0 }}>&#xb7;</span>
                       <span style={{ lineHeight: '1.4' }}>{d.text}</span>
                     </div>
                   ))}
@@ -689,12 +689,12 @@ export default function RunMeetingPage() {
 
               {(runState.outcomes.actions?.length ?? 0) > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#34d399', marginBottom: 3 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-action)', marginBottom: 3 }}>
                     Actions ({runState.outcomes.actions!.length})
                   </div>
                   {runState.outcomes.actions!.slice(0, 3).map((a, i) => (
                     <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 10, marginBottom: 2, display: 'flex', gap: 6 }}>
-                      <span style={{ color: '#34d399', flexShrink: 0 }}>&#xb7;</span>
+                      <span style={{ color: 'var(--color-action)', flexShrink: 0 }}>&#xb7;</span>
                       <span style={{ lineHeight: '1.4' }}>{a.text}</span>
                     </div>
                   ))}
@@ -708,12 +708,12 @@ export default function RunMeetingPage() {
 
               {(runState.outcomes.openQuestions?.length ?? 0) > 0 && (
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#fbbf24', marginBottom: 3 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-open)', marginBottom: 3 }}>
                     Open ({runState.outcomes.openQuestions!.length})
                   </div>
                   {runState.outcomes.openQuestions!.slice(0, 2).map((q, i) => (
                     <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 10, marginBottom: 2, display: 'flex', gap: 6 }}>
-                      <span style={{ color: '#fbbf24', flexShrink: 0 }}>?</span>
+                      <span style={{ color: 'var(--color-open)', flexShrink: 0 }}>?</span>
                       <span style={{ lineHeight: '1.4' }}>{q.text}</span>
                     </div>
                   ))}
@@ -767,7 +767,7 @@ export default function RunMeetingPage() {
                 fontSize: 12,
                 background: 'transparent',
                 color: 'var(--text-muted)',
-                border: '1px solid var(--border-color, #333)',
+                border: '1px solid var(--border)',
                 borderRadius: 6,
                 cursor: 'pointer',
               }}

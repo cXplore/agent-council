@@ -284,7 +284,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                   )}
                   <div
                     className="truncate font-mono text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+                    style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}
                   >
                     {window.location.origin}/meetings?file=...
                   </div>
@@ -1311,7 +1311,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         <div
           className="px-6 py-3"
           style={{
-            background: 'var(--bg-secondary)',
+            background: 'var(--bg-card)',
             borderTop: '1px solid var(--border)',
           }}
         >
