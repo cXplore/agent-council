@@ -113,26 +113,27 @@ describe('gatherPreflightContext', () => {
     await mkdir(path.join(tempDir, 'app', 'meetings'), { recursive: true });
     await mkdir(path.join(tempDir, 'node_modules', 'some-pkg'), { recursive: true });
 
-    // Write mock files
+    // Write mock files (each must be >200 chars / ~50 tokens to pass min threshold)
+    const pad = '\n// Project scanner module for analyzing codebase structure and dependencies.\n// Walks the file tree, extracts metadata, and builds a comprehensive project map.\n';
     await writeFile(
       path.join(tempDir, 'lib', 'scanner.ts'),
-      'export function scanProject(dir: string) { /* scan logic */ }\n',
+      'export function scanProject(dir: string) { /* scan logic */ }\n' + pad,
     );
     await writeFile(
       path.join(tempDir, 'lib', 'config.ts'),
-      'export function getConfig() { return {}; }\n',
+      'export function getConfig() { return {}; }\n' + pad,
     );
     await writeFile(
       path.join(tempDir, 'lib', 'tag-index.ts'),
-      'export function buildTagIndex() { return {}; }\n',
+      'export function buildTagIndex() { return {}; }\n' + pad,
     );
     await writeFile(
       path.join(tempDir, 'app', 'meetings', 'MeetingViewer.tsx'),
-      'export default function MeetingViewer() { return <div>Viewer</div>; }\n',
+      'export default function MeetingViewer() { return <div>Viewer</div>; }\n' + pad,
     );
     await writeFile(
       path.join(tempDir, 'app', 'api', 'meetings', 'route.ts'),
-      'export async function GET() { return new Response("ok"); }\n',
+      'export async function GET() { return new Response("ok"); }\n' + pad,
     );
     // This should be skipped
     await writeFile(
@@ -311,7 +312,7 @@ describe('gatherPreflightContext', () => {
   it('finds dotfiles like .council-worker-log.md', async () => {
     await writeFile(
       path.join(tempDir, '.council-worker-log.md'),
-      '## 2026-03-30\n- What I did: built stuff\n',
+      '## 2026-03-30\n- What I did: built stuff\n- Result: things improved\n- Next: continue building\n\n## 2026-03-29\n- What I did: ran meetings\n- Result: decisions made\n- Next: implement actions\n\n## 2026-03-28\n- What I did: initial setup\n',
     );
     const manifest = await gatherPreflightContext(
       tempDir,
@@ -325,11 +326,11 @@ describe('gatherPreflightContext', () => {
   it('boosts root-level markdown files (e.g. WORKER.md)', async () => {
     await writeFile(
       path.join(tempDir, 'WORKER.md'),
-      '# Worker Charter\nThe worker produces artifacts.\n',
+      '# Worker Charter\nThe worker produces artifacts and drives the project forward.\n\n## Operating Protocol\n- Check for tasks and nudges\n- Run meetings when needed\n- Build features and fix bugs\n- Update the work log after each run\n',
     );
     await writeFile(
       path.join(tempDir, 'lib', 'worker-utils.ts'),
-      'export function doWork() {}\n',
+      'export function doWork() {}\n\n// Worker utility functions for autonomous operation.\n// Handles task scheduling, state management, and progress tracking.\n// Used by the autonomous worker loop to maintain session continuity.\n',
     );
     const manifest = await gatherPreflightContext(
       tempDir,

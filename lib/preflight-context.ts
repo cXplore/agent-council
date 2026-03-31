@@ -57,10 +57,12 @@ export interface ResolutionManifest {
 
 /** Max estimated tokens for gathered code content */
 const CODE_TOKEN_BUDGET = 4500;
-/** Max estimated tokens per individual file */
+/** Max estimated tokens per individual file (used as base for score-weighted allocation) */
 const PER_FILE_TOKEN_BUDGET = 1500;
 /** Max number of files to inject */
 const MAX_FILES = 5;
+/** Minimum tokens a file must yield to be worth injecting (skip near-empty results) */
+const MIN_FILE_TOKENS = 50;
 /** Rough chars-per-token estimate */
 const CHARS_PER_TOKEN = 4;
 
@@ -457,12 +459,30 @@ export async function gatherPreflightContext(
   // Sort by score (descending), take top candidates
   matches.sort((a, b) => b.score - a.score);
   const remainingSlots = MAX_FILES - hintedFiles.length;
-  const candidates = matches.slice(0, Math.max(remainingSlots * 2, 4));
+  // Fetch extra candidates to backfill when files are skipped (min threshold)
+  const candidates = matches.slice(0, Math.max(remainingSlots * 3, 6));
 
-  // Read files up to remaining budget
+  // Score-weighted token allocation: top matches get proportionally more budget.
+  // Compute per-file budgets based on relative scores within the selected candidates.
+  const topCandidates = candidates.slice(0, remainingSlots);
+  const totalScore = topCandidates.reduce((sum, c) => sum + c.score, 0) || 1;
+  const remainingBudget = CODE_TOKEN_BUDGET - hintTokens;
+
+  function getFileBudget(score: number, used: number): number {
+    // Proportional allocation with a floor of MIN_FILE_TOKENS and ceiling of PER_FILE_TOKEN_BUDGET
+    const proportion = score / totalScore;
+    const allocated = Math.floor(remainingBudget * proportion);
+    // Clamp to [MIN_FILE_TOKENS, PER_FILE_TOKEN_BUDGET] and respect remaining budget
+    return Math.min(
+      Math.max(allocated, MIN_FILE_TOKENS),
+      PER_FILE_TOKEN_BUDGET,
+      remainingBudget - used,
+    );
+  }
+
+  // Read files up to remaining budget, skipping sub-threshold results
   const resolved: ResolvedFile[] = [];
   let resolvedTokens = 0;
-  const remainingBudget = CODE_TOKEN_BUDGET - hintTokens;
 
   for (const candidate of candidates) {
     if (resolved.length >= remainingSlots) break;
@@ -478,11 +498,8 @@ export async function gatherPreflightContext(
       continue;
     }
 
-    const fileBudget = remainingBudget - resolvedTokens;
-    const maxChars = Math.min(
-      PER_FILE_TOKEN_BUDGET * CHARS_PER_TOKEN,
-      fileBudget * CHARS_PER_TOKEN,
-    );
+    const perFileBudget = getFileBudget(candidate.score, resolvedTokens);
+    const maxChars = perFileBudget * CHARS_PER_TOKEN;
 
     const fullFileTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
     let truncated = false;
@@ -493,6 +510,10 @@ export async function gatherPreflightContext(
     }
 
     const estimatedTokens = Math.ceil(content.length / CHARS_PER_TOKEN);
+
+    // Skip files that yield too little content to be useful (backfill from next candidate)
+    if (estimatedTokens < MIN_FILE_TOKENS) continue;
+
     resolvedTokens += estimatedTokens;
 
     resolved.push({
