@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 
 const AGENTS = [
   { id: 'project-manager', label: 'PM', color: '#4ade80' },
@@ -29,6 +30,7 @@ export default function HomePage() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>('idle');
   const [answer, setAnswer] = useState('');
+  const [askedQuestion, setAskedQuestion] = useState('');
   const [answerAgent, setAnswerAgent] = useState('');
   const [meetingCount, setMeetingCount] = useState<number | null>(null);
   const [activeActions, setActiveActions] = useState<number | null>(null);
@@ -60,6 +62,7 @@ export default function HomePage() {
 
     if (selectedAgent) {
       // Ask a specific agent
+      setAskedQuestion(text);
       setPhase('thinking');
       setAnswerAgent(selectedAgent);
       try {
@@ -240,6 +243,14 @@ export default function HomePage() {
         {/* Response */}
         {phase === 'done' && (
           <div>
+            {/* Show the question */}
+            <div
+              className="rounded-lg px-4 py-2.5 text-sm mb-3"
+              style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+            >
+              {askedQuestion || '...'}
+            </div>
+            {/* Agent attribution */}
             {answerAgent && (
               <div className="text-xs mb-2 flex items-center gap-2" style={{ color: AGENTS.find(a => a.id === answerAgent)?.color ?? 'var(--text-muted)' }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'currentColor' }} />
@@ -247,12 +258,10 @@ export default function HomePage() {
               </div>
             )}
             <div
-              className="rounded-lg p-4 text-sm leading-relaxed mb-4"
+              className="rounded-lg p-4 text-sm leading-relaxed mb-4 prose prose-sm prose-invert max-w-none"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
             >
-              {answer.split('\n').map((line, i) => (
-                <p key={i} className={line.trim() ? '' : 'h-3'}>{line}</p>
-              ))}
+              <ReactMarkdown>{answer}</ReactMarkdown>
             </div>
             <div className="flex gap-2 justify-center">
               <button
