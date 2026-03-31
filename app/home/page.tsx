@@ -217,11 +217,11 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
-      <div style={{ maxWidth: 560, width: '100%' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div style={{ maxWidth: 600, width: '100%' }}>
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             Agent Council
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -232,8 +232,8 @@ export default function HomePage() {
                 : 'Your agent team'}
           </p>
           {brief?.focus && (
-            <p className="text-xs mt-1" style={{ color: 'var(--accent)', opacity: 0.8 }}>
-              Focus: {brief.focus}
+            <p className="text-xs mt-2 px-4 py-1.5 rounded-full inline-block" style={{ color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid rgba(124, 109, 216, 0.15)' }}>
+              {brief.focus.length > 80 ? brief.focus.slice(0, 77) + '...' : brief.focus}
             </p>
           )}
         </div>
@@ -246,13 +246,13 @@ export default function HomePage() {
               className="mb-4"
             >
               <div
-                className="flex items-center rounded-xl overflow-hidden"
+                className="flex items-center rounded-2xl overflow-hidden"
                 style={{
                   background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-card)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid var(--border-focus)',
+                  boxShadow: 'var(--shadow-card), var(--shadow-glow-sm)',
+                  backdropFilter: 'blur(20px) saturate(150%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(150%)',
                 }}
               >
                 {selectedAgent && (
@@ -275,8 +275,8 @@ export default function HomePage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={selectedAgent ? `Ask ${AGENTS.find(a => a.id === selectedAgent)?.label ?? selectedAgent}...` : 'What do you want to work on?'}
-                  className="flex-1 text-sm px-4 py-3 outline-none"
-                  style={{ background: 'transparent', color: 'var(--text-primary)' }}
+                  className="flex-1 px-5 py-4 outline-none"
+                  style={{ background: 'transparent', color: 'var(--text-primary)', fontSize: '15px' }}
                   autoFocus
                 />
                 {input.trim() && (
@@ -318,14 +318,15 @@ export default function HomePage() {
                   key={qa.action}
                   onClick={() => qa.ready ? handleQuickAction(qa.action) : undefined}
                   disabled={!qa.ready}
-                  className="text-xs px-3.5 py-2 rounded-lg transition-all duration-200"
+                  className="text-xs px-4 py-2.5 rounded-xl transition-all duration-200"
                   style={{
                     color: qa.ready ? 'var(--text-secondary)' : 'var(--text-muted)',
-                    border: `1px solid ${qa.ready ? 'var(--border)' : 'var(--border-subtle)'}`,
+                    border: `1px solid ${(qa.action === 'ask' && selectedAgent) ? 'var(--border-glow)' : qa.ready ? 'var(--border)' : 'var(--border-subtle)'}`,
                     background: (qa.action === 'ask' && selectedAgent) ? 'var(--accent-muted)' : 'var(--bg-card)',
-                    opacity: qa.ready ? 1 : 0.35,
+                    opacity: qa.ready ? 1 : 0.3,
                     cursor: qa.ready ? 'pointer' : 'default',
-                    backdropFilter: 'blur(8px)',
+                    backdropFilter: 'blur(12px) saturate(150%)',
+                    boxShadow: qa.ready ? 'var(--shadow-sm)' : 'none',
                   }}
                   title={qa.ready ? undefined : 'Coming soon'}
                 >
@@ -392,9 +393,9 @@ export default function HomePage() {
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-secondary)',
-                boxShadow: 'var(--shadow-sm)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: 'var(--shadow-card)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
               }}
             >
               <ReactMarkdown>{answer}</ReactMarkdown>

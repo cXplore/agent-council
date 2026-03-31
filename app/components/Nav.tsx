@@ -282,10 +282,11 @@ export default function Nav() {
     <nav
       className="sticky top-0 z-50 px-4 sm:px-6 py-3"
       style={{
-        background: 'rgba(12, 12, 16, 0.75)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        background: 'rgba(8, 8, 14, 0.8)',
+        backdropFilter: 'blur(20px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(150%)',
         borderBottom: '1px solid var(--border)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
       }}
     >
       <div className="flex items-center gap-4 sm:gap-6">

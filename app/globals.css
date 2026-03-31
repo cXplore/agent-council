@@ -7,31 +7,32 @@
 }
 
 :root {
-  /* Surfaces — layered depth, not flat */
-  --bg: #08080a;
-  --bg-card: rgba(18, 18, 22, 0.7);
-  --bg-elevated: rgba(28, 28, 34, 0.8);
-  --bg-solid: #121216;
+  /* Surfaces — visible contrast between layers */
+  --bg: #06060a;
+  --bg-card: rgba(22, 22, 30, 0.85);
+  --bg-elevated: rgba(32, 32, 42, 0.9);
+  --bg-solid: #14141c;
 
-  /* Borders — soft white opacity, not hard gray */
-  --border: rgba(255, 255, 255, 0.07);
-  --border-focus: rgba(255, 255, 255, 0.15);
+  /* Borders — visible but soft */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(255, 255, 255, 0.18);
   --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-glow: rgba(124, 109, 216, 0.3);
 
-  /* Text */
-  --text-primary: #edebe8;
-  --text-secondary: #a8a5a0;
-  --text-muted: #6b6865;
+  /* Text — warm and readable */
+  --text-primary: #f0eee9;
+  --text-secondary: #b0ada6;
+  --text-muted: #706d68;
 
-  /* Accent — purple with glow capability */
+  /* Accent — rich purple */
   --accent: #7c6dd8;
-  --accent-hover: #9080e0;
-  --accent-muted: rgba(124, 109, 216, 0.12);
-  --accent-glow: rgba(124, 109, 216, 0.25);
+  --accent-hover: #9585e8;
+  --accent-muted: rgba(124, 109, 216, 0.15);
+  --accent-glow: rgba(124, 109, 216, 0.35);
 
   /* Status */
   --live-green: #4ade80;
-  --live-green-muted: rgba(74, 222, 128, 0.12);
+  --live-green-muted: rgba(74, 222, 128, 0.15);
   --error: #ef4444;
   --warning: #f59e0b;
   --success: var(--live-green);
@@ -39,38 +40,37 @@
 
   /* Semantic tag colors */
   --color-decision: #60a5fa;
-  --color-decision-bg: rgba(96, 165, 250, 0.1);
+  --color-decision-bg: rgba(96, 165, 250, 0.12);
   --color-open: #fbbf24;
-  --color-open-bg: rgba(251, 191, 36, 0.1);
+  --color-open-bg: rgba(251, 191, 36, 0.12);
   --color-action: #4ade80;
-  --color-action-bg: rgba(74, 222, 128, 0.1);
+  --color-action-bg: rgba(74, 222, 128, 0.12);
   --color-resolved: #6b7280;
   --color-resolved-bg: rgba(107, 114, 128, 0.08);
   --color-idea: #a855f7;
-  --color-idea-bg: rgba(168, 85, 247, 0.1);
+  --color-idea-bg: rgba(168, 85, 247, 0.12);
   --color-suggestion: #a78bfa;
-  --color-suggestion-bg: rgba(167, 139, 250, 0.08);
+  --color-suggestion-bg: rgba(167, 139, 250, 0.1);
 
-  /* Shadows & Glow */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border);
-  --shadow-glow: 0 0 30px var(--accent-glow);
-  --shadow-glow-sm: 0 0 15px rgba(124, 109, 216, 0.12);
+  /* Shadows & Glow — visible depth */
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border);
+  --shadow-glow: 0 0 40px var(--accent-glow);
+  --shadow-glow-sm: 0 0 20px rgba(124, 109, 216, 0.15);
 }
 
-/* Focus styles for accessibility */
+/* Focus — accent glow ring */
 input:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-glow-sm);
 }
 
-button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:focus-visible, details summary:focus-visible {
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Reduce motion for users who prefer it */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -80,61 +80,70 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible, select:foc
   }
 }
 
-/* Body — subtle radial gradient for depth, not flat black */
+/* Body — gradient with visible purple tint at top + subtle noise texture */
 body {
   background: var(--bg);
-  background-image: radial-gradient(ellipse at 50% 0%, rgba(124, 109, 216, 0.04) 0%, transparent 60%);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 109, 216, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(96, 165, 250, 0.06) 0%, transparent 50%);
   color: var(--text-primary);
   min-height: 100vh;
 }
 
 ::selection {
-  background: var(--accent-muted);
+  background: rgba(124, 109, 216, 0.3);
   color: var(--text-primary);
 }
 
-/* ---- Glass & Glow Utilities ---- */
+/* ---- Glass Surfaces ---- */
 
 .glass {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 .glass-elevated {
   background: var(--bg-elevated);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--border-focus);
+  box-shadow: var(--shadow-card);
+  border-radius: 12px;
 }
+
+/* ---- Glow Effects ---- */
 
 .glow-accent {
   box-shadow: var(--shadow-glow-sm);
 }
 
+.glow-accent-hover {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
 .glow-accent-hover:hover {
   box-shadow: var(--shadow-glow);
-  border-color: rgba(124, 109, 216, 0.3);
-  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  border-color: var(--border-glow);
+  transform: translateY(-1px);
 }
 
 .glow-live {
-  box-shadow: 0 0 20px rgba(74, 222, 128, 0.15);
+  box-shadow: 0 0 24px rgba(74, 222, 128, 0.2);
 }
 
-/* Card hover with lift */
+/* Card hover — lift + depth + border brighten */
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 .card-hover:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-card);
   border-color: var(--border-focus);
 }
 
-/* ---- Meeting content animations ---- */
+/* ---- Animations ---- */
 
 .meeting-new-content p,
 .meeting-new-content h2,
@@ -151,7 +160,6 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Loading shimmer */
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
@@ -163,17 +171,16 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
-/* Subtle pulse for live indicators */
 @keyframes softPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(74, 222, 128, 0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 16px rgba(74, 222, 128, 0.6); }
 }
 
 .pulse-soft {
   animation: softPulse 2s ease-in-out infinite;
 }
 
-/* ---- Mobile responsive ---- */
+/* ---- Mobile ---- */
 @media (max-width: 640px) {
   .max-w-3xl { padding-left: 1rem; padding-right: 1rem; }
   .meeting-header-actions { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -182,10 +189,10 @@ body {
 }
 
 /* ---- Scrollbar ---- */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.06); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.12); }
 
 /* ---- Print ---- */
 @media print {
