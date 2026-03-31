@@ -227,7 +227,7 @@ export default function MeetingList(props: MeetingListProps) {
       <div className="max-w-3xl mx-auto px-6 py-12">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-baseline gap-3">
-            <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               Meetings
             </h1>
             {hasProject && activeProject && activeProject !== 'workspace' && (

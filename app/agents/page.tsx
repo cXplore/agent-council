@@ -763,7 +763,7 @@ function AgentsPageInner() {
               className="w-3 h-3 rounded-full"
               style={{ background: getAgentColor(selected.name) }}
             />
-            <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               {selected.name}
             </h1>
             {selected.role === 'lead' && (
@@ -895,7 +895,7 @@ function AgentsPageInner() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       <div className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="text-2xl font-bold tracking-tight mb-1" style={{ color: 'var(--text-primary)' }}>
           Agents
         </h1>
         {project && (
