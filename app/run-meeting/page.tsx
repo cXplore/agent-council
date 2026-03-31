@@ -262,19 +262,7 @@ export default function RunMeetingPage() {
         </div>
       )}
 
-      {llmStatus?.available && (
-        <div style={{
-          padding: '8px 14px',
-          background: 'var(--live-green-muted)',
-          border: '1px solid rgba(34, 197, 94, 0.2)',
-          borderRadius: 8,
-          marginBottom: 20,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}>
-          Backend: <strong>{llmStatus.backend === 'agent-sdk' ? 'Claude Code (Agent SDK)' : 'Anthropic API (direct)'}</strong>
-        </div>
-      )}
+      {/* Backend status shown in Settings, not here — less noise */}
 
       {/* Project Selector */}
       {projects.length > 0 && (
