@@ -427,9 +427,11 @@ export async function POST(req: NextRequest) {
       // First try tag-based parsing (fast, deterministic)
       let outcomes: StructuredOutcomes = extractStructuredOutcomes(allRounds);
 
-      // If no tagged outcomes found and we have 2+ rounds, use AI extraction
+      // If no tagged outcomes found, use AI extraction as fallback.
+      // Now that agents receive tagging instructions, this should rarely fire —
+      // but it's a safety net against silent outcome loss.
       const hasOutcomes = outcomes.decisions.length > 0 || outcomes.actions.length > 0 || outcomes.openQuestions.length > 0;
-      if (!hasOutcomes && roundCount >= 2) {
+      if (!hasOutcomes) {
         try {
           const extractionPrompt = buildOutcomeExtractionPrompt(topic, allRounds);
           const extractedText = await queryWithRetry(extractionPrompt, { maxTurns: 1 }, 'Outcome extraction');
