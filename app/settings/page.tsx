@@ -95,7 +95,7 @@ function SettingsInner() {
           <div className="loading-shimmer h-4 w-52 rounded mb-8" />
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div key={i} className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
                 <div className="loading-shimmer h-4 w-24 rounded mb-3" />
                 <div className="grid grid-cols-3 gap-4">
                   {[1, 2, 3].map(j => (
@@ -132,7 +132,7 @@ function SettingsInner() {
           {/* Server Status */}
           {health && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Server</h2>
                 <span className="flex items-center gap-1.5 text-xs" style={{ color: health.status === 'ok' ? 'var(--live-green)' : 'var(--error)' }}>
@@ -165,7 +165,7 @@ function SettingsInner() {
           {/* AI Providers */}
           {llmStatus && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>AI Providers</h2>
                 <span className="text-xs" style={{ color: llmStatus.available ? 'var(--live-green)' : 'var(--text-muted)' }}>
@@ -250,7 +250,7 @@ function SettingsInner() {
           {/* Usage Profile */}
           {usageSettings && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <h2 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Usage Profile</h2>
               {/* Profile selector */}
               <div className="flex gap-2 mb-4">
@@ -423,7 +423,7 @@ function SettingsInner() {
           {/* Projects */}
           {health && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Projects</h2>
                 <a href="/setup" className="text-xs" style={{ color: 'var(--accent)' }}>+ Connect</a>
@@ -474,7 +474,7 @@ function SettingsInner() {
           {/* MCP Status */}
           {mcp && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>MCP Server</h2>
                 {!mcpFullyConfigured && (
@@ -511,7 +511,7 @@ function SettingsInner() {
           {/* Template Status */}
           {templateCheck && templateCheck.agents.length > 0 && (
             <motion.div {...staggerFadeUp(sectionIndex++)}
-              className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Template Status</h2>
                 {staleAgents.length > 0 && (
@@ -606,7 +606,7 @@ function SettingsInner() {
 
           {/* Keyboard Shortcuts */}
           <motion.div {...staggerFadeUp(sectionIndex++)}
-            className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
             <h2 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Keyboard Shortcuts</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {[
@@ -629,7 +629,7 @@ function SettingsInner() {
 
           {/* Links */}
           <motion.div {...staggerFadeUp(sectionIndex++)}
-            className="rounded-lg p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            className="rounded-xl p-5" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}>
             <h2 className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Quick Links</h2>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
               <a href="/guide" style={{ color: 'var(--accent)' }}>Getting Started Guide</a>

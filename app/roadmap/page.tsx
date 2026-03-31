@@ -524,7 +524,7 @@ function SearchPanel() {
           ) : (
             <div
               className="rounded-lg overflow-hidden divide-y"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
             >
               {results.slice(0, 15).map((r, i) => (
                 <a
@@ -787,7 +787,7 @@ function RoadmapInner() {
           {/* Summary skeleton */}
           <div
             className="rounded-lg p-4 mb-6"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
           >
             <div className="loading-shimmer h-3 w-64 rounded mb-3" />
             <div className="loading-shimmer h-2 w-full rounded mb-2" />
@@ -799,7 +799,7 @@ function RoadmapInner() {
               <div className="loading-shimmer h-5 w-32 rounded mb-4" />
               <div
                 className="rounded-lg p-4 space-y-3"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
               >
                 <div className="loading-shimmer h-3 w-full rounded" />
                 <div className="loading-shimmer h-3 w-3/4 rounded" />
@@ -872,7 +872,7 @@ function RoadmapInner() {
         {!hasData ? (
           <div
             className="rounded-lg p-8 text-center"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
           >
             <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
               No meeting outcomes yet. Run a meeting to track decisions, actions, and open questions here.
@@ -890,7 +890,7 @@ function RoadmapInner() {
             {/* Progress summary */}
             <motion.div
               className="rounded-lg px-5 py-4"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
               {...fadeUp}
             >
               <div className="text-xs mb-3 flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
@@ -1012,7 +1012,7 @@ function RoadmapInner() {
                       </h3>
                       <div
                         className="rounded-lg px-4 py-3 space-y-1"
-                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
                       >
                         {unclustered.map((item, ui) => (
                           <TriageItemRow
@@ -1048,7 +1048,7 @@ function RoadmapInner() {
               {activeActionGroups.length > 0 ? (
                 <div
                   className="rounded-lg px-5 py-4 space-y-5"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
                 >
                   {activeActionGroups.map(g => (
                     <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
@@ -1068,7 +1068,7 @@ function RoadmapInner() {
               {activeOpenGroups.length > 0 ? (
                 <div
                   className="rounded-lg px-5 py-4 space-y-5"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
                 >
                   {activeOpenGroups.map(g => (
                     <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />
@@ -1103,7 +1103,7 @@ function RoadmapInner() {
               {doneGroups.length > 0 ? (
                 <div
                   className="rounded-lg px-5 py-4 space-y-5"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
                 >
                   {doneGroups.map(g => (
                     <MeetingGroup key={g.meeting} {...g} onStatusChange={handleStatusChange} />

@@ -219,8 +219,8 @@ function AgentCard({ agent, onSelect, editMode, teamOptions, onEditField }: {
       onDragEnd={editMode ? (e) => {
         (e.currentTarget as HTMLElement).style.opacity = '1';
       } : undefined}
-      className={`w-full text-left rounded-lg p-4 transition-colors ${editMode ? 'cursor-grab active:cursor-grabbing' : 'hover:brightness-110 cursor-pointer'}`}
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      className={`w-full text-left rounded-xl p-4 card-hover ${editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', backdropFilter: 'blur(8px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="flex items-center gap-3">
         <span
@@ -312,6 +312,8 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
   const cardStyle: React.CSSProperties = {
     background: 'var(--bg-card)',
     border: '1px solid var(--border)',
+    backdropFilter: 'blur(12px) saturate(150%)',
+    boxShadow: 'var(--shadow-sm)',
   };
 
   return (
@@ -322,7 +324,7 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
       transition={{ duration: 0.25 }}
     >
       {/* Composition */}
-      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+      <div className="rounded-xl px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
         <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Composition</div>
         <div className="flex items-baseline gap-2">
           <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{leads}</span>
@@ -334,7 +336,7 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
       </div>
 
       {/* Models */}
-      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+      <div className="rounded-xl px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
         <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Models</div>
         <div className="flex items-baseline gap-3 flex-wrap">
           {Object.entries(modelCounts)
@@ -349,7 +351,7 @@ function StatsBanner({ agents }: { agents: AgentInfo[] }) {
       </div>
 
       {/* Tools */}
-      <div className="rounded-lg px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
+      <div className="rounded-xl px-4 py-3 flex-1 min-w-[140px]" style={cardStyle}>
         <div className="text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Tool coverage</div>
         <div className="flex items-baseline gap-2 mb-1.5">
           <span className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{allTools.size}</span>
