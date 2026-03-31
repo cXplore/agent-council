@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig, getProjectConfigByName, getUsageSettings } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
@@ -546,9 +546,15 @@ export async function POST(req: NextRequest) {
         generatedAt: new Date().toISOString(),
       };
       } catch (roundErr) {
-        // Meeting file was created but rounds failed — delete the orphaned file
+        // Meeting file was created but rounds failed — mark as failed, don't delete
         if (meetingFilePath) {
-          try { await unlink(meetingFilePath); } catch { /* ignore */ }
+          try {
+            const errorMsg = roundErr instanceof Error ? roundErr.message : String(roundErr);
+            const failedContent = buildMeetingContent(allRounds, 'complete')
+              .replace('status: in-progress', 'status: failed')
+              + `\n\n---\n\n## Error\n\nMeeting failed: ${errorMsg}\n`;
+            await writeFile(meetingFilePath, failedContent, 'utf-8');
+          } catch { /* ignore write failure */ }
         }
         throw roundErr;
       }
