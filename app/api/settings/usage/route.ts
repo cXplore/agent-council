@@ -17,11 +17,14 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { profile, defaultRounds, maxTokens, defaultModel } = body;
+    const { profile, defaultRounds, maxTokens, defaultModel, llmBackend } = body;
 
     // Validate
     if (profile && !['lean', 'standard', 'deep'].includes(profile)) {
       return NextResponse.json({ error: 'profile must be lean, standard, or deep' }, { status: 400 });
+    }
+    if (llmBackend !== undefined && !['auto', 'oauth', 'api-key'].includes(llmBackend)) {
+      return NextResponse.json({ error: 'llmBackend must be auto, oauth, or api-key' }, { status: 400 });
     }
     if (defaultRounds !== undefined && (typeof defaultRounds !== 'number' || defaultRounds < 1 || defaultRounds > 3)) {
       return NextResponse.json({ error: 'defaultRounds must be 1-3' }, { status: 400 });
@@ -35,6 +38,7 @@ export async function POST(req: NextRequest) {
       ...(defaultRounds !== undefined ? { defaultRounds } : {}),
       ...(maxTokens !== undefined ? { maxTokens } : {}),
       ...(defaultModel !== undefined ? { defaultModel: defaultModel || undefined } : {}),
+      ...(llmBackend !== undefined ? { llmBackend } : {}),
     });
 
     return NextResponse.json(updated);

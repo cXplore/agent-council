@@ -85,6 +85,8 @@ export interface UsageSettings {
   maxTokens: number;
   /** Default model override (uses agent frontmatter if not set) */
   defaultModel?: string;
+  /** LLM backend preference — user explicitly chooses, no silent fallback */
+  llmBackend?: 'auto' | 'oauth' | 'api-key';
 }
 
 /** Pre-defined usage profiles */

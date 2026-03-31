@@ -198,10 +198,52 @@ function SettingsInner() {
                   );
                 })}
               </div>
-              <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
-                Add API keys to <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>.env.local</code> to enable providers.
-                Each agent can use a different provider — set <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', fontFamily: 'var(--font-mono)' }}>model: openai/gpt-5.4</code> in agent frontmatter.
-              </p>
+              {/* Backend selector */}
+              <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Auth method</div>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'auto', label: 'Auto', desc: 'OAuth if available, then API keys' },
+                    { value: 'oauth', label: 'OAuth', desc: 'Claude subscription only' },
+                    { value: 'api-key', label: 'API Key', desc: 'Direct API keys only' },
+                  ] as const).map(opt => {
+                    const isActive = (llmStatus as { preference?: string })?.preference === opt.value
+                      || (!(llmStatus as { preference?: string })?.preference && opt.value === 'auto');
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={async () => {
+                          try {
+                            await fetch('/api/settings/usage', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ llmBackend: opt.value }),
+                            });
+                            // Refresh LLM status to reflect new preference
+                            const res = await fetch('/api/council/llm-status');
+                            if (res.ok) {
+                              const data = await res.json();
+                              setLlmStatus(data);
+                            }
+                          } catch { /* ignore */ }
+                        }}
+                        className="text-xs px-3 py-1.5 rounded transition-colors"
+                        style={{
+                          background: isActive ? 'var(--accent-muted)' : 'var(--bg)',
+                          color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                        title={opt.desc}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                  Choose how Agent Council authenticates with AI providers. No silent fallback between methods.
+                </p>
+              </div>
             </motion.div>
           )}
 

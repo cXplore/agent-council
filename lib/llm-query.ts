@@ -4,19 +4,19 @@
  * Supports any model via Vercel AI SDK provider strings: "anthropic/claude-sonnet-4.6",
  * "openai/gpt-5.4", "google/gemini-2.5-pro", etc.
  *
- * Auto-detects available providers from environment variables:
- * - ANTHROPIC_API_KEY → Anthropic models
- * - OPENAI_API_KEY → OpenAI models
- * - GOOGLE_GENERATIVE_AI_API_KEY → Google models
- * - CLAUDE_CODE_OAUTH_TOKEN → Claude Agent SDK (legacy, still supported)
+ * The user explicitly chooses their auth method via settings (llmBackend):
+ * - "oauth" → Claude Code subscription (CLAUDE_CODE_OAUTH_TOKEN via Agent SDK)
+ * - "api-key" → Direct API keys (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc. via AI SDK)
+ * - "auto" → OAuth if available, then API keys (default for backward compat)
  *
- * Falls back gracefully: if a specific provider key is missing, uses whatever is available.
+ * No silent fallback between methods. The user's choice is respected.
  */
 
 import { generateText, streamText, type LanguageModel } from 'ai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { getConfig, getUsageSettings } from './config';
 
 // Default models per provider (used when agent specifies provider but not model)
 const PROVIDER_DEFAULTS: Record<string, string> = {
@@ -86,11 +86,28 @@ export function isLLMAvailable(): boolean {
 /**
  * For backward compat — returns the legacy backend type.
  */
-export function detectBackend(): 'agent-sdk' | 'anthropic-api' | 'ai-sdk' | 'none' {
-  if (process.env.ANTHROPIC_API_KEY) return 'ai-sdk';
-  if (process.env.OPENAI_API_KEY) return 'ai-sdk';
-  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return 'ai-sdk';
+/**
+ * Detect the active backend based on user preference in config.
+ *
+ * - "oauth" → use Agent SDK (CLAUDE_CODE_OAUTH_TOKEN), error if not set
+ * - "api-key" → use AI SDK (direct API keys), error if none set
+ * - "auto" → OAuth if token present, otherwise API keys (default)
+ *
+ * No silent fallback between methods when explicitly chosen.
+ */
+export function detectBackend(preference?: 'auto' | 'oauth' | 'api-key'): 'agent-sdk' | 'ai-sdk' | 'none' {
+  const pref = preference ?? 'auto';
+
+  if (pref === 'oauth') {
+    return process.env.CLAUDE_CODE_OAUTH_TOKEN ? 'agent-sdk' : 'none';
+  }
+  if (pref === 'api-key') {
+    if (process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) return 'ai-sdk';
+    return 'none';
+  }
+  // auto: OAuth first, then API keys
   if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return 'agent-sdk';
+  if (process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) return 'ai-sdk';
   return 'none';
 }
 
@@ -160,7 +177,7 @@ export function resolveModel(modelStr?: string): LanguageModel {
 }
 
 /**
- * Query the LLM with automatic provider detection and retry.
+ * Query the LLM with user-configured backend preference and retry.
  */
 export async function queryLLM(
   prompt: string,
@@ -168,25 +185,34 @@ export async function queryLLM(
   label = 'LLM query',
   maxRetries = 2,
 ): Promise<string> {
-  const backend = detectBackend();
+  // Read user's backend preference from config
+  let preference: 'auto' | 'oauth' | 'api-key' = 'auto';
+  try {
+    const config = await getConfig();
+    const usage = getUsageSettings(config);
+    preference = usage.llmBackend ?? 'auto';
+  } catch { /* config not available — use auto */ }
+
+  const backend = detectBackend(preference);
 
   if (backend === 'none') {
-    throw new LLMError(
-      'no_provider',
-      'No LLM credentials found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY in Settings.',
-    );
+    const hint = preference === 'oauth'
+      ? 'Backend set to "OAuth" but CLAUDE_CODE_OAUTH_TOKEN is not set. Run from Claude Code or change backend to "API Key" in Settings.'
+      : preference === 'api-key'
+        ? 'Backend set to "API Key" but no API keys found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY in .env.local.'
+        : 'No LLM credentials found. Configure a backend in Settings.';
+    throw new LLMError('no_provider', hint);
   }
 
   let lastError: LLMError | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      if (backend === 'agent-sdk' && !process.env.ANTHROPIC_API_KEY) {
-        // Agent SDK path: use when only OAuth token is available (no direct API key)
-        // The Agent SDK handles auth via CLAUDE_CODE_OAUTH_TOKEN regardless of model option
+      if (backend === 'agent-sdk') {
+        // OAuth path: Claude Code subscription, all queries go through Agent SDK
         return await queryViaAgentSDK(prompt, options);
       } else {
-        // AI SDK path: supports any provider via direct API keys
+        // BYOK path: direct API keys, queries go through Vercel AI SDK
         return await queryViaAISDK(prompt, options);
       }
     } catch (err) {
