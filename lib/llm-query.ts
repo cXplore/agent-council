@@ -181,11 +181,12 @@ export async function queryLLM(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      if (backend === 'agent-sdk' && !options.model) {
-        // Legacy path: use Claude Agent SDK when no specific model requested and only OAuth token available
+      if (backend === 'agent-sdk' && !process.env.ANTHROPIC_API_KEY) {
+        // Agent SDK path: use when only OAuth token is available (no direct API key)
+        // The Agent SDK handles auth via CLAUDE_CODE_OAUTH_TOKEN regardless of model option
         return await queryViaAgentSDK(prompt, options);
       } else {
-        // AI SDK path: supports any provider
+        // AI SDK path: supports any provider via direct API keys
         return await queryViaAISDK(prompt, options);
       }
     } catch (err) {
