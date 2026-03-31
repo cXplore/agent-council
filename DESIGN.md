@@ -49,21 +49,27 @@ All defined as CSS custom properties in `app/globals.css`.
 | `--text-secondary` | `#a8a5a0` | Descriptions, supporting text |
 | `--text-muted` | `#6b6865` | Labels, timestamps, metadata |
 
-### Accent
+### Accent — Cosmic Palette
+Purple for interactive elements (digital vibe), warm copper for decorative glows.
+
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--accent` | `#7c6dd8` | Buttons, links, active states |
-| `--accent-hover` | `#9080e0` | Hover state |
-| `--accent-muted` | `rgba(124,109,216,0.12)` | Accent backgrounds |
-| `--accent-glow` | `rgba(124,109,216,0.25)` | Glow effects |
+| `--accent` | `#9b6dd8` | Buttons, active states, interactive elements |
+| `--accent-hover` | `#b485f0` | Hover state |
+| `--accent-muted` | `rgba(155,109,216,0.15)` | Accent backgrounds |
+| `--accent-glow` | `rgba(155,109,216,0.30)` | Glow effects |
+| `--accent-warm` | `#d4935c` | Decorative: heading gradients, warm glows |
+| `--accent-pink` | `#c74b8a` | Secondary highlights |
+| `--accent-cyan` | `#4ecdc4` | Cool contrast accent |
 
-### Tag Colors (decisions, actions, open questions)
+### Tag Colors — Warm Cosmic
 | Tag | Color | Background |
 |-----|-------|------------|
-| Decision | `--color-decision` `#60a5fa` | `rgba(96,165,250,0.1)` |
-| Open | `--color-open` `#fbbf24` | `rgba(251,191,36,0.1)` |
-| Action | `--color-action` `#4ade80` | `rgba(74,222,128,0.1)` |
-| Resolved | `--color-resolved` `#6b7280` | `rgba(107,114,128,0.08)` |
+| Decision | `--color-decision` `#7cb8f0` (soft blue) | `rgba(124,184,240,0.1)` |
+| Open | `--color-open` `#e8a060` (warm amber) | `rgba(232,160,96,0.1)` |
+| Action | `--color-action` `#5ce8a0` (warm green) | `rgba(92,232,160,0.1)` |
+| Resolved | `--color-resolved` `#8a7e72` (warm gray) | `rgba(138,126,114,0.08)` |
+| Idea | `--color-idea` `#d090f0` (soft purple) | `rgba(208,144,240,0.1)` |
 
 ## Typography
 
