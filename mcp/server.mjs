@@ -584,7 +584,7 @@ safeTool(
 // Tool: Query tagged items across meetings
 safeTool(
   'council_query',
-  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items. Use mode=recall with a topic to find relevant decisions during coding — returns decisions and open questions with surrounding context.',
+  'Query decisions, open questions, and action items across all meetings. Use to get carry-forward context, check what was decided, or find unresolved items. Use mode=recall with a topic to find relevant decisions during coding — returns decisions and open questions with surrounding context.\n\nModes:\n- summary: Returns counts of decisions, actions, and open questions across all meetings. Fast, good for orientation.\n- unresolved: Returns all active (not done/resolved) action items and open questions. Use at session start to see pending work.\n- search: Full-text search across all tagged items. Combine with type filter (decision/open/action) to narrow results.\n- recall: Topic-based semantic search — finds decisions and open questions relevant to a topic string. Best for "what did we decide about X?" queries. Supports date_from/date_to filters and types parameter (comma-separated: decision,open,action).',
   {
     mode: z.enum(['summary', 'unresolved', 'search', 'recall']).describe('Query mode: summary (counts), unresolved (open items), search (text query), recall (topic-based decision search with context)'),
     query: z.string().optional().describe('Search text (for search and recall modes)'),
@@ -1169,7 +1169,7 @@ safeTool(
 // Tool: AI context — narrative summary of recent project activity
 safeTool(
   'council_ai_context',
-  'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer. Call when you want deep context about project direction. Use codeAware=true to ground the narrative in actual code state (slower but more accurate).',
+  'Get an AI-generated narrative summary of recent project activity. More insightful than council_session_brief — synthesizes patterns, explains why things matter, and suggests current focus. Slower but richer (takes 30-60s). Call when you want deep context about project direction — e.g., at the start of a session, or before making architectural decisions. Uses the Agent SDK to analyze recent meetings, decisions, actions, and open questions, then produces a cohesive narrative. Use codeAware=true to ground the narrative in actual code state (slower but more accurate — the AI will Read/Glob/Grep the project to verify claims).',
   {
     codeAware: z.boolean().optional().default(false).describe('When true, the AI inspects the project codebase using Read/Glob/Grep to verify decisions and ground the narrative in actual code state. Slower but more accurate.'),
   },
@@ -1369,7 +1369,7 @@ Respond with ONLY this JSON format (no other text):
 
 safeTool(
   'council_quick_consult',
-  'Ask a single agent one question and get one direct answer — no meeting overhead. Use when you need a quick perspective from a specific role (architect, critic, developer, designer, north-star, project-manager) without running a full meeting. Use topic to ground the agent in relevant past decisions.',
+  'Ask a single agent one question and get one direct answer — no meeting overhead (takes 15-30s). Use when you need a quick perspective from a specific role without running a full meeting. Available agents: architect (system design, trade-offs), critic (challenges assumptions, finds flaws), developer (implementation, code quality), designer (UI/UX, user flows), north-star (vision, impact, possibilities), project-manager (scope, priorities, what\'s real). Use topic to ground the agent in relevant past decisions — e.g., topic="error handling" will inject related decisions/open questions from past meetings into the agent\'s context. Use codeAware=true for technical questions where the agent should read actual source files.',
   {
     question: z.string().describe('The question to ask'),
     agent: z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'])
@@ -1404,7 +1404,7 @@ safeTool(
 
 safeTool(
   'council_multi_consult',
-  'Run a structured multi-agent meeting. Round 1: agents respond independently in parallel. Round 2+: agents receive previous rounds as context and respond to each other — challenging, building on, and synthesizing ideas. Results are written to a meeting file. Use when you want deliberation from 2-6 agents. NOTE: This call may take 2-5 minutes due to Claude API latency. The server has a 5-minute timeout.',
+  'Run a structured multi-agent meeting. Round 1: agents respond independently in parallel. Round 2+: agents receive previous rounds as context and respond to each other — challenging, building on, and synthesizing ideas. Results are written to a meeting file. Use when you want deliberation from 2-6 agents.\n\nTiming: 1 round ≈ 1-2 min, 2 rounds ≈ 2-4 min, 3 rounds ≈ 3-5 min. The server has a 5-minute timeout. For long meetings, the viewer shows live progress.\n\nPre-flight context: The server automatically gathers relevant source files from the topic and injects them into agent prompts. To hint specific files, include them in the topic: "API caching strategy [lib/cache.ts, app/api/route.ts]".\n\nOutcomes: Agent responses are parsed for [DECISION], [ACTION], and [OPEN:slug] tags. If no tags found in 2+ round meetings, AI extraction is attempted. Outcomes appear in the meeting file and are returned in the response.',
   {
     topic: z.string().describe('The question or topic for agents to discuss'),
     agents: z.array(z.enum(['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager']))
@@ -1422,64 +1422,124 @@ safeTool(
   },
   async ({ topic, agents, rounds = 1, type = 'direction-check', codeAware = false, writeMeeting = true }) => {
     try {
+      // Use async mode: returns a jobId immediately, meeting runs in background
       const result = await councilRequest('/api/council/multi-consult', 'POST', {
-        topic, agents, rounds, type, codeAware, writeMeeting,
-      }, 1, 300000); // 5 min timeout — Claude API calls can take minutes
+        topic, agents, rounds, type, codeAware, writeMeeting, async: true,
+      }, 1, 15000); // Short timeout — async mode returns immediately
+
       if (result.error) {
         return { content: [{ type: 'text', text: `Multi-consult failed: ${result.error}` }], isError: true };
       }
 
-      const parts = [];
-      if (result.meetingFile) {
-        parts.push(`Meeting file: ${result.meetingFile}\n`);
-      }
-      // Handle multi-round response format
-      const roundsData = result.rounds || [];
-      for (const roundData of roundsData) {
-        if (roundsData.length > 1) {
-          parts.push(`## Round ${roundData.round}\n`);
-        }
-        for (const r of (roundData.responses || [])) {
-          const displayName = r.agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-          parts.push(`### ${displayName}\n\n${r.answer}`);
-        }
+      if (result.jobId) {
+        return {
+          content: [{
+            type: 'text',
+            text: `Meeting started in background.\n\nJob ID: ${result.jobId}\n\nThe meeting is running with ${agents.length} agents for ${rounds} round(s). The viewer will show live progress.\n\nTo check results: use council_job_status with jobId "${result.jobId}"`,
+          }],
+        };
       }
 
-      // Append structured outcomes if present
-      if (result.outcomes) {
-        const outcomeParts = ['\n## Outcomes\n'];
-        if (result.outcomes.decisions?.length) {
-          outcomeParts.push('**Decisions:**');
-          for (const d of result.outcomes.decisions) {
-            outcomeParts.push(`- [DECISION] ${d.text}${d.rationale ? `\n  Rationale: ${d.rationale}` : ''}`);
-          }
-          outcomeParts.push('');
-        }
-        if (result.outcomes.actions?.length) {
-          outcomeParts.push('**Actions:**');
-          for (const a of result.outcomes.actions) {
-            outcomeParts.push(`- [ACTION] ${a.text}${a.assignee ? ` — ${a.assignee}` : ''}`);
-          }
-          outcomeParts.push('');
-        }
-        if (result.outcomes.openQuestions?.length) {
-          outcomeParts.push('**Open Questions:**');
-          for (const o of result.outcomes.openQuestions) {
-            outcomeParts.push(`- [OPEN${o.slug ? ':' + o.slug : ''}] ${o.text}`);
-          }
-          outcomeParts.push('');
-        }
-        parts.push(outcomeParts.join('\n'));
+      // Fallback: if server returned synchronous result (shouldn't happen with async: true)
+      return formatMeetingResult(result);
+    } catch (err) {
+      return { content: [{ type: 'text', text: `Multi-consult error: ${err.message}` }], isError: true };
+    }
+  }
+);
+
+/**
+ * Format a synchronous meeting result for display.
+ */
+function formatMeetingResult(result) {
+  const parts = [];
+  if (result.meetingFile) {
+    parts.push(`Meeting file: ${result.meetingFile}\n`);
+  }
+  const roundsData = result.rounds || [];
+  for (const roundData of roundsData) {
+    if (roundsData.length > 1) {
+      parts.push(`## Round ${roundData.round}\n`);
+    }
+    for (const r of (roundData.responses || [])) {
+      const displayName = r.agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+      parts.push(`### ${displayName}\n\n${r.answer}`);
+    }
+  }
+  if (result.outcomes) {
+    const outcomeParts = ['\n## Outcomes\n'];
+    if (result.outcomes.decisions?.length) {
+      outcomeParts.push('**Decisions:**');
+      for (const d of result.outcomes.decisions) {
+        outcomeParts.push(`- [DECISION] ${d.text}${d.rationale ? `\n  Rationale: ${d.rationale}` : ''}`);
+      }
+      outcomeParts.push('');
+    }
+    if (result.outcomes.actions?.length) {
+      outcomeParts.push('**Actions:**');
+      for (const a of result.outcomes.actions) {
+        outcomeParts.push(`- [ACTION] ${a.text}${a.assignee ? ` — ${a.assignee}` : ''}`);
+      }
+      outcomeParts.push('');
+    }
+    if (result.outcomes.openQuestions?.length) {
+      outcomeParts.push('**Open Questions:**');
+      for (const o of result.outcomes.openQuestions) {
+        outcomeParts.push(`- [OPEN${o.slug ? ':' + o.slug : ''}] ${o.text}`);
+      }
+      outcomeParts.push('');
+    }
+    parts.push(outcomeParts.join('\n'));
+  }
+  return {
+    content: [{ type: 'text', text: parts.join('\n\n---\n\n') }],
+  };
+}
+
+// Tool: Check async job status
+safeTool(
+  'council_job_status',
+  'Check the status of an async meeting job started by council_multi_consult. Returns the current status (pending/running/complete/failed), progress updates during execution, and the full meeting results when complete. Poll this after starting a meeting to get results.',
+  {
+    jobId: z.string().describe('The job ID returned by council_multi_consult'),
+  },
+  async ({ jobId }) => {
+    try {
+      const result = await councilRequest(`/api/council/job-status/${encodeURIComponent(jobId)}`);
+      if (result.error) {
+        return { content: [{ type: 'text', text: `Job error: ${result.error}` }], isError: true };
       }
 
+      if (result.status === 'complete') {
+        const elapsed = result.elapsed ? ` (${Math.round(result.elapsed / 1000)}s)` : '';
+        // Format the full meeting result
+        const formatted = formatMeetingResult(result.result || {});
+        return {
+          content: [{
+            type: 'text',
+            text: `Meeting complete${elapsed}.\n\n${formatted.content[0].text}`,
+          }],
+        };
+      }
+
+      if (result.status === 'failed') {
+        const elapsed = result.elapsed ? ` after ${Math.round(result.elapsed / 1000)}s` : '';
+        return {
+          content: [{ type: 'text', text: `Meeting failed${elapsed}: ${result.error}` }],
+          isError: true,
+        };
+      }
+
+      // Still running
+      const progress = result.progress ? ` — ${result.progress}` : '';
       return {
         content: [{
           type: 'text',
-          text: parts.join('\n\n---\n\n'),
+          text: `Job ${jobId}: ${result.status}${progress}\n\nThe meeting is still running. Call council_job_status again in 15-30 seconds to check progress.`,
         }],
       };
     } catch (err) {
-      return { content: [{ type: 'text', text: `Multi-consult error: ${err.message}` }], isError: true };
+      return { content: [{ type: 'text', text: `Job status error: ${err.message}` }], isError: true };
     }
   }
 );

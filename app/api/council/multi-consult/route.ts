@@ -20,6 +20,7 @@ import {
 } from '@/lib/preflight-context';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { writeActivityEntry } from '@/lib/activity-log';
+import { createJob, updateJob, completeJob, failJob } from '@/lib/job-store';
 
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
 
@@ -142,10 +143,50 @@ async function buildAgentPrompt(
 }
 
 /**
+ * Run a query with retry on transient failures (overloaded, network errors).
+ * Uses exponential backoff: 2s, 4s for up to 2 retries.
+ */
+async function queryWithRetry(
+  prompt: string,
+  options: Record<string, unknown>,
+  label: string,
+  maxRetries = 2,
+): Promise<string> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let answer = '';
+      for await (const message of query({ prompt, options })) {
+        if (message.type === 'assistant' && message.message?.content) {
+          for (const block of message.message.content) {
+            if ('text' in block && block.text) {
+              answer += block.text;
+            }
+          }
+        }
+      }
+      return answer.trim();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable = lastError.message.includes('overloaded')
+        || lastError.message.includes('529')
+        || lastError.message.includes('rate_limit')
+        || lastError.message.includes('ECONNRESET')
+        || lastError.message.includes('ETIMEDOUT');
+      if (!isRetryable || attempt >= maxRetries) throw lastError;
+      const delay = Math.pow(2, attempt + 1) * 1000;
+      console.warn(`${label} attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError ?? new Error('Query failed after retries');
+}
+
+/**
  * Query a single agent and return the response text.
  */
 async function queryAgent(
-  _agentName: string,
+  agentName: string,
   question: string,
   systemPrompt: string,
   codeAware: boolean,
@@ -164,21 +205,7 @@ async function queryAgent(
     queryOptions.permissionMode = 'acceptEdits';
   }
 
-  let answer = '';
-  for await (const message of query({
-    prompt: question,
-    options: queryOptions,
-  })) {
-    if (message.type === 'assistant' && message.message?.content) {
-      for (const block of message.message.content) {
-        if ('text' in block && block.text) {
-          answer += block.text;
-        }
-      }
-    }
-  }
-
-  return answer.trim();
+  return queryWithRetry(question, queryOptions, `Agent ${agentName}`);
 }
 
 /**
@@ -211,6 +238,7 @@ export async function POST(req: NextRequest) {
     const roundCount: number = Math.min(3, Math.max(1, typeof body?.rounds === 'number' ? body.rounds : 1));
     const codeAware: boolean = body?.codeAware === true;
     const writeMeeting: boolean = body?.writeMeeting !== false;
+    const asyncMode: boolean = body?.async === true;
 
     // Validate
     if (!topic) {
@@ -233,206 +261,223 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const config = await getConfig();
-    const active = getActiveProjectConfig(config);
+    // Core meeting execution — extracted so it can run sync or async
+    async function runMeeting(jobId?: string): Promise<Record<string, unknown>> {
+      const config = await getConfig();
+      const active = getActiveProjectConfig(config);
 
-    // Load shared work context once
-    const workContext = await loadWorkContext(active.meetingsDir);
+      if (jobId) updateJob(jobId, { status: 'running', progress: 'Loading context...' });
 
-    // Pre-flight context gathering: resolve relevant source files from the topic
-    let preflightManifest: ResolutionManifest | undefined;
-    if (active.projectPath) {
-      try {
-        preflightManifest = await gatherPreflightContext(active.projectPath, topic);
-      } catch {
-        // Pre-flight is additive — failures don't block the meeting
-      }
-    }
-    const preflightContext = preflightManifest?.found
-      ? formatManifest(preflightManifest)
-      : '';
+      // Load shared work context once
+      const workContext = await loadWorkContext(active.meetingsDir);
 
-    // Build base system prompts for all agents in parallel
-    const promptsMap = new Map<string, string>();
-    await Promise.all(
-      agents.map(async (agentName) => {
-        let prompt = await buildAgentPrompt(
-          agentName, active.agentsDir, active.meetingsDir, topic, workContext,
-        );
-        // Inject pre-flight context into every agent's prompt
-        if (preflightContext) {
-          prompt += '\n\n---\n\n' + preflightContext;
-        }
-        promptsMap.set(agentName, prompt);
-      }),
-    );
-
-    // Generate meeting filename early so events reference the right file
-    const meetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
-    // Use first sentence or first 80 chars as title — full topic goes in the objective field
-    const shortTopic = topic.includes('.') ? topic.split('.')[0] : (topic.length > 80 ? topic.slice(0, 80).replace(/\s+\S*$/, '') + '...' : topic);
-    const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${shortTopic}`;
-    let meetingFilePath: string | undefined;
-
-    // Helper to build/rebuild the meeting file content from current state
-    const buildMeetingContent = (
-      rounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
-      status: 'in-progress' | 'complete',
-      outcomesAppendix?: string,
-    ): string => {
-      const lines: string[] = [];
-      lines.push('---');
-      lines.push(`type: ${type}`);
-      lines.push(`status: ${status}`);
-      lines.push(`date: ${new Date().toISOString().slice(0, 10)}`);
-      lines.push(`participants: [${agents.join(', ')}]`);
-      lines.push(`rounds: ${roundCount}`);
-      lines.push(`objective: "Multi-agent consult on: ${topic.replace(/"/g, '\\"')}"`);
-      lines.push('---');
-      lines.push('');
-      lines.push(`# ${meetingTitle}`);
-      lines.push('');
-      // Include pre-flight context manifest in the meeting file for observability
-      if (preflightManifest) {
-        lines.push(formatManifestForMeetingFile(preflightManifest));
-        lines.push('');
-      }
-      for (const { round, responses } of rounds) {
-        lines.push(`## Round ${round}`);
-        lines.push('');
-        for (const { agent, answer } of responses) {
-          const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
-          lines.push(`### ${displayName}`);
-          lines.push('');
-          lines.push(answer || '*No response*');
-          lines.push('');
+      // Pre-flight context gathering: resolve relevant source files from the topic
+      let preflightManifest: ResolutionManifest | undefined;
+      if (active.projectPath) {
+        try {
+          preflightManifest = await gatherPreflightContext(active.projectPath, topic);
+        } catch {
+          // Pre-flight is additive — failures don't block the meeting
         }
       }
-      if (outcomesAppendix) lines.push(outcomesAppendix);
-      return lines.join('\n');
-    };
+      const preflightContext = preflightManifest?.found
+        ? formatManifest(preflightManifest)
+        : '';
 
-    // Create the meeting file at the start so the viewer can pick it up
-    if (writeMeeting) {
-      const meetingsDir = active.meetingsDir;
-      await mkdir(meetingsDir, { recursive: true });
-      meetingFilePath = path.join(meetingsDir, meetingFilename);
-      await writeFile(meetingFilePath, buildMeetingContent([], 'in-progress'), 'utf-8');
-    }
+      if (jobId) updateJob(jobId, { progress: 'Building agent prompts...' });
 
-    // Run rounds
-    const allRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }> = [];
-
-    if (meetingFilename) {
-      await emitEvent('meeting_starting', meetingFilename, `${agents.length} agents, ${roundCount} round${roundCount > 1 ? 's' : ''}`);
-    }
-
-    for (let round = 1; round <= roundCount; round++) {
-      if (meetingFilename) {
-        await emitEvent('round_starting', meetingFilename, `Round ${round} of ${roundCount}`);
-      }
-
-      const question = round === 1
-        ? topic
-        : buildRoundPrompt(round, topic, allRounds);
-
-      const responses = await Promise.all(
+      // Build base system prompts for all agents in parallel
+      const promptsMap = new Map<string, string>();
+      await Promise.all(
         agents.map(async (agentName) => {
-          if (meetingFilename) {
-            emitEvent('agent_speaking', meetingFilename, agentName);
-          }
-          const systemPrompt = promptsMap.get(agentName) ?? '';
-          const answer = await queryAgent(
-            agentName, question, systemPrompt, codeAware, active.projectPath,
+          let prompt = await buildAgentPrompt(
+            agentName, active.agentsDir, active.meetingsDir, topic, workContext,
           );
-          return { agent: agentName, answer };
+          // Inject pre-flight context into every agent's prompt
+          if (preflightContext) {
+            prompt += '\n\n---\n\n' + preflightContext;
+          }
+          promptsMap.set(agentName, prompt);
         }),
       );
 
-      allRounds.push({ round, responses });
+      // Generate meeting filename early so events reference the right file
+      const meetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
+      // Use first sentence or first 80 chars as title — full topic goes in the objective field
+      const shortTopic = topic.includes('.') ? topic.split('.')[0] : (topic.length > 80 ? topic.slice(0, 80).replace(/\s+\S*$/, '') + '...' : topic);
+      const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${shortTopic}`;
+      let meetingFilePath: string | undefined;
 
-      // Update meeting file after each round so the viewer shows progress
-      if (meetingFilePath) {
-        await writeFile(meetingFilePath, buildMeetingContent(allRounds, 'in-progress'), 'utf-8');
-      }
-
-      if (meetingFilename) {
-        await emitEvent('round_complete', meetingFilename, `Round ${round}`);
-      }
-    }
-
-    // Extract structured outcomes from agent responses
-    // First try tag-based parsing (fast, deterministic)
-    let outcomes: StructuredOutcomes = extractStructuredOutcomes(allRounds);
-
-    // If no tagged outcomes found and we have 2+ rounds, use AI extraction
-    const hasOutcomes = outcomes.decisions.length > 0 || outcomes.actions.length > 0 || outcomes.openQuestions.length > 0;
-    if (!hasOutcomes && roundCount >= 2) {
-      try {
-        const extractionPrompt = buildOutcomeExtractionPrompt(topic, allRounds);
-        let extractedText = '';
-        for await (const message of query({
-          prompt: extractionPrompt,
-          options: { maxTurns: 1 },
-        })) {
-          if (message.type === 'assistant' && message.message?.content) {
-            for (const block of message.message.content) {
-              if ('text' in block && block.text) {
-                extractedText += block.text;
-              }
-            }
+      // Helper to build/rebuild the meeting file content from current state
+      const buildMeetingContent = (
+        rounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }>,
+        status: 'in-progress' | 'complete',
+        outcomesAppendix?: string,
+      ): string => {
+        const lines: string[] = [];
+        lines.push('---');
+        lines.push(`type: ${type}`);
+        lines.push(`status: ${status}`);
+        lines.push(`date: ${new Date().toISOString().slice(0, 10)}`);
+        lines.push(`participants: [${agents.join(', ')}]`);
+        lines.push(`rounds: ${roundCount}`);
+        lines.push(`objective: "Multi-agent consult on: ${topic.replace(/"/g, '\\"')}"`);
+        lines.push('---');
+        lines.push('');
+        lines.push(`# ${meetingTitle}`);
+        lines.push('');
+        // Include pre-flight context manifest in the meeting file for observability
+        if (preflightManifest) {
+          lines.push(formatManifestForMeetingFile(preflightManifest));
+          lines.push('');
+        }
+        for (const { round, responses } of rounds) {
+          lines.push(`## Round ${round}`);
+          lines.push('');
+          for (const { agent, answer } of responses) {
+            const displayName = agent.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+            lines.push(`### ${displayName}`);
+            lines.push('');
+            lines.push(answer || '*No response*');
+            lines.push('');
           }
         }
-        // Parse the AI-extracted outcomes using the same tag parser
-        if (extractedText.trim()) {
-          const syntheticRound = [{ round: 0, responses: [{ agent: 'synthesizer', answer: extractedText }] }];
-          outcomes = extractStructuredOutcomes(syntheticRound);
-        }
-      } catch {
-        // AI extraction failed — proceed without outcomes
+        if (outcomesAppendix) lines.push(outcomesAppendix);
+        return lines.join('\n');
+      };
+
+      // Create the meeting file at the start so the viewer can pick it up
+      if (writeMeeting) {
+        const meetingsDir = active.meetingsDir;
+        await mkdir(meetingsDir, { recursive: true });
+        meetingFilePath = path.join(meetingsDir, meetingFilename);
+        await writeFile(meetingFilePath, buildMeetingContent([], 'in-progress'), 'utf-8');
       }
+
+      // Run rounds
+      const allRounds: Array<{ round: number; responses: Array<{ agent: string; answer: string }> }> = [];
+
+      if (meetingFilename) {
+        await emitEvent('meeting_starting', meetingFilename, `${agents.length} agents, ${roundCount} round${roundCount > 1 ? 's' : ''}`);
+      }
+
+      for (let round = 1; round <= roundCount; round++) {
+        if (jobId) updateJob(jobId, { progress: `Round ${round} of ${roundCount}` });
+        if (meetingFilename) {
+          await emitEvent('round_starting', meetingFilename, `Round ${round} of ${roundCount}`);
+        }
+
+        const question = round === 1
+          ? topic
+          : buildRoundPrompt(round, topic, allRounds);
+
+        const responses = await Promise.all(
+          agents.map(async (agentName) => {
+            if (meetingFilename) {
+              emitEvent('agent_speaking', meetingFilename, agentName);
+            }
+            const systemPrompt = promptsMap.get(agentName) ?? '';
+            const answer = await queryAgent(
+              agentName, question, systemPrompt, codeAware, active.projectPath,
+            );
+            return { agent: agentName, answer };
+          }),
+        );
+
+        allRounds.push({ round, responses });
+
+        // Update meeting file after each round so the viewer shows progress
+        if (meetingFilePath) {
+          await writeFile(meetingFilePath, buildMeetingContent(allRounds, 'in-progress'), 'utf-8');
+        }
+
+        if (meetingFilename) {
+          await emitEvent('round_complete', meetingFilename, `Round ${round}`);
+        }
+      }
+
+      if (jobId) updateJob(jobId, { progress: 'Extracting outcomes...' });
+
+      // Extract structured outcomes from agent responses
+      // First try tag-based parsing (fast, deterministic)
+      let outcomes: StructuredOutcomes = extractStructuredOutcomes(allRounds);
+
+      // If no tagged outcomes found and we have 2+ rounds, use AI extraction
+      const hasOutcomes = outcomes.decisions.length > 0 || outcomes.actions.length > 0 || outcomes.openQuestions.length > 0;
+      if (!hasOutcomes && roundCount >= 2) {
+        try {
+          const extractionPrompt = buildOutcomeExtractionPrompt(topic, allRounds);
+          const extractedText = await queryWithRetry(extractionPrompt, { maxTurns: 1 }, 'Outcome extraction');
+          // Parse the AI-extracted outcomes using the same tag parser
+          if (extractedText.trim()) {
+            const syntheticRound = [{ round: 0, responses: [{ agent: 'synthesizer', answer: extractedText }] }];
+            outcomes = extractStructuredOutcomes(syntheticRound);
+          }
+        } catch {
+          // AI extraction failed — proceed without outcomes
+        }
+      }
+
+      // Finalize meeting file with outcomes and 'complete' status
+      let meetingFile: string | undefined;
+      if (meetingFilePath) {
+        const outcomesAppendix = formatOutcomesAppendix(outcomes);
+        await writeFile(
+          meetingFilePath,
+          buildMeetingContent(allRounds, 'complete', outcomesAppendix || undefined),
+          'utf-8',
+        );
+        meetingFile = meetingFilename;
+
+        await emitEvent('meeting_complete', meetingFilename, `${allRounds.length} round${allRounds.length > 1 ? 's' : ''} complete`);
+
+        // Log to activity feed
+        const decisionCount = outcomes.decisions.length;
+        const actionCount = outcomes.actions.length;
+        const outcomeSummary = [
+          decisionCount > 0 ? `${decisionCount} decision${decisionCount > 1 ? 's' : ''}` : '',
+          actionCount > 0 ? `${actionCount} action${actionCount > 1 ? 's' : ''}` : '',
+        ].filter(Boolean).join(', ');
+        await writeActivityEntry({
+          source: 'meeting',
+          type: 'meeting_complete',
+          summary: `Meeting complete: ${shortTopic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
+          linkedMeeting: meetingFilename,
+        }).catch(() => {}); // fire-and-forget
+      }
+
+      // Build response
+      const outcomesResponse: Record<string, unknown> = {};
+      if (outcomes.decisions.length > 0) outcomesResponse.decisions = outcomes.decisions;
+      if (outcomes.actions.length > 0) outcomesResponse.actions = outcomes.actions;
+      if (outcomes.openQuestions.length > 0) outcomesResponse.openQuestions = outcomes.openQuestions;
+
+      return {
+        rounds: allRounds,
+        ...(Object.keys(outcomesResponse).length > 0 ? { outcomes: outcomesResponse } : {}),
+        ...(meetingFile ? { meetingFile } : {}),
+        generatedAt: new Date().toISOString(),
+      };
     }
 
-    // Finalize meeting file with outcomes and 'complete' status
-    let meetingFile: string | undefined;
-    if (meetingFilePath) {
-      const outcomesAppendix = formatOutcomesAppendix(outcomes);
-      await writeFile(
-        meetingFilePath,
-        buildMeetingContent(allRounds, 'complete', outcomesAppendix || undefined),
-        'utf-8',
+    // Async mode: return job ID immediately, run meeting in background
+    if (asyncMode) {
+      const job = createJob();
+      // Fire and forget — runMeeting completes the job when done
+      runMeeting(job.id).then(
+        (result) => completeJob(job.id, result),
+        (err) => failJob(job.id, err instanceof Error ? err.message : 'Meeting failed'),
       );
-      meetingFile = meetingFilename;
-
-      await emitEvent('meeting_complete', meetingFilename, `${allRounds.length} round${allRounds.length > 1 ? 's' : ''} complete`);
-
-      // Log to activity feed
-      const decisionCount = outcomes.decisions.length;
-      const actionCount = outcomes.actions.length;
-      const outcomeSummary = [
-        decisionCount > 0 ? `${decisionCount} decision${decisionCount > 1 ? 's' : ''}` : '',
-        actionCount > 0 ? `${actionCount} action${actionCount > 1 ? 's' : ''}` : '',
-      ].filter(Boolean).join(', ');
-      await writeActivityEntry({
-        source: 'meeting',
-        type: 'meeting_complete',
-        summary: `Meeting complete: ${shortTopic}${outcomeSummary ? ` (${outcomeSummary})` : ''}`,
-        linkedMeeting: meetingFilename,
-      }).catch(() => {}); // fire-and-forget
+      return NextResponse.json({
+        jobId: job.id,
+        status: 'pending',
+        message: 'Meeting started in background. Poll GET /api/council/job-status/' + job.id + ' for results.',
+      }, { status: 202 });
     }
 
-    // Build outcomes for response (only include non-empty arrays)
-    const outcomesResponse: Record<string, unknown> = {};
-    if (outcomes.decisions.length > 0) outcomesResponse.decisions = outcomes.decisions;
-    if (outcomes.actions.length > 0) outcomesResponse.actions = outcomes.actions;
-    if (outcomes.openQuestions.length > 0) outcomesResponse.openQuestions = outcomes.openQuestions;
-
-    return NextResponse.json({
-      rounds: allRounds,
-      ...(Object.keys(outcomesResponse).length > 0 ? { outcomes: outcomesResponse } : {}),
-      ...(meetingFile ? { meetingFile } : {}),
-      generatedAt: new Date().toISOString(),
-    });
+    // Synchronous mode (default): run meeting and return result
+    const result = await runMeeting();
+    return NextResponse.json(result);
   } catch (err) {
     console.error('Multi-consult error:', err);
     return NextResponse.json(

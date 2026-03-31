@@ -7,6 +7,45 @@ import { extractSummary, parseMetadata, titleFromFilename } from '@/lib/meeting-
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 /**
+ * Run a query with retry on transient failures (overloaded, network errors).
+ * Uses exponential backoff: 2s, 4s for up to 2 retries.
+ */
+async function queryWithRetry(
+  prompt: string,
+  options: Record<string, unknown>,
+  maxRetries = 2,
+): Promise<string> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let answer = '';
+      for await (const message of query({ prompt, options })) {
+        if (message.type === 'assistant' && message.message?.content) {
+          for (const block of message.message.content) {
+            if ('text' in block && block.text) {
+              answer += block.text;
+            }
+          }
+        }
+      }
+      return answer.trim();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable = lastError.message.includes('overloaded')
+        || lastError.message.includes('529')
+        || lastError.message.includes('rate_limit')
+        || lastError.message.includes('ECONNRESET')
+        || lastError.message.includes('ETIMEDOUT');
+      if (!isRetryable || attempt >= maxRetries) throw lastError;
+      const delay = Math.pow(2, attempt + 1) * 1000;
+      console.warn(`AI context attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError ?? new Error('Query failed after retries');
+}
+
+/**
  * POST /api/council/ai-context
  *
  * Uses the Agent SDK (no tools) to generate a natural language narrative
@@ -152,22 +191,7 @@ Return only the narrative paragraph. No headings, no bullet points, no preamble.
       queryOptions.permissionMode = 'acceptEdits'; // read-only tools are safe
     }
 
-    let narrative = '';
-
-    for await (const message of query({
-      prompt,
-      options: queryOptions,
-    })) {
-      if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
-          if ('text' in block && block.text) {
-            narrative += block.text;
-          }
-        }
-      }
-    }
-
-    narrative = narrative.trim();
+    const narrative = await queryWithRetry(prompt, queryOptions);
 
     if (!narrative) {
       return NextResponse.json({ error: 'Failed to generate context' }, { status: 500 });

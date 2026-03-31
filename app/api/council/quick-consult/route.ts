@@ -9,6 +9,45 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 const VALID_AGENTS = ['architect', 'critic', 'developer', 'designer', 'north-star', 'project-manager'];
 
 /**
+ * Run a query with retry on transient failures (overloaded, network errors).
+ * Uses exponential backoff: 2s, 4s for up to 2 retries.
+ */
+async function queryWithRetry(
+  prompt: string,
+  options: Record<string, unknown>,
+  maxRetries = 2,
+): Promise<string> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let answer = '';
+      for await (const message of query({ prompt, options })) {
+        if (message.type === 'assistant' && message.message?.content) {
+          for (const block of message.message.content) {
+            if ('text' in block && block.text) {
+              answer += block.text;
+            }
+          }
+        }
+      }
+      return answer.trim();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable = lastError.message.includes('overloaded')
+        || lastError.message.includes('529')
+        || lastError.message.includes('rate_limit')
+        || lastError.message.includes('ECONNRESET')
+        || lastError.message.includes('ETIMEDOUT');
+      if (!isRetryable || attempt >= maxRetries) throw lastError;
+      const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
+      console.warn(`Quick consult attempt ${attempt + 1} failed (${lastError.message}), retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError ?? new Error('Query failed after retries');
+}
+
+/**
  * Load recent decisions + active work items as context for the agent.
  * Keeps it concise — max 5 decisions, 3 actions, 2 open questions.
  */
@@ -149,22 +188,7 @@ export async function POST(req: NextRequest) {
       queryOptions.permissionMode = 'acceptEdits'; // read-only tools are safe
     }
 
-    let answer = '';
-
-    for await (const message of query({
-      prompt: question,
-      options: queryOptions,
-    })) {
-      if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
-          if ('text' in block && block.text) {
-            answer += block.text;
-          }
-        }
-      }
-    }
-
-    answer = answer.trim();
+    const answer = await queryWithRetry(question, queryOptions);
 
     if (!answer) {
       return NextResponse.json({ error: 'No response from agent' }, { status: 500 });
