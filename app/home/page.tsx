@@ -217,11 +217,19 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
-      <div style={{ maxWidth: 600, width: '100%' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'radial-gradient(ellipse 70% 50% at 50% 40%, rgba(199, 75, 138, 0.05) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 30% 50%, rgba(212, 147, 92, 0.04) 0%, transparent 60%)' }}>
+      <div style={{ maxWidth: 620, width: '100%' }}>
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+        <div className="text-center mb-12">
+          <h1
+            className="text-4xl font-extrabold tracking-tight mb-3"
+            style={{
+              background: 'linear-gradient(135deg, var(--text-primary) 0%, var(--accent) 50%, var(--accent-pink) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '-0.03em',
+            }}
+          >
             Agent Council
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -232,7 +240,7 @@ export default function HomePage() {
                 : 'Your agent team'}
           </p>
           {brief?.focus && (
-            <p className="text-xs mt-2 px-4 py-1.5 rounded-full inline-block" style={{ color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid rgba(124, 109, 216, 0.15)' }}>
+            <p className="text-xs mt-3 px-4 py-1.5 rounded-full inline-block" style={{ color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--accent-muted)' }}>
               {brief.focus.length > 80 ? brief.focus.slice(0, 77) + '...' : brief.focus}
             </p>
           )}
@@ -300,9 +308,9 @@ export default function HomePage() {
                     onClick={() => setSelectedAgent(a.id)}
                     className="text-xs px-2.5 py-1 rounded-full transition-colors"
                     style={{
-                      background: selectedAgent === a.id ? 'rgba(124, 109, 216, 0.15)' : 'transparent',
+                      background: selectedAgent === a.id ? 'var(--accent-muted)' : 'transparent',
                       color: selectedAgent === a.id ? a.color : 'var(--text-muted)',
-                      border: `1px solid ${selectedAgent === a.id ? 'rgba(124, 109, 216, 0.3)' : 'transparent'}`,
+                      border: `1px solid ${selectedAgent === a.id ? 'var(--border-glow)' : 'transparent'}`,
                     }}
                   >
                     {a.label}
@@ -312,13 +320,13 @@ export default function HomePage() {
             )}
 
             {/* Quick actions */}
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex flex-wrap gap-2.5 justify-center">
               {QUICK_ACTIONS.map(qa => (
                 <button
                   key={qa.action}
                   onClick={() => qa.ready ? handleQuickAction(qa.action) : undefined}
                   disabled={!qa.ready}
-                  className="text-xs px-4 py-2.5 rounded-xl transition-all duration-200"
+                  className="text-xs px-4 py-2.5 rounded-xl transition-all duration-250 hover:scale-[1.03]"
                   style={{
                     color: qa.ready ? 'var(--text-secondary)' : 'var(--text-muted)',
                     border: `1px solid ${(qa.action === 'ask' && selectedAgent) ? 'var(--border-glow)' : qa.ready ? 'var(--border)' : 'var(--border-subtle)'}`,
@@ -330,14 +338,14 @@ export default function HomePage() {
                   }}
                   title={qa.ready ? undefined : 'Coming soon'}
                 >
-                  <span className="mr-1.5">{qa.icon}</span>
+                  <span className="mr-1.5 opacity-60">{qa.icon}</span>
                   {qa.label}
                 </button>
               ))}
             </div>
 
             {/* Hint */}
-            <p className="text-xs text-center mt-4" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+            <p className="text-xs text-center mt-6" style={{ color: 'var(--text-muted)', opacity: 0.4 }}>
               {selectedAgent
                 ? 'Ask a direct question — one agent responds'
                 : 'Type a topic to start a meeting, or pick an agent to ask directly'}
@@ -347,8 +355,19 @@ export default function HomePage() {
 
         {/* Thinking */}
         {phase === 'thinking' && (
-          <div className="text-center py-8">
-            <div className="inline-block w-2 h-2 rounded-full animate-pulse mb-3" style={{ background: 'var(--accent)' }} />
+          <div className="text-center py-12">
+            <div className="inline-flex items-center gap-1.5 mb-4">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{
+                    background: 'var(--accent)',
+                    animation: `softPulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+                  }}
+                />
+              ))}
+            </div>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {answerAgent ? `${AGENTS.find(a => a.id === answerAgent)?.label ?? answerAgent} is thinking...` : 'Starting meeting...'}
             </p>
@@ -388,7 +407,7 @@ export default function HomePage() {
               </div>
             )}
             <div
-              className="rounded-lg p-4 text-sm leading-relaxed mb-4 prose prose-sm prose-invert max-w-none"
+              className="rounded-2xl p-5 text-sm leading-relaxed mb-5 prose prose-sm prose-invert max-w-none"
               style={{
                 background: 'var(--bg-card)',
                 border: '1px solid var(--border)',

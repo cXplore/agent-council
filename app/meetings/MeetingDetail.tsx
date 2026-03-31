@@ -1240,7 +1240,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                     <div
                       key={card.id}
                       className="rounded-lg px-4 py-3 text-sm"
-                      style={{ background: 'rgba(124, 109, 216, 0.08)', border: '1px solid rgba(124, 109, 216, 0.2)' }}
+                      style={{ background: 'rgba(124, 109, 216, 0.08)', border: '1px solid var(--accent-muted)' }}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>

@@ -445,7 +445,7 @@ export default function RunMeetingPage() {
                   fontWeight: selected ? 600 : 400,
                   background: selected ? 'var(--accent-muted)' : 'transparent',
                   color: selected ? 'var(--accent)' : 'var(--text-muted)',
-                  border: `1px solid ${selected ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
+                  border: `1px solid ${selected ? 'var(--border-glow)' : 'var(--border)'}`,
                   borderRadius: 6,
                   cursor: 'pointer',
                   transition: 'all 0.15s',

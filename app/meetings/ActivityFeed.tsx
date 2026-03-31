@@ -102,7 +102,7 @@ export default function ActivityFeed({ onSelectMeeting, locationKey = 'meetings'
           {newSinceLastVisit > 0 && (
             <span
               className="text-xs px-1.5 py-0.5 rounded-full"
-              style={{ background: 'rgba(124, 109, 216, 0.2)', color: '#a78bfa' }}
+              style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
             >
               {newSinceLastVisit} new
             </span>

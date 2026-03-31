@@ -79,7 +79,7 @@ function StatusBadge({ status }: { status: RoadmapItem['itemStatus'] }) {
   const config: Record<string, { bg: string; color: string; label: string }> = {
     done: { bg: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)', label: 'Done' },
     stale: { bg: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)', label: 'Stale' },
-    working: { bg: 'rgba(124, 109, 216, 0.2)', color: 'var(--accent)', label: '⚡ Working' },
+    working: { bg: 'var(--accent-muted)', color: 'var(--accent)', label: '⚡ Working' },
   };
   const c = config[status];
   if (!c) return null;
@@ -312,7 +312,7 @@ function ItemRow({
       {...animProps}
       style={isWorking ? {
         background: 'rgba(124, 109, 216, 0.08)',
-        border: '1px solid rgba(124, 109, 216, 0.3)',
+        border: '1px solid var(--border-glow)',
         animation: 'pulse 2s ease-in-out infinite',
       } : undefined}
     >

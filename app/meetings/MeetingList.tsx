@@ -259,7 +259,7 @@ export default function MeetingList(props: MeetingListProps) {
                   onClick={() => { setShowRunForm(!showRunForm); setShowPlanForm(false); setRunError(null); }}
                   disabled={runningMeeting}
                   className="text-sm px-4 py-2 rounded-lg font-medium transition-colors"
-                  style={{ background: runningMeeting ? 'rgba(124, 109, 216, 0.4)' : 'var(--accent)', color: 'white', opacity: runningMeeting ? 0.7 : 1 }}
+                  style={{ background: runningMeeting ? 'var(--border-glow)' : 'var(--accent)', color: 'white', opacity: runningMeeting ? 0.7 : 1 }}
                 >
                   {runningMeeting ? '⏳ Running...' : '▶ Run meeting'}
                 </button>
@@ -548,7 +548,7 @@ export default function MeetingList(props: MeetingListProps) {
                 disabled={!runTopic.trim()}
                 className="text-sm px-4 py-1.5 rounded transition-colors"
                 style={{
-                  background: !runTopic.trim() ? 'rgba(124, 109, 216, 0.3)' : 'var(--accent)',
+                  background: !runTopic.trim() ? 'var(--border-glow)' : 'var(--accent)',
                   color: 'white',
                   opacity: !runTopic.trim() ? 0.5 : 1,
                 }}
@@ -591,9 +591,9 @@ export default function MeetingList(props: MeetingListProps) {
                       onClick={() => toggleRunAgent(a.id)}
                       className="text-xs px-2.5 py-1 rounded-full transition-colors"
                       style={{
-                        background: runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.15)' : 'var(--bg)',
+                        background: runAgents.has(a.id) ? 'var(--accent-muted)' : 'var(--bg)',
                         color: runAgents.has(a.id) ? 'var(--accent)' : 'var(--text-muted)',
-                        border: `1px solid ${runAgents.has(a.id) ? 'rgba(124, 109, 216, 0.3)' : 'var(--border)'}`,
+                        border: `1px solid ${runAgents.has(a.id) ? 'var(--border-glow)' : 'var(--border)'}`,
                       }}
                     >
                       {a.label}
@@ -623,9 +623,9 @@ export default function MeetingList(props: MeetingListProps) {
                         onClick={() => setRunRounds(n)}
                         className="text-xs w-5 h-5 rounded transition-colors"
                         style={{
-                          background: runRounds === n ? 'rgba(124, 109, 216, 0.2)' : 'var(--bg)',
+                          background: runRounds === n ? 'var(--accent-muted)' : 'var(--bg)',
                           color: runRounds === n ? 'var(--accent)' : 'var(--text-muted)',
-                          border: `1px solid ${runRounds === n ? 'rgba(124, 109, 216, 0.4)' : 'var(--border)'}`,
+                          border: `1px solid ${runRounds === n ? 'var(--border-glow)' : 'var(--border)'}`,
                         }}
                       >
                         {n}
