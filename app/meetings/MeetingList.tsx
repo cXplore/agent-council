@@ -273,7 +273,7 @@ export default function MeetingList(props: MeetingListProps) {
           /* No project connected at all */
           <div
             className="rounded-lg p-6"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-glow)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-glow-sm)' }}
           >
             <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
               Connect a project to get started
@@ -379,8 +379,8 @@ export default function MeetingList(props: MeetingListProps) {
         ) : (
           /* Ready — context-aware banner */
           <div
-            className="rounded-lg px-5 py-4 mb-6 text-sm"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+            className="rounded-xl px-5 py-4 mb-6 text-sm"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-sm)' }}
           >
             {meetings.length > 0 ? (
               // Returning user — show context from roadmap (status-aware)
@@ -468,7 +468,7 @@ export default function MeetingList(props: MeetingListProps) {
         {showPlanForm && (
           <div
             className="rounded-lg p-4 space-y-3 mb-4"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-glow)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-glow-sm)' }}
           >
             <div className="flex gap-2">
               <select
@@ -526,7 +526,7 @@ export default function MeetingList(props: MeetingListProps) {
         {showRunForm && (
           <div
             className="rounded-lg p-4 space-y-3 mb-4"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)' }}
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-glow)', backdropFilter: 'blur(12px) saturate(150%)', boxShadow: 'var(--shadow-glow-sm)' }}
           >
             {/* Primary: just a topic input + run button */}
             <div className="flex gap-2">
