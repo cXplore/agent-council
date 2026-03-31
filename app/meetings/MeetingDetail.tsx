@@ -574,17 +574,18 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         );
       })()}
 
-      {/* Objective bar — shows the meeting's falsifiable objective when present */}
+      {/* Objective — compact, truncated with tooltip for full text */}
       {detail && (() => {
         const obj = detail.objective || detail.content?.match(/<!--\s*objective:\s*"?(.+?)"?\s*-->/)?.[1];
         if (!obj) return null;
+        const short = obj.length > 120 ? obj.slice(0, 117) + '...' : obj;
         return (
           <div
-            className="px-6 py-2 text-xs flex items-center gap-2"
-            style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}
+            className="px-6 py-1.5 text-xs"
+            style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}
+            title={obj}
           >
-            <span style={{ color: 'var(--text-muted)' }}>Objective:</span>
-            <span style={{ color: 'var(--text-secondary)' }}>{obj}</span>
+            {short}
           </div>
         );
       })()}
@@ -934,12 +935,12 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           };
           return (
             <div
-              className="sticky top-0 z-20 flex items-center gap-1.5 px-3 py-2.5 mb-4 -mx-6 -mt-8 rounded-b-xl"
+              className="sticky top-0 z-20 flex items-center gap-1.5 px-4 py-2 mb-4 rounded-xl"
               style={{
-                background: 'rgba(8, 8, 10, 0.85)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                borderBottom: '1px solid var(--border)',
+                background: 'var(--bg-card)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                border: '1px solid var(--border)',
               }}
             >
               {viewRound !== null && (
@@ -1168,7 +1169,9 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                   {detail.content
                     .replace(/^---\n[\s\S]*?\n---\n?/, '')
                     .replace(/<!--[\s\S]*?-->\n?/g, '')
-                    .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, '')}
+                    .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, '')
+                    .replace(/## Pre-Flight Context[\s\S]*?(?=\n## |\n---\n|$)/, '')
+                    .replace(/^# .+\n\n?/, '')}
                 </ReactMarkdown>
               </div>
               <div
