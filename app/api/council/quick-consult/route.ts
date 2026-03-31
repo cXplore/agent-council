@@ -145,6 +145,19 @@ export async function POST(req: NextRequest) {
       // No context file — that's fine
     }
 
+    // Load project brief if it exists
+    try {
+      const { PROJECT_BRIEF_FILENAME } = await import('@/lib/context-files');
+      const briefPath = path.join(active.meetingsDir, PROJECT_BRIEF_FILENAME);
+      const briefContent = await readFile(briefPath, 'utf-8');
+      const hasUserContent = briefContent.split('\n').some(l => l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--'));
+      if (hasUserContent) {
+        promptParts.push('---\n\n## Project Brief\n\n' + briefContent.trim());
+      }
+    } catch {
+      // No project brief
+    }
+
     // Enrich with recent decisions and work items
     const workContext = await loadWorkContext(active.meetingsDir);
     if (workContext) {

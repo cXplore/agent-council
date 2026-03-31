@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { getConfig, saveConfig, validateProjects } from '@/lib/config';
-import { generateSkeletonContext } from '@/lib/context-files';
+import { generateSkeletonContext, generateProjectBrief, PROJECT_BRIEF_FILENAME } from '@/lib/context-files';
 import type { ProjectProfile } from '@/lib/types';
 
 /** GET /api/projects — list all projects + active */
@@ -162,12 +162,24 @@ export async function POST(req: NextRequest) {
         await Promise.all(contextPromises);
       }
 
+      // Write project brief template if it doesn't exist yet
+      let briefCreated = false;
+      const briefPath = path.join(absMeetings, PROJECT_BRIEF_FILENAME);
+      try {
+        await stat(briefPath);
+        // Brief already exists — don't overwrite
+      } catch {
+        await writeFile(briefPath, generateProjectBrief(name, profile || undefined), 'utf-8');
+        briefCreated = true;
+      }
+
       return NextResponse.json({
         success: true,
         project: config.projects[name],
         agentCount,
         hasFacilitator,
         contextFilesWritten,
+        briefCreated,
       });
     }
 

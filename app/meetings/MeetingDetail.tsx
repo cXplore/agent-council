@@ -86,6 +86,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
   const isLive = detail?.status === 'in-progress';
   const { toast } = useToast();
   const completionCardRef = useRef<HTMLDivElement>(null);
+  const [completionCardDismissed, setCompletionCardDismissed] = useState(false);
 
   // Track the live → complete transition for animation and toast nudge
   const [justCompleted, setJustCompleted] = useState(false);
@@ -810,14 +811,15 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         </div>
       )}
 
-      {/* Completion card -- shown at top of completed meetings */}
-      {detail && detail.status === 'complete' && (
+      {/* Completion card -- shown at top of completed meetings, dismissable */}
+      {detail && detail.status === 'complete' && !completionCardDismissed && (
         <div ref={completionCardRef}>
         <MeetingCompletionCard
           content={detail.content}
           recommendedMeetings={detail.recommendedMeetings}
           dismissedSuggestions={dismissedSuggestions}
           queuedSuggestions={queuedSuggestions}
+          onDismissCard={() => setCompletionCardDismissed(true)}
           onQueue={async (type, topic, text) => {
             await fetch('/api/council/planned', {
               method: 'POST',

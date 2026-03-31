@@ -11,6 +11,7 @@ interface Props {
   queuedSuggestions: Set<string>;
   onQueue: (type: string, topic: string, text: string) => void;
   onDismiss: (text: string) => void;
+  onDismissCard?: () => void;
 }
 
 const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
@@ -58,13 +59,23 @@ function extractFromSummary(content: string) {
   };
 }
 
-export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss }: Props) {
+export default function MeetingCompletionCard({ content, recommendedMeetings, dismissedSuggestions, queuedSuggestions, onQueue, onDismiss, onDismissCard }: Props) {
   const [expanded, setExpanded] = useState(true);
   const { decisions, actions, open, overflow } = useMemo(() => extractFromSummary(content), [content]);
   const activeSuggestions = useMemo(
     () => (recommendedMeetings ?? []).filter(r => !dismissedSuggestions.has(r.text)).slice(0, 2),
     [recommendedMeetings, dismissedSuggestions]
   );
+
+  // Build compact count summary for the header
+  const totalDecisions = decisions.length + overflow.decisions;
+  const totalActions = actions.length + overflow.actions;
+  const totalOpen = open.length + overflow.open;
+  const countParts: string[] = [];
+  if (totalDecisions > 0) countParts.push(`${totalDecisions} decision${totalDecisions > 1 ? 's' : ''}`);
+  if (totalActions > 0) countParts.push(`${totalActions} action${totalActions > 1 ? 's' : ''}`);
+  if (totalOpen > 0) countParts.push(`${totalOpen} open`);
+  const countSummary = countParts.length > 0 ? countParts.join(' · ') : null;
 
   const hasContent = decisions.length > 0 || actions.length > 0 || open.length > 0 || activeSuggestions.length > 0;
 
@@ -77,6 +88,9 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
       >
         <span className="text-xs" style={{ color: '#60a5fa' }}>{'\u2714'}</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Meeting complete — scroll up to view full outcomes</span>
+        {onDismissCard && (
+          <button onClick={onDismissCard} className="ml-auto text-xs px-1 hover:brightness-125 transition-colors" style={{ color: 'var(--text-muted)' }} title="Dismiss">✕</button>
+        )}
       </div>
     );
   }
@@ -86,16 +100,20 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
       className="mx-6 mt-4 mb-2 rounded-xl text-sm overflow-hidden"
       style={{ border: '1px solid rgba(96, 165, 250, 0.25)', background: 'rgba(96, 165, 250, 0.04)' }}
     >
-      {/* Header */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors"
-        style={{ borderBottom: expanded ? '1px solid rgba(96, 165, 250, 0.15)' : undefined, background: 'rgba(96, 165, 250, 0.06)' }}
-      >
-        <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>{'\u2714'} Meeting complete</span>
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— here&apos;s what was decided</span>
-        <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
-      </button>
+      {/* Header with outcome counts */}
+      <div className="flex items-center" style={{ background: 'rgba(96, 165, 250, 0.06)', borderBottom: expanded ? '1px solid rgba(96, 165, 250, 0.15)' : undefined }}>
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex-1 px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors text-left"
+        >
+          <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>{'\u2714'} Meeting complete</span>
+          {countSummary && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {countSummary}</span>}
+          <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
+        </button>
+        {onDismissCard && (
+          <button onClick={onDismissCard} className="px-3 py-2.5 text-xs hover:brightness-125 transition-colors" style={{ color: 'var(--text-muted)' }} title="Dismiss card">✕</button>
+        )}
+      </div>
 
       {expanded && <div className="px-4 py-3 space-y-3">
         {/* Decisions */}

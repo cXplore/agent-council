@@ -307,7 +307,7 @@ safeTool(
   'Create a new meeting file with proper metadata and structure. Returns the filename for use with council_notify and other tools. The meeting is created with status "in-progress" — write agent contributions to it, then close it.',
   {
     title: z.string().describe('Meeting title (e.g., "Design Review: API Caching Strategy")'),
-    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check']).describe('Meeting format'),
+    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check', 'project-intake']).describe('Meeting format'),
     participants: z.array(z.string()).optional().describe('Agent names participating (e.g., ["project-manager", "critic", "north-star"])'),
     context: z.string().optional().describe('Context section content — what prompted this meeting, relevant project state'),
     carryForward: z.string().optional().describe('Carry-forward from previous meetings — unresolved OPEN items or pending ACTIONs'),
@@ -1073,6 +1073,13 @@ safeTool(
         lines.push('');
       }
 
+      // First meeting suggestion for new projects
+      if (completed.length === 0 && activeProject) {
+        lines.push('🆕 NEW PROJECT — No meetings yet. Consider running a project intake meeting:');
+        lines.push(`  council_multi_consult(topic: "Project intake: understand ${activeProjectName}, identify priorities, and plan first steps", agents: ["project-manager", "architect", "critic"], type: "project-intake")`);
+        lines.push('');
+      }
+
       lines.push(`FOCUS: ${focusText}`);
       lines.push('');
 
@@ -1435,7 +1442,7 @@ safeTool(
       .describe('Which agents to consult (2-6 agents)'),
     rounds: z.number().min(1).max(3).optional()
       .describe('Number of deliberation rounds (1-3, default: 1). Use 2 for decisions that benefit from cross-agent synthesis. Use 3 only for complex/irreversible decisions.'),
-    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'direction-check'])
+    type: z.enum(['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'direction-check', 'project-intake'])
       .optional()
       .describe('Meeting type for the generated file (default: direction-check)'),
     codeAware: z.boolean().optional()

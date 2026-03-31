@@ -43,6 +43,7 @@ async function emitEvent(event: string, meeting: string, detail?: string) {
 const MEETING_TYPES = [
   'standup', 'design-review', 'strategy', 'architecture',
   'sprint-planning', 'retrospective', 'incident-review', 'direction-check',
+  'project-intake',
 ] as const;
 
 /**
@@ -112,6 +113,20 @@ async function buildAgentPrompt(
     }
   } catch {
     // No context file
+  }
+
+  // Load project brief if it exists
+  try {
+    const { PROJECT_BRIEF_FILENAME } = await import('@/lib/context-files');
+    const briefPath = path.join(meetingsDir, PROJECT_BRIEF_FILENAME);
+    const briefContent = await readFile(briefPath, 'utf-8');
+    // Only include if user has filled in at least some content (not just template comments)
+    const hasUserContent = briefContent.split('\n').some(l => l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--'));
+    if (hasUserContent) {
+      parts.push('---\n\n## Project Brief\n\n' + briefContent.trim());
+    }
+  } catch {
+    // No project brief
   }
 
   // Work context (shared across agents)
@@ -333,6 +348,11 @@ export async function POST(req: NextRequest) {
         // Include pre-flight context manifest in the meeting file for observability
         if (preflightManifest) {
           lines.push(formatManifestForMeetingFile(preflightManifest));
+          lines.push('');
+        }
+        // Show a starting indicator when no rounds have completed yet
+        if (rounds.length === 0 && status === 'in-progress') {
+          lines.push(`*Meeting starting — ${agents.length} agents, ${roundCount} round${roundCount > 1 ? 's' : ''}...*`);
           lines.push('');
         }
         for (const { round, responses } of rounds) {

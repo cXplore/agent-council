@@ -110,6 +110,7 @@ docs/                   # GitHub Pages static site
 | Agent template merge | `app/api/agents/merge/route.ts` |
 | Agent context files | `app/api/agents/context/route.ts` |
 | Context file utility | `lib/context-files.ts` |
+| Project brief template | `lib/context-files.ts` (generateProjectBrief, PROJECT_BRIEF_FILENAME) |
 | AI team suggestions | `app/api/agents/suggest-teams/route.ts` |
 | AI council context | `app/api/council/ai-context/route.ts` |
 | Quick consult (single agent) | `app/api/council/quick-consult/route.ts` |

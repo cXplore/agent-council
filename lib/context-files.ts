@@ -340,3 +340,80 @@ export function generateSkeletonContext(agentName: string, profile: ProjectProfi
 
   return lines.join('\n');
 }
+
+/**
+ * The filename for the project brief document.
+ */
+export const PROJECT_BRIEF_FILENAME = 'PROJECT_BRIEF.md';
+
+/**
+ * Generate a project brief template that agents reference for context.
+ * Auto-fills what we know from the scan, leaves the rest for the user.
+ */
+export function generateProjectBrief(projectName: string, profile?: ProjectProfile): string {
+  const lines: string[] = [];
+  const date = new Date().toISOString().slice(0, 10);
+
+  lines.push(`# ${projectName} — Project Brief`);
+  lines.push('');
+  lines.push(`> This file gives agents context about your project. Fill in the sections below`);
+  lines.push(`> so meetings produce better, more relevant outcomes. ~200 words is enough.`);
+  lines.push('');
+  lines.push(`**Created:** ${date}`);
+  lines.push('');
+
+  // What is this project?
+  lines.push('## What This Project Does');
+  lines.push('');
+  lines.push('<!-- 1-2 sentences: what does this project do and who is it for? -->');
+  lines.push('');
+
+  // Auto-filled tech context
+  lines.push('## Technical Context');
+  lines.push('');
+  if (profile) {
+    const langs = profile.languages.filter(l => l.percentage >= 5).map(l => l.name);
+    if (langs.length > 0) lines.push(`**Stack:** ${langs.join(', ')}`);
+    const fws = profile.frameworks.filter(f => f.confidence !== 'low');
+    if (fws.length > 0) {
+      lines.push(`**Frameworks:** ${fws.map(f => f.version ? `${f.name} ${f.version}` : f.name).join(', ')}`);
+    }
+    const traits: string[] = [];
+    if (profile.structure.isMonorepo) traits.push('monorepo');
+    if (profile.structure.hasApi) traits.push('API');
+    if (profile.structure.hasFrontend) traits.push('frontend');
+    if (profile.structure.hasDatabase) traits.push('database');
+    if (profile.structure.hasTests) traits.push('tests');
+    if (traits.length > 0) lines.push(`**Architecture:** ${traits.join(', ')}`);
+  } else {
+    lines.push('<!-- Stack, frameworks, architecture notes -->');
+  }
+  lines.push('');
+
+  // Team
+  lines.push('## Team');
+  lines.push('');
+  lines.push('<!-- Who works on this? How big is the team? What expertise is available? -->');
+  lines.push('');
+
+  // Current focus
+  lines.push('## Current Focus');
+  lines.push('');
+  lines.push('<!-- What are you working on right now? What phase is the project in? -->');
+  lines.push('');
+
+  // Constraints
+  lines.push('## Constraints & Preferences');
+  lines.push('');
+  lines.push('<!-- Anything agents should know: deployment targets, performance budgets,');
+  lines.push('   coding style preferences, things to avoid, regulatory requirements, etc. -->');
+  lines.push('');
+
+  // Success criteria
+  lines.push('## Success Criteria');
+  lines.push('');
+  lines.push('<!-- What does "done" look like for your current goals? -->');
+  lines.push('');
+
+  return lines.join('\n');
+}

@@ -62,6 +62,7 @@ export function getTypeIndicator(type: string): string {
   if (t.includes('retrospective')) return '\u25C1'; // left-pointing triangle
   if (t.includes('sprint')) return '\u25B7'; // right-pointing triangle
   if (t.includes('incident')) return '\u25CF'; // filled circle
+  if (t.includes('intake')) return '\u2606'; // star outline
   return '\u25CB'; // default: circle
 }
 

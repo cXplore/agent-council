@@ -16,6 +16,7 @@ export const MEETING_TYPE_COLORS: Record<string, string> = {
   'incident-review': 'hsl(0, 60%, 55%)',
   'direction-check': 'hsl(45, 60%, 55%)',
   'quick-consult': 'hsl(195, 55%, 55%)',
+  'project-intake': 'hsl(80, 55%, 50%)',
 };
 
 /** Get the canonical color for a meeting type. Falls back to muted text color. */

@@ -184,7 +184,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'title and type are required' }, { status: 400 });
     }
 
-    const validTypes = ['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check'];
+    const validTypes = ['standup', 'design-review', 'strategy', 'architecture', 'sprint-planning', 'retrospective', 'incident-review', 'quick-consult', 'direction-check', 'project-intake'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` }, { status: 400 });
     }
@@ -249,6 +249,13 @@ export async function PUT(request: NextRequest) {
 
     lines.push('');
     lines.push('---');
+    lines.push('');
+    // Show immediate status so the viewer displays progress before agents speak
+    if (participantList.length > 0) {
+      lines.push(`*Meeting starting — ${participantList.length} participant${participantList.length > 1 ? 's' : ''}...*`);
+    } else {
+      lines.push('*Meeting starting...*');
+    }
     lines.push('');
 
     // Ensure meetings directory exists
