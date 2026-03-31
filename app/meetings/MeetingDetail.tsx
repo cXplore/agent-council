@@ -1138,13 +1138,7 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           </div>
         )}
 
-        {/* Summary card for completed meetings — outcomes-first orientation */}
-        {detail && !isLive && detail.content && (
-          <MeetingSummaryCard
-            content={detail.content}
-            onOpenOutcomes={() => setOutcomesOpen(true)}
-          />
-        )}
+        {/* Summary card removed — completion card + outcomes panel cover this */}
 
         {/* Round navigation bar removed — now inline above content */}
         <div className="max-w-3xl mx-auto">
@@ -1196,7 +1190,9 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                 const stripAppendix = (s: string) => s
                   .replace(/^---\n[\s\S]*?\n---\n?/, '')  // strip YAML frontmatter
                   .replace(/<!--[\s\S]*?-->\n?/g, '')     // strip HTML comments
-                  .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, ''); // strip JSON appendix
+                  .replace(/```json\s*\n\s*\{[\s\S]*?\}\s*\n```\s*$/m, '') // strip JSON appendix
+                  .replace(/## Pre-Flight Context[\s\S]*?(?=\n## |\n---\n|$)/, '') // strip pre-flight debug info
+                  .replace(/^# .+\n\n?/, ''); // strip duplicate h1 title (already in header)
                 const fullClean = stripAppendix(detail.content);
                 const clean = viewRound !== null ? getContentForRound(fullClean, viewRound) : fullClean;
                 const cleanSeen = stripAppendix(seenContent);
