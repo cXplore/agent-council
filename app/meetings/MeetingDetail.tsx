@@ -883,57 +883,91 @@ export default function MeetingDetail(props: MeetingDetailProps) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-6 py-8 relative"
       >
-        {/* Round navigation bar */}
+        {/* Floating round indicator — scroll-integrated, right edge */}
         {detail && detail.content && (() => {
           const rounds = detail.content.match(/^(?:## Round \d+|\*Round \d+)/gm);
           const hasSummary = detail.content.includes('## Summary');
-          if (!rounds && !hasSummary) return null;
-          const agentsByRound: Record<number, string[]> = {};
-          for (const m of detail.content.matchAll(/^### (.+?) \(Round (\d+)\)/gm)) {
-            const rn = parseInt(m[2], 10);
-            if (!agentsByRound[rn]) agentsByRound[rn] = [];
-            agentsByRound[rn].push(m[1]);
-          }
-          const abbrev = (name: string) => {
-            const map: Record<string, string> = { 'project-manager': 'PM', 'north-star': 'NS', facilitator: 'Fac' };
-            return map[name.toLowerCase()] || name.charAt(0).toUpperCase() + name.slice(1, 4);
-          };
+          if (!rounds || rounds.length <= 1) return null;
+          const totalRounds = rounds.length;
+          // Detect current visible round from scroll position
+          const currentRound = viewRound ?? (() => {
+            if (!contentRef.current) return 1;
+            const headings = contentRef.current.querySelectorAll('h2');
+            let current = 1;
+            for (const h of Array.from(headings)) {
+              const match = h.textContent?.match(/Round (\d+)/);
+              if (match && h.getBoundingClientRect().top < 200) {
+                current = parseInt(match[1], 10);
+              }
+            }
+            return current;
+          })();
           return (
             <div
-              className="flex items-center gap-0.5 mb-6"
+              className="fixed z-20 flex items-center gap-1"
+              style={{
+                bottom: 20,
+                right: outcomesOpen ? 340 : 20,
+                transition: 'right 0.2s ease',
+              }}
             >
-              {rounds?.map((_r, i) => {
-                const roundNum = i + 1;
-                const agents = agentsByRound[roundNum] || [];
-                const isActive = viewRound === roundNum;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      if (isActive) { setViewRound(null); } else {
-                        setViewRound(roundNum);
-                        contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }}
-                    className="text-xs px-3 py-1 transition-all duration-200"
-                    style={{
-                      color: isActive ? 'var(--text-primary)' : viewRound === null ? 'var(--text-muted)' : 'var(--text-muted)',
-                      borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                      opacity: isActive ? 1 : viewRound === null ? 0.6 : 0.4,
-                    }}
-                    title={`Round ${roundNum}: ${agents.map(a => abbrev(a)).join(', ')}`}
-                  >
-                    Round {roundNum}
-                  </button>
-                );
-              })}
+              {/* Prev */}
+              <button
+                onClick={() => {
+                  const target = Math.max(1, currentRound - 1);
+                  setViewRound(target);
+                  contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentRound <= 1}
+                className="w-6 h-6 flex items-center justify-center rounded-full text-xs transition-all"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  color: currentRound <= 1 ? 'var(--border)' : 'var(--text-muted)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                ‹
+              </button>
+              {/* Round indicator chip */}
+              <div
+                className="px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  backdropFilter: 'blur(16px) saturate(150%)',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                {viewRound ? `Round ${viewRound}` : `Round ${currentRound}`}
+                <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>/ {totalRounds}</span>
+              </div>
+              {/* Next */}
+              <button
+                onClick={() => {
+                  const target = Math.min(totalRounds, currentRound + 1);
+                  setViewRound(target);
+                  contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentRound >= totalRounds}
+                className="w-6 h-6 flex items-center justify-center rounded-full text-xs transition-all"
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  color: currentRound >= totalRounds ? 'var(--border)' : 'var(--text-muted)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                ›
+              </button>
               {viewRound !== null && (
                 <button
                   onClick={() => setViewRound(null)}
-                  className="text-xs px-2 py-1 ml-2 transition-colors"
-                  style={{ color: 'var(--accent)' }}
+                  className="text-xs px-2 py-0.5 rounded-full transition-colors"
+                  style={{ color: 'var(--accent)', background: 'var(--accent-muted)', border: '1px solid var(--border)' }}
                 >
-                  Show all
+                  All
                 </button>
               )}
             </div>
