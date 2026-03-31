@@ -197,6 +197,11 @@ export default function RunMeetingPage() {
       pollRef.current = setInterval(async () => {
         try {
           const statusRes = await fetch(`/api/council/job-status/${jobId}`);
+          if (statusRes.status === 404) {
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            setRunState({ phase: 'error', message: 'Meeting job was lost (server may have restarted). Try running again.' });
+            return;
+          }
           const status = await statusRes.json();
 
           if (status.status === 'running') {
