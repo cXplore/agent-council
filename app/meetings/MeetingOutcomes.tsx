@@ -11,10 +11,10 @@ interface OutcomeItem {
 }
 
 const TYPE_CONFIG = {
-  DECISION: { label: 'Decisions', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)', border: 'rgba(96, 165, 250, 0.4)' },
-  OPEN: { label: 'Open Questions', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)', border: 'rgba(251, 191, 36, 0.4)' },
-  ACTION: { label: 'Actions', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)', border: 'rgba(74, 222, 128, 0.4)' },
-  RESOLVED: { label: 'Resolved', color: '#6b7280', bg: 'rgba(107, 114, 128, 0.08)', border: 'rgba(107, 114, 128, 0.3)' },
+  DECISION: { label: 'Decisions', color: 'var(--color-decision)', bg: 'var(--color-decision-bg)', border: 'rgba(96, 165, 250, 0.4)' },
+  OPEN: { label: 'Open Questions', color: 'var(--color-open)', bg: 'var(--color-open-bg)', border: 'rgba(251, 191, 36, 0.4)' },
+  ACTION: { label: 'Actions', color: 'var(--color-action)', bg: 'var(--color-action-bg)', border: 'rgba(74, 222, 128, 0.4)' },
+  RESOLVED: { label: 'Resolved', color: 'var(--color-resolved)', bg: 'var(--color-resolved-bg)', border: 'rgba(107, 114, 128, 0.3)' },
 };
 
 const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
@@ -156,9 +156,9 @@ export default function MeetingOutcomes({ content, open, isLive, onClose }: Meet
             No tagged outcomes found in this meeting.
             <br />
             <span className="mt-1 block">
-              Agents tag items with <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#60a5fa' }}>DECISION:</code>{' '}
-              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#fbbf24' }}>OPEN:</code>{' '}
-              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: '#4ade80' }}>ACTION:</code>
+              Agents tag items with <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--color-decision)' }}>DECISION:</code>{' '}
+              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--color-open)' }}>OPEN:</code>{' '}
+              <code className="px-1 py-0.5 rounded" style={{ background: 'var(--bg)', color: 'var(--color-action)' }}>ACTION:</code>
             </span>
           </p>
         ) : (

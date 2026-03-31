@@ -5,9 +5,9 @@ import { useMemo } from 'react';
 const OUTCOME_REGEX = /^[\s\-*]*\[?(DECISION|OPEN|ACTION|RESOLVED)(?::([a-z0-9-]+))?[:\]]\s*(.+)/i;
 
 const TYPE_BADGES = {
-  DECISION: { label: 'decisions', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.12)' },
-  OPEN: { label: 'open', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.12)' },
-  ACTION: { label: 'actions', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)' },
+  DECISION: { label: 'decisions', color: 'var(--color-decision)', bg: 'var(--color-decision-bg)' },
+  OPEN: { label: 'open', color: 'var(--color-open)', bg: 'var(--color-open-bg)' },
+  ACTION: { label: 'actions', color: 'var(--color-action)', bg: 'var(--color-action-bg)' },
 } as const;
 
 /** Extract the prose from the ## Summary section (first 3 sentences). */

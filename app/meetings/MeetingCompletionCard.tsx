@@ -147,7 +147,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         className="mx-6 mt-4 mb-2 rounded-xl text-sm px-4 py-2.5 flex items-center gap-2"
         style={{ border: '1px solid rgba(96, 165, 250, 0.15)', background: 'rgba(96, 165, 250, 0.03)' }}
       >
-        <span className="text-xs" style={{ color: '#60a5fa' }}>{'\u2714'}</span>
+        <span className="text-xs" style={{ color: 'var(--color-decision)' }}>{'\u2714'}</span>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Meeting complete — scroll up to view full outcomes</span>
         {onDismissCard && (
           <button onClick={onDismissCard} className="ml-auto text-xs px-1 hover:brightness-125 transition-colors" style={{ color: 'var(--text-muted)' }} title="Dismiss">✕</button>
@@ -167,7 +167,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
           onClick={() => setExpanded(e => !e)}
           className="flex-1 px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:brightness-110 transition-colors text-left"
         >
-          <span className="text-xs font-medium" style={{ color: '#60a5fa' }}>{'\u2714'} Meeting complete</span>
+          <span className="text-xs font-medium" style={{ color: 'var(--color-decision)' }}>{'\u2714'} Meeting complete</span>
           {countSummary && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>— {countSummary}</span>}
           <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>{expanded ? '▾' : '▸'}</span>
         </button>
@@ -180,11 +180,11 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         {/* Decisions */}
         {decisions.length > 0 && (
           <div>
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#60a5fa' }}>Decisions</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-decision)' }}>Decisions</div>
             <ul className="space-y-1">
               {decisions.map((d, i) => (
                 <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <span style={{ color: '#60a5fa', flexShrink: 0 }}>·</span>
+                  <span style={{ color: 'var(--color-decision)', flexShrink: 0 }}>·</span>
                   <span>{renderInline(d)}</span>
                 </li>
               ))}
@@ -200,11 +200,11 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         {/* Action items */}
         {actions.length > 0 && (
           <div>
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#34d399' }}>Actions</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-action)' }}>Actions</div>
             <ul className="space-y-1">
               {actions.map((a, i) => (
                 <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <span style={{ color: '#34d399', flexShrink: 0 }}>·</span>
+                  <span style={{ color: 'var(--color-action)', flexShrink: 0 }}>·</span>
                   <span>{renderInline(a)}</span>
                 </li>
               ))}
@@ -220,11 +220,11 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         {/* Open questions */}
         {open.length > 0 && (
           <div>
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#fbbf24' }}>Still open</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-open)' }}>Still open</div>
             <ul className="space-y-1">
               {open.map((q, i) => (
                 <li key={i} className="flex gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  <span style={{ color: '#fbbf24', flexShrink: 0 }}>·</span>
+                  <span style={{ color: 'var(--color-open)', flexShrink: 0 }}>·</span>
                   <span>{renderInline(q)}</span>
                 </li>
               ))}
@@ -240,7 +240,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         {/* Suggested next meetings */}
         {activeSuggestions.length > 0 && (
           <div>
-            <div className="text-xs font-medium mb-1.5" style={{ color: '#a78bfa' }}>Suggested next</div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--color-suggestion)' }}>Suggested next</div>
             <div className="flex flex-wrap gap-2">
               {activeSuggestions.map((s, i) => {
                 const isQueued = queuedSuggestions.has(s.text);
@@ -279,7 +279,7 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
         {/* Quality warnings */}
         {quality.total > 0 && (
           <div className="rounded-lg px-3 py-2" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)' }}>
-            <div className="text-xs font-medium mb-1" style={{ color: '#fbbf24' }}>Quality ({quality.total} issue{quality.total > 1 ? 's' : ''})</div>
+            <div className="text-xs font-medium mb-1" style={{ color: 'var(--color-open)' }}>Quality ({quality.total} issue{quality.total > 1 ? 's' : ''})</div>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {quality.issues.join(' · ')}
             </div>
