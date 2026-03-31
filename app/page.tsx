@@ -11,5 +11,5 @@ export default async function Home() {
   } catch {
     // Fall through to meetings
   }
-  redirect('/meetings');
+  redirect('/home');
 }

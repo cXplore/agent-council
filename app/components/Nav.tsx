@@ -6,8 +6,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NAV_ITEMS = [
   { href: '/meetings', label: 'Meetings' },
-  { href: '/run-meeting', label: 'Run' },
-  { href: '/dashboard', label: 'Dashboard' },
   { href: '/roadmap', label: 'Roadmap' },
   { href: '/agents', label: 'Agents' },
 ];
