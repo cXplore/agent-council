@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { inferMeetingConfig } from '@/lib/meeting-type-inference';
 
 const AGENTS = [
   { id: 'project-manager', label: 'PM', color: '#4ade80' },
@@ -83,45 +82,15 @@ export default function HomePage() {
         setPhase('done');
       }
     } else {
-      // Default: run a meeting
-      runMeeting(text);
-    }
-  };
-
-  const runMeeting = async (topic: string) => {
-    setPhase('thinking');
-    const config = inferMeetingConfig(topic);
-    try {
-      const res = await fetch('/api/council/multi-consult', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topic,
-          agents: config.agents,
-          type: config.type,
-          rounds: config.rounds,
-          writeMeeting: true,
-          async: true,
-        }),
-      });
-      if (res.ok) {
-        // Navigate to meetings — the viewer will pick up the live meeting
-        router.push('/meetings');
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setAnswer(`Error: ${err.error || 'Failed to start meeting'}`);
-        setPhase('done');
-      }
-    } catch {
-      setAnswer('Error: Could not reach the server.');
-      setPhase('done');
+      // Default: navigate to Run page with topic pre-filled
+      router.push(`/run-meeting?topic=${encodeURIComponent(text)}`);
     }
   };
 
   const handleQuickAction = (action: string) => {
     if (action === 'meeting') {
-      setSelectedAgent(null);
-      // Focus input
+      router.push('/run-meeting');
+      return;
     } else if (action === 'ask') {
       // Toggle agent selection mode
       if (!selectedAgent) setSelectedAgent('critic');
@@ -254,10 +223,6 @@ export default function HomePage() {
               {selectedAgent
                 ? 'Ask a direct question — one agent responds'
                 : 'Type a topic to start a meeting, or pick an agent to ask directly'}
-              {' · '}
-              <a href="/run-meeting" style={{ color: 'var(--text-muted)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
-                Advanced
-              </a>
             </p>
           </>
         )}

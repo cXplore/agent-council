@@ -75,7 +75,8 @@ type ProjectBrief = {
 export default function RunMeetingPage() {
   const searchParams = useSearchParams();
   const projectParam = searchParams.get('project');
-  const [topic, setTopic] = useState('');
+  const topicParam = searchParams.get('topic');
+  const [topic, setTopic] = useState(topicParam ?? '');
   const [selectedAgents, setSelectedAgents] = useState<string[]>([
     'project-manager', 'critic', 'north-star',
   ]);
