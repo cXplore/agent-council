@@ -90,7 +90,9 @@ function SetupWizardInner() {
   const [connectError, setConnectError] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean; generatedAgents?: string[]; profile?: ProjectProfile; scanWarning?: string } | null>(null);
+  const [connectPhase, setConnectPhase] = useState<'idle' | 'validating' | 'scanning' | 'generating' | 'done'>('idle');
+  const [connectInfo, setConnectInfo] = useState<{ hasAgents: boolean; agentCount: number; hasFacilitator: boolean; generatedAgents?: string[]; profile?: ProjectProfile; scanWarning?: string; projectName?: string } | null>(null);
+  const [autoRedirect, setAutoRedirect] = useState(true); // auto-redirect to /run-meeting after connect
   const [generateError, setGenerateError] = useState('');
   const [mcpTargets, setMcpTargets] = useState<Record<string, McpTarget> | null>(null);
   const [mcpConfiguring, setMcpConfiguring] = useState(false);
@@ -160,6 +162,7 @@ function SetupWizardInner() {
     if (!projectPath.trim()) return;
     setConnecting(true);
     setConnectError('');
+    setConnectPhase('validating');
 
     // Strip surrounding quotes and normalize path separators
     const cleanPath = projectPath.trim()
@@ -171,6 +174,7 @@ function SetupWizardInner() {
     if (!isAbsolute) {
       setConnectError('Please enter an absolute path (e.g. C:\\Projects\\my-app or /home/user/my-app)');
       setConnecting(false);
+      setConnectPhase('idle');
       return;
     }
 
@@ -186,6 +190,8 @@ function SetupWizardInner() {
         const data = await res.json();
         throw new Error(data.error || 'Could not access project');
       }
+
+      setConnectPhase('scanning');
 
       // Check for common meeting directory locations
       const meetingsDirs = [
@@ -216,7 +222,9 @@ function SetupWizardInner() {
         foundMeetingsDir = 'meetings';
       }
 
-      // Save the config and get agent info
+      setConnectPhase('generating');
+
+      // Save the config, scan, generate agents, context files, and brief
       const connectRes = await fetch('/api/setup/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -232,19 +240,31 @@ function SetupWizardInner() {
       const connectData = await connectRes.json();
 
       const agentCount = connectData.agentCount ?? 0;
-      setConnectInfo({
+      const info = {
         hasAgents: agentCount > 0,
         agentCount,
         hasFacilitator: connectData.hasFacilitator ?? false,
         generatedAgents: connectData.generatedAgents,
         profile: connectData.profile,
         scanWarning: connectData.scanWarning,
-      });
+        projectName: connectData.name,
+      };
+      setConnectInfo(info);
       setConnected(true);
+      setConnectPhase('done');
       // Refresh the nav to show the newly active project
       router.refresh();
+
+      // Auto-redirect to /run-meeting after a brief pause (unless scan had warnings that need attention)
+      if (autoRedirect && !connectData.scanWarning) {
+        const projectParam = info.projectName ? `?project=${encodeURIComponent(info.projectName)}` : '';
+        setTimeout(() => {
+          router.push(`/run-meeting${projectParam}`);
+        }, 1200);
+      }
     } catch (err) {
       setConnectError(err instanceof Error ? err.message : 'Connection failed');
+      setConnectPhase('idle');
     } finally {
       setConnecting(false);
     }
@@ -457,13 +477,15 @@ function SetupWizardInner() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {step === 'path' && !connected && 'Connect Your Project'}
+            {step === 'path' && !connected && !connecting && 'Connect Your Project'}
+            {step === 'path' && !connected && connecting && 'Setting Up...'}
             {step === 'path' && connected && 'Project Connected'}
             {['scan', 'customize', 'generate'].includes(step) && 'Set Up Your Agent Team'}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {step === 'path' && !connected && 'Point us at your project and we\'ll get you set up.'}
-            {step === 'path' && connected && 'Here\'s what we found.'}
+            {step === 'path' && !connected && !connecting && 'Point us at your project and we\'ll set up agents, context, and the meeting viewer.'}
+            {step === 'path' && !connected && connecting && 'Scanning your project and generating agents...'}
+            {step === 'path' && connected && 'Ready to run your first meeting.'}
             {step === 'scan' && 'Here\'s what we found. Hit Set Up Team to get started.'}
             {step === 'customize' && 'Fine-tune agents before generating.'}
             {step === 'generate' && 'Your agents are ready.'}
@@ -497,19 +519,38 @@ function SetupWizardInner() {
               <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
                 Project directory
               </label>
-              <input
-                type="text"
-                value={projectPath}
-                onChange={(e) => setProjectPath(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleConnect(); }}
-                placeholder={typeof navigator !== 'undefined' && navigator.platform?.startsWith('Win') ? 'C:\\Projects\\my-app' : '/home/user/my-app'}
-                className="w-full px-4 py-3 rounded-lg text-sm outline-none"
-                style={{
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text-primary)',
-                }}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={projectPath}
+                  onChange={(e) => setProjectPath(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleConnect(); }}
+                  placeholder={typeof navigator !== 'undefined' && navigator.platform?.startsWith('Win') ? 'C:\\Projects\\my-app' : '/home/user/my-app'}
+                  className="flex-1 px-4 py-3 rounded-lg text-sm outline-none"
+                  style={{
+                    background: 'var(--bg)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                {typeof window !== 'undefined' && (window as unknown as { electronAPI?: { pickDirectory: () => Promise<string | null> } }).electronAPI && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const api = (window as unknown as { electronAPI: { pickDirectory: () => Promise<string | null> } }).electronAPI;
+                      const dir = await api.pickDirectory();
+                      if (dir) setProjectPath(dir);
+                    }}
+                    className="px-3 py-3 rounded-lg text-sm transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                    title="Browse for folder"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 4.5V12a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0014 12V6.5A1.5 1.5 0 0012.5 5H8L6.5 3H3.5A1.5 1.5 0 002 4.5z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
               <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
                 We&apos;ll find your meetings directory and configure the viewer to watch it.
               </p>
@@ -525,37 +566,38 @@ function SetupWizardInner() {
                 >
                   {connecting ? 'Connecting...' : 'Connect'}
                 </button>
-                <button
-                  onClick={() => { handleConnect().then(() => handleScan()); }}
-                  disabled={!projectPath.trim() || connecting || scanning}
-                  className="px-5 py-2.5 rounded-lg text-sm font-medium transition-opacity disabled:opacity-30"
-                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
-                >
-                  {scanning ? 'Scanning...' : 'Connect & scan'}
-                </button>
               </div>
-              {scanning && (
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--accent)' }}>
-                    <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent)' }} />
-                    Claude is analyzing your project...
-                  </div>
-                  {scanProgress.length > 0 && (
-                    <div
-                      ref={scanLogRef}
-                      className="text-xs space-y-0.5 px-3 py-2 rounded max-h-32 overflow-y-auto"
-                      style={{ background: 'var(--bg)', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.7rem' }}
-                    >
-                      {scanProgress.map((msg, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <span style={{ color: 'var(--accent)', opacity: i === scanProgress.length - 1 ? 1 : 0.4 }}>
-                            {i === scanProgress.length - 1 ? '▸' : '·'}
-                          </span>
-                          <span style={{ opacity: i === scanProgress.length - 1 ? 1 : 0.5 }}>{msg}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Progressive connect phases */}
+              {connecting && connectPhase !== 'idle' && (
+                <div className="mt-3 space-y-1.5">
+                  {(['validating', 'scanning', 'generating'] as const).map((phase) => {
+                    const labels: Record<string, string> = {
+                      validating: 'Checking project directory...',
+                      scanning: 'Reading project structure...',
+                      generating: 'Generating agents and context...',
+                    };
+                    const phaseOrder = ['validating', 'scanning', 'generating'];
+                    const currentIdx = phaseOrder.indexOf(connectPhase);
+                    const thisIdx = phaseOrder.indexOf(phase);
+                    const isDone = thisIdx < currentIdx;
+                    const isActive = thisIdx === currentIdx;
+                    if (thisIdx > currentIdx) return null;
+                    return (
+                      <div key={phase} className="flex items-center gap-2 text-xs">
+                        {isDone ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="11" stroke="var(--live-green)" strokeWidth="2" />
+                            <path d="M7 12.5L10.5 16L17 9" stroke="var(--live-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : (
+                          <span className="inline-block w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--accent)', width: 12, height: 12 }} />
+                        )}
+                        <span style={{ color: isActive ? 'var(--text-primary)' : 'var(--live-green)' }}>
+                          {labels[phase]}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {scanError && (
@@ -563,10 +605,9 @@ function SetupWizardInner() {
                   {scanError}
                 </p>
               )}
-              {!scanning && (
+              {!connecting && !connected && (
                 <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-                  <strong style={{ color: 'var(--text-secondary)' }}>Connect</strong> watches your meetings directory.{' '}
-                  <strong style={{ color: 'var(--text-secondary)' }}>Connect &amp; scan</strong> uses Claude Code to analyze your codebase and suggest an agent team.
+                  Scans your project, generates project-aware agents, and sets up the meeting viewer.
                 </p>
               )}
             </div>
@@ -588,9 +629,24 @@ function SetupWizardInner() {
               className="rounded-lg p-6"
               style={{ background: 'var(--bg-card)', border: '1px solid var(--live-green)' }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--live-green)' }} />
-                <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connected</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--live-green)' }} />
+                  <h3 className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Connected</h3>
+                </div>
+                {/* Auto-redirect indicator */}
+                {autoRedirect && !connectInfo?.scanWarning && (
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Redirecting to Run Meeting...{' '}
+                    <button
+                      onClick={() => setAutoRedirect(false)}
+                      className="underline"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      Stay here
+                    </button>
+                  </span>
+                )}
               </div>
               {connectInfo && (
                 <div className="text-sm space-y-2 mb-4" style={{ color: 'var(--text-secondary)' }}>
@@ -662,9 +718,16 @@ function SetupWizardInner() {
 
               <div className="flex gap-3 mb-4">
                 <a
-                  href="/meetings"
+                  href={`/run-meeting${connectInfo?.projectName ? `?project=${encodeURIComponent(connectInfo.projectName)}` : ''}`}
                   className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
                   style={{ background: 'var(--accent)', color: 'white' }}
+                >
+                  Run First Meeting
+                </a>
+                <a
+                  href="/meetings"
+                  className="px-5 py-2.5 rounded-lg text-sm font-medium inline-block"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
                 >
                   Open Meeting Viewer
                 </a>

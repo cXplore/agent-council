@@ -1044,7 +1044,7 @@ safeTool(
 // Tool: Session brief — opinionated 5-line brief for starting a coding session
 safeTool(
   'council_session_brief',
-  'Get a concise brief for starting a coding session: focus item, recent decisions (last 2 meetings), active actions (max 3), open questions (max 2), aging items that need attention (stale actions, at-risk open questions), and a NOT DOING list (explicit rejections — things decided against). Call this at the START of any session.',
+  'Get a concise brief for starting a coding session: focus item, recent decisions (max 3), active actions (max 2), top open question, and a NOT DOING list (explicit rejections). Call this at the START of any session.',
   {},
   async () => {
     try {
@@ -1097,30 +1097,30 @@ safeTool(
       const allDecisions = items.filter(i => i.type === 'DECISION');
       const rejections = allDecisions
         .filter(i => rejectionPattern.test(i.text))
-        .slice(0, 5);
+        .slice(0, 3);
 
-      // Actions: active only, prefer last 2 meetings, max 3
+      // Actions: active only, prefer last 2 meetings, max 2
       const allActiveActions = items.filter(i => i.type === 'ACTION' && i.itemStatus === 'active');
       const recentActions = allActiveActions.filter(i => recent2Files.has(i.meeting));
-      const priorityActions = (recentActions.length > 0 ? recentActions : allActiveActions).slice(0, 3);
+      const priorityActions = (recentActions.length > 0 ? recentActions : allActiveActions).slice(0, 2);
 
-      // Open questions: last 3 meetings, active only, max 2
+      // Open questions: last 3 meetings, active only, max 1
       const allActiveOpen = items.filter(i => i.type === 'OPEN' && i.itemStatus === 'active');
-      const recentOpen = allActiveOpen.filter(i => recent3Files.has(i.meeting)).slice(0, 2);
+      const recentOpen = allActiveOpen.filter(i => recent3Files.has(i.meeting)).slice(0, 1);
 
       // Needs Attention: active items that fell off the recency window
       const now = new Date();
       const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
-      // Aging actions: active, NOT in recent 2 meetings, older than 3 days
+      // Aging actions: active, NOT in recent 2 meetings, older than 3 days, max 1
       const agingActions = allActiveActions
         .filter(i => !recent2Files.has(i.meeting) && i.date && new Date(i.date) < threeDaysAgo)
-        .slice(0, 3);
+        .slice(0, 1);
 
-      // At-risk open questions: active, NOT in recent 3 meetings (approaching archival threshold)
+      // At-risk open questions: active, NOT in recent 3 meetings, max 1
       const atRiskOpen = allActiveOpen
         .filter(i => !recent3Files.has(i.meeting))
-        .slice(0, 3);
+        .slice(0, 1);
 
       // Focus: user nudge > recent action > recent decision > fallback
       let focusText;
@@ -1145,145 +1145,81 @@ safeTool(
 
       if (live.length > 0) {
         lines.push(`⚡ LIVE: ${live.map(m => m.title || m.filename).join(', ')}`);
-        lines.push('');
       }
 
+      // Compact project line: name · stack (single line)
       if (activeProject) {
-        lines.push(`PROJECT: ${activeProjectName} (${activeProject.path})`);
+        const stackParts = [];
         if (profile) {
           const langs = (profile.languages || []).slice(0, 3).map(l => l.name).join(', ');
           const frameworks = (profile.frameworks || []).map(f => f.name).join(', ');
-          const parts = [];
-          if (langs) parts.push(langs);
-          if (frameworks) parts.push(frameworks);
-          if (profile.structure?.isMonorepo) parts.push('monorepo');
-          if (parts.length > 0) lines.push(`  Stack: ${parts.join(' · ')}`);
-          const cb = profile.coverageBoundaries;
-          if (cb) {
-            lines.push(`  Coverage: ${cb.filesCovered} files scanned | ${cb.knownDomains.length} known domains, ${cb.unknownDomains.length} hedged`);
-          }
+          if (langs) stackParts.push(langs);
+          if (frameworks) stackParts.push(frameworks);
+          if (profile.structure?.isMonorepo) stackParts.push('monorepo');
         }
-        lines.push('');
+        const stackSuffix = stackParts.length > 0 ? ` · ${stackParts.join(', ')}` : '';
+        lines.push(`📂 ${activeProjectName}${stackSuffix}`);
       }
 
-      // Load PROJECT_BRIEF.md if it exists and has user content
-      let briefInjected = false;
-      if (activeProject) {
-        try {
-          const briefPath = nodePath.join(activeProject.path, activeProject.meetingsDir || 'meetings', 'PROJECT_BRIEF.md');
-          const briefContent = fs.readFileSync(briefPath, 'utf-8');
-          const hasUserContent = briefContent.split('\n').some(l =>
-            l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--')
-          );
-          if (hasUserContent) {
-            // Extract non-boilerplate lines for a condensed brief
-            const userLines = briefContent.split('\n').filter(l =>
-              l.trim() && !l.startsWith('#') && !l.startsWith('>') && !l.startsWith('**Created') && !l.startsWith('<!--')
-            ).slice(0, 5);
-            lines.push('PROJECT BRIEF:');
-            userLines.forEach(l => lines.push(`  ${l.trim()}`));
-            lines.push('');
-            briefInjected = true;
-          }
-        } catch {
-          // No brief file — that's fine
-        }
-      }
-
-      // First meeting suggestion for new projects
+      // New project hint (compact)
       if (completed.length === 0 && activeProject) {
-        if (!briefInjected && profile) {
-          // Sparse-brief detection: include scanner observations so the suggestion is specific
-          const parts = [];
-          const langs = (profile.languages || []).slice(0, 3).map(l => l.name);
-          if (langs.length > 0) parts.push(`${langs.join(', ')} project`);
-          const frameworks = (profile.frameworks || []).map(f => f.name);
-          if (frameworks.length > 0) parts.push(`using ${frameworks.join(', ')}`);
-          const dirs = profile.structure?.topDirs?.slice(0, 5);
-          if (dirs?.length > 0) parts.push(`dirs: ${dirs.join(', ')}`);
-          const fileCount = profile.structure?.totalFiles;
-          if (fileCount) parts.push(`${fileCount} files`);
-          if (parts.length > 0) {
-            lines.push(`🆕 NEW PROJECT — Detected: ${parts.join(' · ')}. Fill in PROJECT_BRIEF.md or run intake meeting:`);
-          } else {
-            lines.push('🆕 NEW PROJECT — No meetings yet. Fill in PROJECT_BRIEF.md or run intake meeting:');
-          }
-        } else if (!briefInjected) {
-          lines.push('🆕 NEW PROJECT — No meetings yet. Consider running a project intake meeting:');
-        } else {
-          lines.push('🆕 NEW PROJECT — Brief loaded. Consider running a project intake meeting:');
-        }
-        lines.push(`  council_multi_consult(topic: "Project intake: understand ${activeProjectName}, identify priorities, and plan first steps", agents: ["project-manager", "architect", "critic"], type: "project-intake")`);
-        lines.push('');
+        lines.push(`🆕 New project — run: council_multi_consult(topic: "Project intake for ${activeProjectName}", agents: ["project-manager", "architect", "critic"])`);
       }
 
-      lines.push(`FOCUS: ${focusText}`);
       lines.push('');
+      lines.push(`FOCUS: ${focusText}`);
 
       if (recentDecisions.length > 0) {
-        lines.push('RECENT DECISIONS:');
-        recentDecisions.forEach(d => {
-          // One-line: just the decision text (before the rationale dash), truncated
-          const text = d.text.split(' — ')[0].trim();
-          const short = text.length > 100 ? text.slice(0, 97) + '...' : text;
-          lines.push(`  • ${short}`);
-        });
         lines.push('');
+        lines.push('DECIDED:');
+        recentDecisions.forEach(d => {
+          const text = d.text.split(' — ')[0].trim();
+          lines.push(`  • ${text.length > 90 ? text.slice(0, 87) + '...' : text}`);
+        });
       }
 
-      lines.push('ACTIONS:');
       if (workItems.length > 0 || priorityActions.length > 0) {
-        for (const w of workItems.slice(0, 2)) {
-          lines.push(`  [user] ${w.message}`);
+        lines.push('');
+        lines.push('DO:');
+        for (const w of workItems.slice(0, 1)) {
+          lines.push(`  → [user] ${w.message}`);
         }
-        for (const a of priorityActions) {
+        for (const a of priorityActions.slice(0, 2)) {
           const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
-          const dw = a.doneWhen ? ` — done when: ${a.doneWhen}` : '';
-          lines.push(`  • ${text}${dw}`);
+          const dw = a.doneWhen ? ` (done when: ${a.doneWhen})` : '';
+          lines.push(`  → ${text.length > 80 ? text.slice(0, 77) + '...' : text}${dw}`);
         }
-      } else {
-        lines.push('  None active. Use council_list_agents to discover agents, council_get_work_items for full history, or council_schedule_meeting to discuss next steps.');
       }
 
       if (recentOpen.length > 0) {
+        const o = recentOpen[0]; // Top 1 only
+        const text = o.text.length > 90 ? o.text.slice(0, 87) + '...' : o.text;
         lines.push('');
-        lines.push('OPEN:');
-        recentOpen.forEach(o => {
-          const text = o.text.length > 100 ? o.text.slice(0, 97) + '...' : o.text;
-          lines.push(`  ? ${text}`);
-        });
+        lines.push(`OPEN: ${text}`);
       }
 
-      // No-list: things explicitly decided against
       if (rejections.length > 0) {
         lines.push('');
         lines.push('NOT DOING:');
-        rejections.forEach(r => {
+        rejections.slice(0, 3).forEach(r => {
           const text = r.text.split(' — ')[0].trim();
-          const short = text.length > 100 ? text.slice(0, 97) + '...' : text;
-          lines.push(`  ✗ ${short}`);
+          lines.push(`  ✗ ${text.length > 90 ? text.slice(0, 87) + '...' : text}`);
         });
       }
 
-      // Needs Attention: aging items that fell off the recency window
-      if (agingActions.length > 0 || atRiskOpen.length > 0) {
-        lines.push('');
-        lines.push('NEEDS ATTENTION:');
-        for (const a of agingActions) {
-          const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
-          const age = Math.floor((now.getTime() - new Date(a.date).getTime()) / (24 * 60 * 60 * 1000));
-          lines.push(`  ⚠ Action (${age}d old): ${text.length > 100 ? text.slice(0, 97) + '...' : text}`);
-          lines.push(`    from: ${a.meetingTitle || a.meeting}`);
-        }
-        for (const o of atRiskOpen) {
-          lines.push(`  ⚠ Open question (at archival risk): ${o.text.length > 100 ? o.text.slice(0, 97) + '...' : o.text}`);
-          lines.push(`    from: ${o.meetingTitle || o.meeting}`);
-        }
+      // Aging signal: compact, max 2 items
+      const agingSignals = [];
+      for (const a of agingActions.slice(0, 1)) {
+        const text = a.text.replace(/\s*—\s*assigned to \w+.*$/, '').trim();
+        const age = Math.floor((now.getTime() - new Date(a.date).getTime()) / (24 * 60 * 60 * 1000));
+        agingSignals.push(`⚠ ${age}d stale action: ${text.length > 70 ? text.slice(0, 67) + '...' : text}`);
       }
-
-      if (completed[0]) {
+      for (const o of atRiskOpen.slice(0, 1)) {
+        agingSignals.push(`⚠ At-risk: ${o.text.length > 70 ? o.text.slice(0, 67) + '...' : o.text}`);
+      }
+      if (agingSignals.length > 0) {
         lines.push('');
-        lines.push(`Last meeting: ${completed[0].title || completed[0].filename} (${completed[0].date})`);
+        agingSignals.forEach(s => lines.push(s));
       }
 
       return {

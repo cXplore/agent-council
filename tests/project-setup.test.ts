@@ -92,14 +92,14 @@ describe('buildPlaceholders', () => {
     expect(placeholders.TESTING_LIBS).toBe('pytest');
   });
 
-  it('returns "Unknown" for empty languages/frameworks without scanQuality', () => {
+  it('returns descriptive fallback for empty languages/frameworks without scanQuality', () => {
     const emptyProfile: ProjectProfile = {
       ...mockProfile,
       languages: [],
       frameworks: [],
     };
     const placeholders = buildPlaceholders('/tmp/empty', emptyProfile);
-    expect(placeholders.FRAMEWORK).toBe('Unknown');
+    expect(placeholders.FRAMEWORK).toBe('no standard framework detected');
     expect(placeholders.LANGUAGES).toBe('Unknown');
     expect(placeholders.SCAN_CONFIDENCE_NOTICE).toBe('');
   });

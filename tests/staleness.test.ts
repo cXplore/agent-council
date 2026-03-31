@@ -247,6 +247,7 @@ describe('getDoneItems', () => {
       ideas: [],
       meetingCount: 1,
       builtAt: new Date().toISOString(),
+      validationWarnings: [],
       ...overrides,
     };
   }

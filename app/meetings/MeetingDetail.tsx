@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { getAgentColor } from '@/lib/utils';
 import { createMeetingComponents } from '@/lib/md-components';
@@ -44,6 +45,9 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     notesOpen,
     noteText,
     latestEvent,
+    lastEventTimestamp,
+    currentRound,
+    currentAgent,
     contextCards,
     paceMode,
     meetingSearchOpen,
@@ -85,6 +89,18 @@ export default function MeetingDetail(props: MeetingDetailProps) {
 
   const isLive = detail?.status === 'in-progress';
   const { toast } = useToast();
+
+  // Elapsed time since last event — updates every second during live meetings
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!isLive || !lastEventTimestamp) { setElapsedSec(0); return; }
+    setElapsedSec(Math.floor((Date.now() - lastEventTimestamp) / 1000));
+    const id = setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - lastEventTimestamp) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isLive, lastEventTimestamp]);
+
   const completionCardRef = useRef<HTMLDivElement>(null);
   const [completionCardDismissed, setCompletionCardDismissed] = useState(false);
   const [completionCardVisible, setCompletionCardVisible] = useState(true);
@@ -247,12 +263,25 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                   <div className="font-medium mb-1 truncate">
                     {detail.title || formatType(detail.type)}
                   </div>
-                  <div className="mb-1" style={{ color: 'var(--text-muted)' }}>
-                    {formatType(detail.type)} &middot; {detail.date || 'No date'}
+                  <div className="mb-1 flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                    <span>{formatType(detail.type)} &middot; {detail.date || 'No date'}</span>
+                    {detail.project && (
+                      <span
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                        style={{ background: 'var(--accent)', color: 'var(--bg)', opacity: 0.85 }}
+                      >
+                        {detail.project}
+                      </span>
+                    )}
                   </div>
-                  <div className="mb-2" style={{ color: 'var(--text-muted)' }}>
+                  <div className="mb-1" style={{ color: 'var(--text-muted)' }}>
                     {detail.participants.length} agent{detail.participants.length !== 1 ? 's' : ''} participated
                   </div>
+                  {detail.objective && (
+                    <div className="mb-2 text-xs line-clamp-2" style={{ color: 'var(--text-muted)', opacity: 0.7 }}>
+                      {detail.objective.replace(/^Multi-agent consult on:\s*/i, '')}
+                    </div>
+                  )}
                   <div
                     className="truncate font-mono text-[10px] px-1.5 py-0.5 rounded"
                     style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
@@ -473,6 +502,18 @@ export default function MeetingDetail(props: MeetingDetailProps) {
           : latestEvent?.includes('thinking') ? '\u270D'
           : latestEvent?.includes('complete') ? '\u2714'
           : '\u23F3';
+        // Build combined status: "Round 1 of 2 · architect is thinking..."
+        const statusParts: string[] = [];
+        if (currentRound) statusParts.push(currentRound);
+        if (currentAgent) {
+          statusParts.push(`${currentAgent} is thinking...`);
+        } else if (!currentRound && latestEvent) {
+          statusParts.push(latestEvent);
+        } else if (currentRound && latestEvent && !latestEvent.includes(currentRound)) {
+          // Show phase info alongside round if it's different
+          statusParts.push(latestEvent);
+        }
+        const statusText = statusParts.length > 0 ? statusParts.join(' \u00B7 ') : 'Meeting in progress';
         return (
           <div
             className="px-6 py-2.5 flex items-center gap-3"
@@ -494,10 +535,15 @@ export default function MeetingDetail(props: MeetingDetailProps) {
             ) : (
               <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--live-green)' }}>
                 {phaseIcon && <span className="text-xs">{phaseIcon}</span>}
-                {latestEvent || 'Meeting in progress'}
+                {statusText}
               </span>
             )}
-            {pollPaused && (
+            {isLive && elapsedSec > 0 && !connectionLost && (
+              <span className="text-xs font-mono tabular-nums ml-auto" style={{ color: 'var(--text-muted)' }}>
+                {elapsedSec < 60 ? `${elapsedSec}s ago` : `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s ago`}
+              </span>
+            )}
+            {pollPaused && !elapsedSec && (
               <span className="text-xs ml-auto" style={{ color: 'var(--text-muted)' }}>
                 Auto-refresh paused
               </span>
@@ -1161,9 +1207,14 @@ export default function MeetingDetail(props: MeetingDetailProps) {
                       <ReactMarkdown components={mdComponents}>{seenPart}</ReactMarkdown>
                     </div>
                     {newPart && (
-                      <div className="meeting-new-content">
+                      <motion.div
+                        className="meeting-new-content"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
                         <ReactMarkdown components={mdComponents}>{newPart}</ReactMarkdown>
-                      </div>
+                      </motion.div>
                     )}
                   </>
                 );

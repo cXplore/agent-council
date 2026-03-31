@@ -1,45 +1,134 @@
 /**
- * LLM Query Abstraction Layer
+ * LLM Query Abstraction Layer — Multi-Provider
  *
- * Auto-detects the available auth method and routes queries accordingly:
- * 1. If CLAUDE_CODE_OAUTH_TOKEN is set → use Claude Agent SDK (streaming)
- * 2. If ANTHROPIC_API_KEY is set → use Anthropic SDK directly
- * 3. Otherwise → throw with a helpful error message
+ * Supports any model via Vercel AI SDK provider strings: "anthropic/claude-sonnet-4.6",
+ * "openai/gpt-5.4", "google/gemini-2.5-pro", etc.
  *
- * This enables Agent Council to run meetings both WITH and WITHOUT Claude Code.
+ * Auto-detects available providers from environment variables:
+ * - ANTHROPIC_API_KEY → Anthropic models
+ * - OPENAI_API_KEY → OpenAI models
+ * - GOOGLE_GENERATIVE_AI_API_KEY → Google models
+ * - CLAUDE_CODE_OAUTH_TOKEN → Claude Agent SDK (legacy, still supported)
+ *
+ * Falls back gracefully: if a specific provider key is missing, uses whatever is available.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { generateText, streamText, type LanguageModel } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
-// Default model for direct API calls
-const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+// Default models per provider (used when agent specifies provider but not model)
+const PROVIDER_DEFAULTS: Record<string, string> = {
+  anthropic: 'claude-sonnet-4.6',
+  openai: 'gpt-5.4',
+  google: 'gemini-2.5-pro',
+};
 
 export type QueryOptions = {
   systemPrompt?: string;
   maxTokens?: number;
-  model?: string;
+  model?: string; // "provider/model" format, e.g. "anthropic/claude-opus-4.6"
 };
 
 /**
- * Detect available LLM backend.
+ * Detect which providers are available based on env vars.
  */
-export function detectBackend(): 'agent-sdk' | 'anthropic-api' | 'none' {
-  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return 'agent-sdk';
-  if (process.env.ANTHROPIC_API_KEY) return 'anthropic-api';
-  return 'none';
+export function detectProviders(): Record<string, boolean> {
+  return {
+    anthropic: !!(process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_CODE_OAUTH_TOKEN),
+    openai: !!process.env.OPENAI_API_KEY,
+    google: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    'agent-sdk': !!process.env.CLAUDE_CODE_OAUTH_TOKEN,
+  };
 }
 
 /**
  * Check if any LLM backend is available.
  */
 export function isLLMAvailable(): boolean {
-  return detectBackend() !== 'none';
+  const providers = detectProviders();
+  return Object.values(providers).some(Boolean);
 }
 
 /**
- * Query the LLM with automatic backend detection and retry.
+ * For backward compat — returns the legacy backend type.
+ */
+export function detectBackend(): 'agent-sdk' | 'anthropic-api' | 'ai-sdk' | 'none' {
+  if (process.env.ANTHROPIC_API_KEY) return 'ai-sdk';
+  if (process.env.OPENAI_API_KEY) return 'ai-sdk';
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return 'ai-sdk';
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return 'agent-sdk';
+  return 'none';
+}
+
+/**
+ * Resolve a model string to a Vercel AI SDK LanguageModel.
  *
- * Uses exponential backoff on transient failures (overloaded, rate limits, network errors).
+ * Accepts:
+ * - "anthropic/claude-sonnet-4.6" → Anthropic provider with specific model
+ * - "openai/gpt-5.4" → OpenAI provider
+ * - "google/gemini-2.5-pro" → Google provider
+ * - "opus" / "sonnet" / "haiku" → Anthropic shorthand (from agent frontmatter)
+ * - undefined → best available default
+ */
+export function resolveModel(modelStr?: string): LanguageModel {
+  // Parse provider/model format
+  let provider: string;
+  let modelId: string;
+
+  if (!modelStr) {
+    // No model specified — use best available
+    const providers = detectProviders();
+    if (providers.anthropic) {
+      provider = 'anthropic';
+      modelId = PROVIDER_DEFAULTS.anthropic;
+    } else if (providers.openai) {
+      provider = 'openai';
+      modelId = PROVIDER_DEFAULTS.openai;
+    } else if (providers.google) {
+      provider = 'google';
+      modelId = PROVIDER_DEFAULTS.google;
+    } else {
+      throw new Error('No LLM provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_GENERATIVE_AI_API_KEY.');
+    }
+  } else if (modelStr.includes('/')) {
+    // Full "provider/model" format
+    const parts = modelStr.split('/');
+    provider = parts[0];
+    modelId = parts.slice(1).join('/');
+  } else {
+    // Shorthand: "opus", "sonnet", "haiku", or bare model name
+    const shorthandMap: Record<string, string> = {
+      opus: 'claude-opus-4.6',
+      sonnet: 'claude-sonnet-4.6',
+      haiku: 'claude-haiku-3.5',
+    };
+    provider = 'anthropic';
+    modelId = shorthandMap[modelStr.toLowerCase()] ?? modelStr;
+  }
+
+  // Create provider instance and return model
+  switch (provider) {
+    case 'anthropic': {
+      const anthropic = createAnthropic({});
+      return anthropic(modelId);
+    }
+    case 'openai': {
+      const openai = createOpenAI({});
+      return openai(modelId);
+    }
+    case 'google': {
+      const google = createGoogleGenerativeAI({});
+      return google(modelId);
+    }
+    default:
+      throw new Error(`Unknown provider: ${provider}. Supported: anthropic, openai, google`);
+  }
+}
+
+/**
+ * Query the LLM with automatic provider detection and retry.
  */
 export async function queryLLM(
   prompt: string,
@@ -51,8 +140,8 @@ export async function queryLLM(
 
   if (backend === 'none') {
     throw new Error(
-      'No LLM credentials found. Set either CLAUDE_CODE_OAUTH_TOKEN (via Claude Code) ' +
-      'or ANTHROPIC_API_KEY (in .env.local) to enable AI features.',
+      'No LLM credentials found. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, ' +
+      'or CLAUDE_CODE_OAUTH_TOKEN to enable AI features.',
     );
   }
 
@@ -60,10 +149,12 @@ export async function queryLLM(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      if (backend === 'agent-sdk') {
+      if (backend === 'agent-sdk' && !options.model) {
+        // Legacy path: use Claude Agent SDK when no specific model requested and only OAuth token available
         return await queryViaAgentSDK(prompt, options);
       } else {
-        return await queryViaAnthropicAPI(prompt, options);
+        // AI SDK path: supports any provider
+        return await queryViaAISDK(prompt, options);
       }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
@@ -75,7 +166,7 @@ export async function queryLLM(
         msg.includes('ECONNRESET') ||
         msg.includes('ETIMEDOUT');
       if (!isRetryable || attempt >= maxRetries) throw lastError;
-      const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
+      const delay = Math.pow(2, attempt + 1) * 1000;
       console.warn(`${label} attempt ${attempt + 1} failed (${msg}), retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -85,10 +176,26 @@ export async function queryLLM(
 }
 
 /**
- * Query via Claude Agent SDK (requires CLAUDE_CODE_OAUTH_TOKEN).
+ * Query via Vercel AI SDK — supports any provider.
+ */
+async function queryViaAISDK(prompt: string, options: QueryOptions): Promise<string> {
+  const model = resolveModel(options.model);
+
+  const result = await generateText({
+    model,
+    maxOutputTokens: options.maxTokens ?? 4096,
+    ...(options.systemPrompt ? { system: options.systemPrompt } : {}),
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  return result.text.trim();
+}
+
+/**
+ * Query via Claude Agent SDK (legacy — requires CLAUDE_CODE_OAUTH_TOKEN).
+ * Still needed for tool-using queries that leverage Claude Code's tool system.
  */
 async function queryViaAgentSDK(prompt: string, options: QueryOptions): Promise<string> {
-  // Dynamic import to avoid loading when not needed
   const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
   const queryOptions: Record<string, unknown> = {};
@@ -108,23 +215,20 @@ async function queryViaAgentSDK(prompt: string, options: QueryOptions): Promise<
 }
 
 /**
- * Query via Anthropic API directly (requires ANTHROPIC_API_KEY).
+ * Stream a response from the LLM. Returns an async iterable of text chunks.
  */
-async function queryViaAnthropicAPI(prompt: string, options: QueryOptions): Promise<string> {
-  const client = new Anthropic();
+export async function streamLLM(
+  prompt: string,
+  options: QueryOptions = {},
+): Promise<AsyncIterable<string>> {
+  const model = resolveModel(options.model);
 
-  const response = await client.messages.create({
-    model: options.model ?? DEFAULT_MODEL,
-    max_tokens: options.maxTokens ?? 4096,
+  const result = streamText({
+    model,
+    maxOutputTokens: options.maxTokens ?? 4096,
     ...(options.systemPrompt ? { system: options.systemPrompt } : {}),
     messages: [{ role: 'user', content: prompt }],
   });
 
-  let answer = '';
-  for (const block of response.content) {
-    if (block.type === 'text') {
-      answer += block.text;
-    }
-  }
-  return answer.trim();
+  return result.textStream;
 }

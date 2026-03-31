@@ -68,8 +68,8 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
         }
         if (topicOpenQ.length > 0) {
           sections.push(
-            'Open questions related to this topic:\n' +
-            topicOpenQ.map(m => `- ${m.text}`).join('\n')
+            'Open questions related to this topic (DO NOT create new [OPEN:slug] tags with these slugs — they already exist):\n' +
+            topicOpenQ.map(m => `- ${m.id ? `[OPEN:${m.id}]` : '[OPEN]'} ${m.text}`).join('\n')
           );
         }
       } catch { /* non-critical */ }
@@ -78,6 +78,18 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
     const open = unresolved.open.slice(0, 2);
     if (open.length > 0) {
       sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
+    }
+
+    // Compact slug list for dedup
+    const existingSlugs = unresolved.open
+      .filter(o => o.id)
+      .map(o => o.id!);
+    if (existingSlugs.length > 0) {
+      sections.push(
+        `Existing OPEN slugs (${existingSlugs.length} total — do NOT reuse these slugs in new [OPEN:slug] tags):\n` +
+        existingSlugs.slice(0, 30).join(', ') +
+        (existingSlugs.length > 30 ? `, ...and ${existingSlugs.length - 30} more` : '')
+      );
     }
 
     return sections.length > 0 ? sections.join('\n\n') : '';

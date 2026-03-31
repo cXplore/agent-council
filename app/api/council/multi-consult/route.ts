@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { getConfig, getActiveProjectConfig } from '@/lib/config';
+import { getConfig, getActiveProjectConfig, getProjectConfigByName } from '@/lib/config';
 import { parseFrontmatter } from '@/lib/agent-templates';
 import { buildTagIndex, getUnresolved, recallByTopic } from '@/lib/tag-index';
 import {
@@ -119,8 +119,8 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
         }
         if (topicOpenQ.length > 0) {
           sections.push(
-            'Open questions related to this topic:\n' +
-            topicOpenQ.map(m => `- ${m.text}`).join('\n')
+            'Open questions related to this topic (DO NOT create new [OPEN:slug] tags with these slugs — they already exist):\n' +
+            topicOpenQ.map(m => `- ${m.id ? `[OPEN:${m.id}]` : '[OPEN]'} ${m.text}`).join('\n')
           );
         }
       } catch { /* recallByTopic failure is non-critical */ }
@@ -132,6 +132,18 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
       sections.push('Other open questions:\n' + open.map(o => `- ${o.text}`).join('\n'));
     }
 
+    // Compact slug list for dedup: all active OPEN slugs so agents avoid creating duplicates
+    const existingSlugs = unresolved.open
+      .filter(o => o.id)
+      .map(o => o.id!);
+    if (existingSlugs.length > 0) {
+      sections.push(
+        `Existing OPEN slugs (${existingSlugs.length} total — do NOT reuse these slugs in new [OPEN:slug] tags):\n` +
+        existingSlugs.slice(0, 30).join(', ') +
+        (existingSlugs.length > 30 ? `, ...and ${existingSlugs.length - 30} more` : '')
+      );
+    }
+
     return sections.length > 0 ? sections.join('\n\n') : '';
   } catch {
     return '';
@@ -140,6 +152,7 @@ async function loadWorkContext(meetingsDir: string, topic?: string): Promise<str
 
 /**
  * Build the system prompt for an agent, including context enrichment.
+ * Returns both the prompt and the agent's preferred model (from frontmatter).
  */
 async function buildAgentPrompt(
   agentName: string,
@@ -147,15 +160,20 @@ async function buildAgentPrompt(
   meetingsDir: string,
   topic: string,
   workContext: string,
-): Promise<string> {
+): Promise<{ prompt: string; model?: string }> {
   const parts: string[] = [];
+  let agentModel: string | undefined;
 
-  // Load agent's system prompt
+  // Load agent's system prompt and model preference
   try {
     const agentFile = path.join(agentsDir, `${agentName}.md`);
     const content = await readFile(agentFile, 'utf-8');
-    const { body } = parseFrontmatter(content);
+    const { frontmatter, body } = parseFrontmatter(content);
     if (body.trim()) parts.push(body.trim());
+    // Read model from frontmatter (e.g., "opus", "anthropic/claude-opus-4.6", "openai/gpt-5.4")
+    if (frontmatter['model'] && typeof frontmatter['model'] === 'string') {
+      agentModel = frontmatter['model'] as string;
+    }
   } catch {
     // Agent file not found — proceed without role prompt
   }
@@ -210,7 +228,7 @@ async function buildAgentPrompt(
     }
   }
 
-  return parts.join('\n\n');
+  return { prompt: parts.join('\n\n'), model: agentModel };
 }
 
 // queryWithRetry is now provided by lib/llm-query.ts as queryLLM
@@ -222,14 +240,13 @@ async function queryAgent(
   agentName: string,
   question: string,
   systemPrompt: string,
-  _codeAware: boolean,
-  _projectPath?: string,
+  model?: string,
 ): Promise<string> {
   // DECISION (2026-03-31 design review): codeAware meetings do NOT give agents
   // file-reading tools. Tool presence overrides prompt instructions, causing agents
   // to spend all turns reading files instead of deliberating. Code awareness is
   // achieved through pre-flight context injection only.
-  return queryLLM(question, { systemPrompt }, `Agent ${agentName}`);
+  return queryLLM(question, { systemPrompt, model }, `Agent ${agentName}`);
 }
 
 /**
@@ -263,6 +280,7 @@ export async function POST(req: NextRequest) {
     const codeAware: boolean = body?.codeAware === true;
     const writeMeeting: boolean = body?.writeMeeting !== false;
     const asyncMode: boolean = body?.async === true;
+    const projectOverride: string | undefined = typeof body?.project === 'string' ? body.project : undefined;
 
     // Validate
     if (!topic) {
@@ -285,10 +303,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Pre-compute meeting filename so it's available for the 202 response
+    const earlyMeetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
+
     // Core meeting execution — extracted so it can run sync or async
     async function runMeeting(jobId?: string): Promise<Record<string, unknown>> {
       const config = await getConfig();
-      const active = getActiveProjectConfig(config);
+      const active = projectOverride
+        ? getProjectConfigByName(config, projectOverride) ?? getActiveProjectConfig(config)
+        : getActiveProjectConfig(config);
 
       if (jobId) updateJob(jobId, { status: 'running', progress: 'Loading context...' });
 
@@ -310,28 +333,28 @@ export async function POST(req: NextRequest) {
 
       if (jobId) updateJob(jobId, { progress: 'Building agent prompts...' });
 
-      // Build base system prompts for all agents in parallel
-      const promptsMap = new Map<string, string>();
+      // Build base system prompts and load model preferences for all agents in parallel
+      const agentConfigs = new Map<string, { prompt: string; model?: string }>();
       await Promise.all(
         agents.map(async (agentName) => {
-          let prompt = await buildAgentPrompt(
+          const result = await buildAgentPrompt(
             agentName, active.agentsDir, active.meetingsDir, topic, workContext,
           );
+          let prompt = result.prompt;
           // Inject pre-flight context into every agent's prompt
           if (preflightContext) {
             prompt += '\n\n---\n\n' + preflightContext;
           }
           // DECISION (2026-03-31): codeAware agents get no tools, only injected context.
-          // Replace the old "don't re-read" instruction with a simpler "use injected context" note.
           if (codeAware && preflightContext) {
             prompt += '\n\n---\n\n## Code-Aware Context\n\nRelevant source files have been pre-injected above. Use this context to ground your analysis in the actual codebase. Focus entirely on deliberating the topic — do not attempt to read additional files.';
           }
-          promptsMap.set(agentName, prompt);
+          agentConfigs.set(agentName, { prompt, model: result.model });
         }),
       );
 
       // Generate meeting filename early so events reference the right file
-      const meetingFilename = writeMeeting ? generateMeetingFilename(type, topic) : '';
+      const meetingFilename = earlyMeetingFilename;
       // Use first sentence or first 80 chars as title — full topic goes in the objective field
       const shortTopic = topic.includes('.') ? topic.split('.')[0] : (topic.length > 80 ? topic.slice(0, 80).replace(/\s+\S*$/, '') + '...' : topic);
       const meetingTitle = `${type.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}: ${shortTopic}`;
@@ -351,6 +374,7 @@ export async function POST(req: NextRequest) {
         lines.push(`participants: [${agents.join(', ')}]`);
         lines.push(`rounds: ${roundCount}`);
         lines.push(`objective: "Multi-agent consult on: ${topic.replace(/"/g, '\\"')}"`);
+        if (projectOverride) lines.push(`project: ${projectOverride}`);
         lines.push('---');
         lines.push('');
         lines.push(`# ${meetingTitle}`);
@@ -410,9 +434,9 @@ export async function POST(req: NextRequest) {
             if (meetingFilename) {
               emitEvent('agent_speaking', meetingFilename, agentName);
             }
-            const systemPrompt = promptsMap.get(agentName) ?? '';
+            const config = agentConfigs.get(agentName) ?? { prompt: '' };
             const answer = await queryAgent(
-              agentName, question, systemPrompt, codeAware, active.projectPath,
+              agentName, question, config.prompt, config.model,
             );
             return { agent: agentName, answer };
           }),
@@ -518,6 +542,7 @@ export async function POST(req: NextRequest) {
         jobId: job.id,
         status: 'pending',
         message: 'Meeting started in background. Poll GET /api/council/job-status/' + job.id + ' for results.',
+        ...(earlyMeetingFilename ? { meetingFile: earlyMeetingFilename } : {}),
       }, { status: 202 });
     }
 

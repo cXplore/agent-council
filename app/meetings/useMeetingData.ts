@@ -63,6 +63,9 @@ export interface MeetingData {
   notesOpen: boolean;
   noteText: string;
   latestEvent: string | null;
+  lastEventTimestamp: number | null;
+  currentRound: string | null; // e.g. "Round 1 of 2"
+  currentAgent: string | null; // e.g. "architect"
   contextCards: { id: string; context: string; source?: string; timestamp: string }[];
   paceMode: 'auto' | 'guided';
   showPlanForm: boolean;
@@ -224,6 +227,9 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
 
   const [seenContent, setSeenContent] = useState<string>('');
   const [latestEvent, setLatestEvent] = useState<string | null>(null);
+  const [lastEventTimestamp, setLastEventTimestamp] = useState<number | null>(null);
+  const [currentRound, setCurrentRound] = useState<string | null>(null);
+  const [currentAgent, setCurrentAgent] = useState<string | null>(null);
   const [paceMode, setPaceMode] = useState<'auto' | 'guided'>('auto');
   const [contextCards, setContextCards] = useState<{ id: string; context: string; source?: string; timestamp: string }[]>([]);
 
@@ -456,6 +462,7 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
         const newLength = data.content?.length ?? 0;
         if (newLength > lastContentLengthRef.current) {
           setRecentlyUpdated(true);
+          setLastEventTimestamp(Date.now());
           if (recentlyUpdatedTimerRef.current) {
             clearTimeout(recentlyUpdatedTimerRef.current);
           }
@@ -552,6 +559,8 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
   useEffect(() => {
     if (!selected || !detail || detail.status !== 'in-progress') {
       setLatestEvent(null);
+      setCurrentRound(null);
+      setCurrentAgent(null);
       return;
     }
 
@@ -563,21 +572,34 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
         const events = data.events;
         if (events && events.length > 0) {
           const last = events[events.length - 1];
+          const now = Date.now();
           switch (last.event) {
             case 'meeting_starting':
               setLatestEvent('Meeting starting...');
+              setLastEventTimestamp(now);
+              setCurrentAgent(null);
               break;
             case 'round_starting':
               setLatestEvent(`${last.detail || 'Next round'} starting...`);
+              setLastEventTimestamp(now);
+              setCurrentRound(last.detail || null); // e.g. "Round 1 of 2"
+              setCurrentAgent(null);
               break;
             case 'agent_speaking':
               setLatestEvent(`${last.detail || 'Agent'} is thinking...`);
+              setLastEventTimestamp(now);
+              setCurrentAgent(last.detail || null);
               break;
             case 'round_complete':
               setLatestEvent(`${last.detail || 'Round'} complete`);
+              setLastEventTimestamp(now);
+              setCurrentAgent(null);
               break;
             case 'meeting_complete':
               setLatestEvent('Meeting complete');
+              setLastEventTimestamp(now);
+              setCurrentRound(null);
+              setCurrentAgent(null);
               break;
             default:
               setLatestEvent(null);
@@ -926,6 +948,9 @@ export function useMeetingData(activeProject: string | null, setHasFacilitatorPr
     notesOpen,
     noteText,
     latestEvent,
+    lastEventTimestamp,
+    currentRound,
+    currentAgent,
     contextCards,
     paceMode,
     showPlanForm,

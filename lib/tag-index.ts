@@ -16,6 +16,12 @@ export interface TagEntry {
   date: string | null;     // from filename YYYY-MM-DD
 }
 
+export interface TagValidationWarning {
+  type: 'missing-assignee' | 'missing-done-when' | 'missing-rationale';
+  tag: TagEntry;
+  message: string;
+}
+
 export interface TagIndex {
   decisions: TagEntry[];
   open: TagEntry[];
@@ -25,6 +31,7 @@ export interface TagIndex {
   ideas: TagEntry[];
   meetingCount: number;
   builtAt: string;
+  validationWarnings: TagValidationWarning[];
 }
 
 interface CacheFile {
@@ -302,7 +309,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     const entries = await readdir(meetingsDir);
     files = entries.filter(f => f.endsWith('.md') && !f.startsWith('.'));
   } catch {
-    return { decisions: [], open: [], actions: [], resolved: [], closed: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString() };
+    return { decisions: [], open: [], actions: [], resolved: [], closed: [], ideas: [], meetingCount: 0, builtAt: new Date().toISOString(), validationWarnings: [] };
   }
 
   // Check mtimes to determine which files need re-indexing
@@ -327,9 +334,9 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
   // Check for removed files
   const removedFiles = cached ? Object.keys(cached.mtimes).filter(f => !files.includes(f)) : [];
 
-  // If nothing changed, return cached index
+  // If nothing changed, return cached index (ensure validationWarnings exists for older caches)
   if (cached && changedFiles.length === 0 && removedFiles.length === 0) {
-    return cached.index;
+    return { ...cached.index, validationWarnings: cached.index.validationWarnings ?? [] };
   }
 
   // Incremental rebuild: reuse cached entries for unchanged files, re-index changed ones
@@ -376,15 +383,31 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     }
   }
 
-  // Dev-mode validation: warn about ACTION tags missing assignee or done-when
-  if (process.env.NODE_ENV === 'development') {
-    for (const action of actions) {
-      if (!action.assignee && !action.text.match(/assigned to\s+\S+/i)) {
-        console.warn(`[tag-index] ACTION missing assignee: "${action.text.slice(0, 80)}" in ${action.meeting}`);
-      }
-      if (!action.doneWhen) {
-        console.warn(`[tag-index] ACTION missing "done when:" criteria: "${action.text.slice(0, 80)}" in ${action.meeting}`);
-      }
+  // Validate tag quality: @role and "done when:" on ACTIONs, "because:" on DECISIONs
+  const validationWarnings: TagValidationWarning[] = [];
+  for (const action of actions) {
+    if (!action.assignee && !action.text.match(/assigned to\s+\S+/i)) {
+      validationWarnings.push({
+        type: 'missing-assignee',
+        tag: action,
+        message: `ACTION missing @role: "${action.text.slice(0, 80)}"`,
+      });
+    }
+    if (!action.doneWhen) {
+      validationWarnings.push({
+        type: 'missing-done-when',
+        tag: action,
+        message: `ACTION missing "done when:": "${action.text.slice(0, 80)}"`,
+      });
+    }
+  }
+  for (const decision of decisions) {
+    if (!decision.text.match(/because[:\s]/i)) {
+      validationWarnings.push({
+        type: 'missing-rationale',
+        tag: decision,
+        message: `DECISION missing rationale ("because:"): "${decision.text.slice(0, 80)}"`,
+      });
     }
   }
 
@@ -397,6 +420,7 @@ export async function buildTagIndex(meetingsDir: string): Promise<TagIndex> {
     ideas,
     meetingCount: files.length,
     builtAt: new Date().toISOString(),
+    validationWarnings,
   };
 
   // Write cache atomically: write to .tmp then rename to prevent corruption on interrupted writes
@@ -523,15 +547,15 @@ export async function getUnresolved(meetingsDir: string): Promise<{ open: TagEnt
     ...(index.closed ?? []).map(c => c.id).filter((id): id is string => id !== null),
   ]);
 
-  // Load roadmap status store to filter out done/stale items
+  // Load roadmap status store to filter out done/stale/duplicate items
   const statusFilePath = path.join(meetingsDir, '.council-action-status.json');
   let doneOrStale = new Set<string>();
   try {
     const raw = await readFile(statusFilePath, 'utf-8');
-    const store = JSON.parse(raw) as { statuses: Record<string, { status: string }> };
+    const store = JSON.parse(raw) as { statuses: Record<string, { status: string; duplicateOf?: string }> };
     doneOrStale = new Set(
       Object.entries(store.statuses)
-        .filter(([, v]) => v.status === 'done' || v.status === 'stale')
+        .filter(([, v]) => v.status === 'done' || v.status === 'stale' || v.duplicateOf)
         .map(([k]) => k)
     );
   } catch {

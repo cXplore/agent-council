@@ -112,6 +112,7 @@ export function parseMetadata(content: string) {
     participants,
     recommendedMeetings,
     objective: fm['objective'] ?? objectiveMatch?.[1]?.replace(/^["']|["']$/g, '').trim() ?? null,
+    project: fm['project'] ?? null,
   };
 }
 
@@ -382,6 +383,7 @@ Rules:
 - Decisions MUST include rationale ("because..."). A decision without rationale is just an opinion.
 - Actions MUST include \`@role\` and "done when:". An unassigned action is a wish, not a commitment.
 - Open questions need a trigger condition for when to revisit
+- Before creating a new \`[OPEN:slug]\`, check if that slug already exists in the pre-flight context. If it does, reference the existing question instead of creating a duplicate.
 - Place tags at the START of a bullet point line
 `.trim();
 

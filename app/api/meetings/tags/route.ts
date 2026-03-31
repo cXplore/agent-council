@@ -71,6 +71,7 @@ export async function GET(req: NextRequest) {
         actions: index.actions.length,
         meetingCount: index.meetingCount,
         builtAt: index.builtAt,
+        validationWarningCount: (index.validationWarnings ?? []).length,
       }, {
         headers: { 'Cache-Control': 'no-cache, no-store' },
       });

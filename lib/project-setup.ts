@@ -47,7 +47,8 @@ export function buildPlaceholders(projectPath: string, profile: ProjectProfile):
   } else if (isMinimalScan) {
     frameworkNames = 'not yet identified — treat framework assumptions as uncertain';
   } else {
-    frameworkNames = 'Unknown';
+    // No standard framework detected — this is normal for many Python/Go/Rust projects
+    frameworkNames = 'no standard framework detected';
   }
 
   let languageNames: string;
@@ -99,7 +100,7 @@ export function buildPlaceholders(projectPath: string, profile: ProjectProfile):
     MEETINGS_DIR: 'meetings',
     LIBRARIES: libSections.length > 0 ? libSections.join('\n') : 'None detected',
     ANIMATION_LIBS: (libs.animation ?? []).join(', ') || 'None installed',
-    TESTING_LIBS: (libs.testing ?? []).join(', ') || 'None installed',
+    TESTING_LIBS: [...new Set([...(libs.testing ?? []), ...(profile.testInfo?.frameworks ?? [])])].join(', ') || 'None installed',
     DB_LIBS: (libs.database ?? []).join(', ') || 'None installed',
     UI_LIBS: (libs.ui ?? []).join(', ') || 'None installed',
     THREE_D_LIBS: (libs['3d'] ?? []).join(', ') || 'None installed',

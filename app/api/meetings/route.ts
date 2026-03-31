@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
             started: metadata.started,
             participants: metadata.participants,
             modifiedAt: fileStat.mtime.toISOString(),
-            project,
+            project: metadata.project || project,
             preview: preview ? (preview.length >= 120 ? preview + '...' : preview) : undefined,
             objective: metadata.objective || undefined,
             recommendedMeetings: metadata.recommendedMeetings?.length ? metadata.recommendedMeetings : undefined,

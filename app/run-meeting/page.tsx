@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const AGENTS = [
   { id: 'project-manager', label: 'Project Manager', shortLabel: 'PM', role: 'Grounds discussion in reality — what exists, what\'s feasible, what ships' },
@@ -37,11 +38,43 @@ type Outcomes = {
 
 type RunState =
   | { phase: 'idle' }
-  | { phase: 'running'; jobId?: string; progress?: string }
+  | { phase: 'running'; jobId?: string; progress?: string; meetingFile?: string }
   | { phase: 'done'; meetingFile: string; outcomes?: Outcomes; elapsed?: number }
   | { phase: 'error'; message: string };
 
+type ProjectInfo = {
+  name: string;
+  path: string;
+  accessible: boolean;
+};
+
+type ProjectBrief = {
+  name: string;
+  path: string | null;
+  meetingCount: number;
+  profile: {
+    languages: { name: string; fileCount: number; percentage: number }[];
+    frameworks: { name: string; confidence: string; version?: string }[];
+    structure: Record<string, boolean>;
+    projectDescription?: string;
+    testInfo?: { frameworks: string[]; fileCount: number };
+    entryPoint?: string;
+    synthesis?: {
+      stackSignals: string[];
+      gaps: string[];
+      suggestedFirstTopic: string | null;
+    };
+  } | null;
+  synthesis: {
+    stackSignals: string[];
+    gaps: string[];
+    suggestedFirstTopic: string | null;
+  } | null;
+};
+
 export default function RunMeetingPage() {
+  const searchParams = useSearchParams();
+  const projectParam = searchParams.get('project');
   const [topic, setTopic] = useState('');
   const [selectedAgents, setSelectedAgents] = useState<string[]>([
     'project-manager', 'critic', 'north-star',
@@ -53,6 +86,53 @@ export default function RunMeetingPage() {
   const [runState, setRunState] = useState<RunState>({ phase: 'idle' });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Project state
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [brief, setBrief] = useState<ProjectBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  // Load projects on mount
+  useEffect(() => {
+    fetch('/api/projects')
+      .then(r => r.json())
+      .then((data) => {
+        const list: ProjectInfo[] = (data.projects ?? []).map((p: ProjectInfo) => ({
+          name: p.name,
+          path: p.path,
+          accessible: p.accessible,
+        }));
+        setProjects(list);
+        // Prefer URL param ?project=<name>, fall back to first accessible
+        const fromParam = projectParam ? list.find(p => p.name === projectParam && p.accessible) : null;
+        const first = fromParam || list.find(p => p.accessible);
+        if (first) setSelectedProject(first.name);
+      })
+      .catch(() => {});
+  }, [projectParam]);
+
+  // Fetch brief when project changes
+  const fetchBrief = useCallback(async (projectName: string) => {
+    if (!projectName) { setBrief(null); return; }
+    setBriefLoading(true);
+    try {
+      const res = await fetch(`/api/projects/brief?project=${encodeURIComponent(projectName)}`);
+      if (res.ok) {
+        setBrief(await res.json());
+      } else {
+        setBrief(null);
+      }
+    } catch {
+      setBrief(null);
+    } finally {
+      setBriefLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedProject) fetchBrief(selectedProject);
+  }, [selectedProject, fetchBrief]);
 
   // Clean up poll interval on unmount
   useEffect(() => {
@@ -99,6 +179,7 @@ export default function RunMeetingPage() {
           rounds,
           codeAware,
           async: true,
+          ...(selectedProject ? { project: selectedProject } : {}),
         }),
       });
 
@@ -108,8 +189,8 @@ export default function RunMeetingPage() {
         return;
       }
 
-      const { jobId } = await res.json();
-      setRunState({ phase: 'running', jobId, progress: 'Meeting in progress...' });
+      const { jobId, meetingFile: mf } = await res.json();
+      setRunState({ phase: 'running', jobId, progress: 'Meeting in progress...', meetingFile: mf });
 
       // Poll for completion — store handle in ref for cleanup
       if (pollRef.current) clearInterval(pollRef.current);
@@ -119,7 +200,7 @@ export default function RunMeetingPage() {
           const status = await statusRes.json();
 
           if (status.status === 'running') {
-            setRunState({ phase: 'running', jobId, progress: status.progress || 'Meeting in progress...' });
+            setRunState(prev => ({ phase: 'running', jobId, progress: status.progress || 'Meeting in progress...', meetingFile: (prev as { meetingFile?: string }).meetingFile }));
           } else if (status.status === 'complete') {
             if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
             const result = status.result ?? {};
@@ -142,6 +223,13 @@ export default function RunMeetingPage() {
         phase: 'error',
         message: err instanceof Error ? err.message : 'Failed to start meeting',
       });
+    }
+  }
+
+  // Use suggested topic from scanner
+  function useSuggestedTopic() {
+    if (brief?.synthesis?.suggestedFirstTopic) {
+      setTopic(brief.synthesis.suggestedFirstTopic);
     }
   }
 
@@ -180,6 +268,142 @@ export default function RunMeetingPage() {
           color: 'var(--text-muted)',
         }}>
           Backend: <strong>{llmStatus.backend === 'agent-sdk' ? 'Claude Code (Agent SDK)' : 'Anthropic API (direct)'}</strong>
+        </div>
+      )}
+
+      {/* Project Selector */}
+      {projects.length > 0 && (
+        <label style={{ display: 'block', marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, display: 'block', marginBottom: 6 }}>Project</span>
+          <select
+            value={selectedProject}
+            onChange={e => setSelectedProject(e.target.value)}
+            disabled={runState.phase === 'running'}
+            style={{
+              width: '100%',
+              padding: '8px 10px',
+              fontSize: 13,
+              background: 'var(--bg-secondary, #1a1a2e)',
+              color: 'var(--text-primary, #e0e0e0)',
+              border: '1px solid var(--border-color, #333)',
+              borderRadius: 8,
+            }}
+          >
+            {projects.filter(p => p.accessible).map(p => (
+              <option key={p.name} value={p.name}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {/* Project Context Card */}
+      {selectedProject && (
+        <div style={{
+          marginBottom: 20,
+          border: '1px solid var(--border-color, #333)',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}>
+          {briefLoading ? (
+            <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--text-muted)' }}>
+              Scanning project...
+            </div>
+          ) : brief?.profile ? (
+            <div style={{ padding: '10px 14px' }}>
+              {/* Project description */}
+              {brief.profile.projectDescription && (
+                <div style={{ fontSize: 12, color: 'var(--text-secondary, #aaa)', marginBottom: 8, lineHeight: 1.4 }}>
+                  {brief.profile.projectDescription}
+                </div>
+              )}
+
+              {/* Stack badges */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                {brief.profile.languages.slice(0, 3).map(l => (
+                  <span key={l.name} style={{
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    background: 'rgba(99, 102, 241, 0.15)',
+                    color: '#a5b4fc',
+                    borderRadius: 4,
+                  }}>
+                    {l.name} {l.percentage}%
+                  </span>
+                ))}
+                {brief.profile.frameworks.filter(f => f.confidence === 'high').map(f => (
+                  <span key={f.name} style={{
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    color: '#86efac',
+                    borderRadius: 4,
+                  }}>
+                    {f.name}{f.version ? ` ${f.version}` : ''}
+                  </span>
+                ))}
+                {brief.profile.testInfo && brief.profile.testInfo.fileCount > 0 && (
+                  <span style={{
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    background: 'rgba(251, 191, 36, 0.15)',
+                    color: '#fcd34d',
+                    borderRadius: 4,
+                  }}>
+                    {brief.profile.testInfo.frameworks.join(', ')} ({brief.profile.testInfo.fileCount} files)
+                  </span>
+                )}
+              </div>
+
+              {/* Gaps */}
+              {brief.synthesis?.gaps && brief.synthesis.gaps.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                  {brief.synthesis.gaps.slice(0, 3).map((g, i) => (
+                    <span key={i} style={{
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: '#fca5a5',
+                      borderRadius: 4,
+                    }}>
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Meeting count + suggested topic */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+                <span>{brief.meetingCount} meeting{brief.meetingCount !== 1 ? 's' : ''}</span>
+                {brief.synthesis?.suggestedFirstTopic && !topic && (
+                  <>
+                    <span style={{ color: 'var(--border-color, #555)' }}>·</span>
+                    <button
+                      onClick={useSuggestedTopic}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#a5b4fc',
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        padding: 0,
+                        textDecoration: 'underline',
+                        textUnderlineOffset: 2,
+                      }}
+                    >
+                      Use suggested topic
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : brief && !brief.profile ? (
+            <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-muted)' }}>
+              No scanner data available — project may not have source files.
+              <div style={{ marginTop: 4, fontSize: 11 }}>
+                {brief.meetingCount} meeting{brief.meetingCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -259,7 +483,7 @@ export default function RunMeetingPage() {
           gap: 4,
         }}
       >
-        <span style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>▸</span>
+        <span style={{ transform: showAdvanced ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>&#x25b8;</span>
         Advanced options
       </button>
 
@@ -378,8 +602,11 @@ export default function RunMeetingPage() {
             {runState.progress || 'Running...'}
           </div>
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-            Watch the live meeting at{' '}
-            <a href="/meetings" style={{ color: '#a5b4fc' }}>Meetings</a>
+            {runState.meetingFile ? (
+              <>Watch live: <a href={`/meetings?file=${encodeURIComponent(runState.meetingFile)}`} style={{ color: '#a5b4fc' }}>{runState.meetingFile.replace(/\.md$/, '')}</a></>
+            ) : (
+              <>Watch at <a href="/meetings" style={{ color: '#a5b4fc' }}>Meetings</a></>
+            )}
           </p>
         </div>
       )}
@@ -401,7 +628,7 @@ export default function RunMeetingPage() {
             gap: 8,
             fontSize: 13,
           }}>
-            <span style={{ color: '#22c55e', fontWeight: 600 }}>✓ Meeting complete</span>
+            <span style={{ color: '#22c55e', fontWeight: 600 }}>&#x2713; Meeting complete</span>
             {runState.elapsed && (
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 — {Math.round(runState.elapsed / 1000)}s
@@ -413,7 +640,7 @@ export default function RunMeetingPage() {
                   href={`/meetings?file=${encodeURIComponent(runState.meetingFile)}`}
                   style={{ color: '#22c55e', fontWeight: 500, fontSize: 12 }}
                 >
-                  View full →
+                  View full &#x2192;
                 </a>
               )}
               <button
@@ -443,13 +670,13 @@ export default function RunMeetingPage() {
                   </div>
                   {runState.outcomes.decisions!.slice(0, 3).map((d, i) => (
                     <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 10, marginBottom: 2, display: 'flex', gap: 6 }}>
-                      <span style={{ color: '#60a5fa', flexShrink: 0 }}>·</span>
+                      <span style={{ color: '#60a5fa', flexShrink: 0 }}>&#xb7;</span>
                       <span style={{ lineHeight: '1.4' }}>{d.text}</span>
                     </div>
                   ))}
                   {(runState.outcomes.decisions!.length > 3) && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 16 }}>
-                      …and {runState.outcomes.decisions!.length - 3} more
+                      ...and {runState.outcomes.decisions!.length - 3} more
                     </div>
                   )}
                 </div>
@@ -462,13 +689,13 @@ export default function RunMeetingPage() {
                   </div>
                   {runState.outcomes.actions!.slice(0, 3).map((a, i) => (
                     <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 10, marginBottom: 2, display: 'flex', gap: 6 }}>
-                      <span style={{ color: '#34d399', flexShrink: 0 }}>·</span>
+                      <span style={{ color: '#34d399', flexShrink: 0 }}>&#xb7;</span>
                       <span style={{ lineHeight: '1.4' }}>{a.text}</span>
                     </div>
                   ))}
                   {(runState.outcomes.actions!.length > 3) && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 16 }}>
-                      …and {runState.outcomes.actions!.length - 3} more
+                      ...and {runState.outcomes.actions!.length - 3} more
                     </div>
                   )}
                 </div>
@@ -487,7 +714,7 @@ export default function RunMeetingPage() {
                   ))}
                   {(runState.outcomes.openQuestions!.length > 2) && (
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 16 }}>
-                      …and {runState.outcomes.openQuestions!.length - 2} more
+                      ...and {runState.outcomes.openQuestions!.length - 2} more
                     </div>
                   )}
                 </div>

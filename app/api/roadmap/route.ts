@@ -8,7 +8,7 @@ import { hashItem, stableActionKey } from '@/lib/utils';
 
 // --- Status store types ---
 
-type ItemStatus = 'active' | 'done' | 'stale' | 'working';
+type ItemStatus = 'active' | 'done' | 'stale' | 'working' | 'duplicate';
 
 interface StatusEntry {
   status: ItemStatus;
@@ -16,6 +16,7 @@ interface StatusEntry {
   commitHash?: string;
   filesChanged?: string[];
   completedAt?: string;
+  duplicateOf?: string; // key of the canonical item this is a duplicate of
   updatedAt: string;
 }
 
@@ -59,6 +60,8 @@ export interface RoadmapItem extends TagEntry {
   commitHash?: string;
   filesChanged?: string[];
   completedAt?: string;
+  /** Key of the canonical item this is a duplicate of (read-path tombstone) */
+  duplicateOf?: string;
 }
 
 interface RoadmapResponse {
@@ -179,12 +182,13 @@ export async function GET(req: NextRequest) {
       return {
         ...tag,
         hash,
-        itemStatus: stored?.status ?? defaultStatus,
+        itemStatus: stored?.duplicateOf ? 'duplicate' : (stored?.status ?? defaultStatus),
         statusNote: stored?.note,
         statusUpdatedAt: stored?.updatedAt,
         commitHash: stored?.commitHash,
         filesChanged: stored?.filesChanged,
         completedAt: stored?.completedAt,
+        duplicateOf: stored?.duplicateOf,
       };
     });
 
@@ -219,14 +223,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status, note, commitHash, filesChanged } = body;
+    const { id, status, note, commitHash, filesChanged, duplicateOf } = body;
 
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ error: 'id is required (string)' }, { status: 400 });
     }
 
-    if (!status || !['done', 'active', 'stale', 'working'].includes(status)) {
-      return NextResponse.json({ error: 'status must be done, active, stale, or working' }, { status: 400 });
+    if (!status || !['done', 'active', 'stale', 'working', 'duplicate'].includes(status)) {
+      return NextResponse.json({ error: 'status must be done, active, stale, working, or duplicate' }, { status: 400 });
+    }
+
+    if (status === 'duplicate' && (!duplicateOf || typeof duplicateOf !== 'string')) {
+      return NextResponse.json({ error: 'duplicateOf is required when status is duplicate' }, { status: 400 });
     }
 
     if (note && (typeof note !== 'string' || note.length > 2000)) {
@@ -255,11 +263,12 @@ export async function POST(req: NextRequest) {
     } else {
       const now = new Date().toISOString();
       store.statuses[id] = {
-        status,
+        status: status === 'duplicate' ? 'done' : status, // duplicates are stored as 'done' with duplicateOf marker
         ...(note ? { note } : {}),
         ...(commitHash ? { commitHash } : {}),
         ...(filesChanged?.length ? { filesChanged } : {}),
         ...(status === 'done' ? { completedAt: now } : {}),
+        ...(status === 'duplicate' ? { duplicateOf, completedAt: now } : {}),
         updatedAt: now,
       };
     }

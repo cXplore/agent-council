@@ -142,6 +142,27 @@ function resolveProjectDir(project: ProjectConfig, key: 'agentsDir' | 'meetingsD
   return path.join(project.path, dir);
 }
 
+/** Get a specific project's config by name, or null if not found */
+export function getProjectConfigByName(config: CouncilConfig, projectName: string): ActiveProjectResult | null {
+  if (projectName === 'workspace') {
+    return {
+      name: 'workspace',
+      agentsDir: resolveDir(config.workspace.agentsDir),
+      meetingsDir: resolveDir(config.workspace.meetingsDir),
+    };
+  }
+
+  const project = config.projects[projectName];
+  if (!project) return null;
+
+  return {
+    name: projectName,
+    projectPath: project.path,
+    agentsDir: resolveProjectDir(project, 'agentsDir'),
+    meetingsDir: resolveProjectDir(project, 'meetingsDir'),
+  };
+}
+
 /** Validate that connected projects still exist on disk */
 export async function validateProjects(config: CouncilConfig): Promise<{ valid: string[]; missing: string[] }> {
   const valid: string[] = [];

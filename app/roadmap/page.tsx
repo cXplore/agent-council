@@ -544,6 +544,122 @@ function SearchPanel() {
   );
 }
 
+/** Simple word-overlap similarity between two strings (0-1) */
+function textSimilarity(a: string, b: string): number {
+  const wordsA = new Set(a.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+  const wordsB = new Set(b.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  let overlap = 0;
+  for (const w of wordsA) if (wordsB.has(w)) overlap++;
+  return overlap / Math.min(wordsA.size, wordsB.size);
+}
+
+/** Group items by text similarity into clusters */
+function clusterByText(items: RoadmapItem[], threshold = 0.5): { representative: string; items: RoadmapItem[] }[] {
+  const clusters: { representative: string; items: RoadmapItem[] }[] = [];
+  const assigned = new Set<number>();
+
+  for (let i = 0; i < items.length; i++) {
+    if (assigned.has(i)) continue;
+    const cluster: RoadmapItem[] = [items[i]];
+    assigned.add(i);
+
+    for (let j = i + 1; j < items.length; j++) {
+      if (assigned.has(j)) continue;
+      if (textSimilarity(items[i].text, items[j].text) >= threshold) {
+        cluster.push(items[j]);
+        assigned.add(j);
+      }
+    }
+    // Only show as cluster if there are duplicates
+    if (cluster.length > 1) {
+      clusters.push({ representative: items[i].text, items: cluster });
+    }
+  }
+  return clusters;
+}
+
+function TriageBatchBar({
+  selectedCount,
+  onBatchDone,
+  onBatchStale,
+  onClear,
+  updating,
+}: {
+  selectedCount: number;
+  onBatchDone: () => void;
+  onBatchStale: () => void;
+  onClear: () => void;
+  updating: boolean;
+}) {
+  if (selectedCount === 0) return null;
+  return (
+    <motion.div
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-5 py-3 rounded-xl shadow-lg"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--accent)', backdropFilter: 'blur(8px)' }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+    >
+      <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>
+        {selectedCount} selected
+      </span>
+      <button
+        onClick={onBatchDone}
+        disabled={updating}
+        className="text-xs px-3 py-1.5 rounded-lg font-medium"
+        style={{ background: 'rgba(59, 130, 246, 0.15)', color: 'var(--accent)' }}
+      >
+        {updating ? '...' : 'Mark Done'}
+      </button>
+      <button
+        onClick={onBatchStale}
+        disabled={updating}
+        className="text-xs px-3 py-1.5 rounded-lg font-medium"
+        style={{ background: 'rgba(107, 114, 128, 0.15)', color: 'var(--text-muted)' }}
+      >
+        {updating ? '...' : 'Archive'}
+      </button>
+      <button
+        onClick={onClear}
+        className="text-xs px-2 py-1 rounded"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        Clear
+      </button>
+    </motion.div>
+  );
+}
+
+function TriageItemRow({
+  item,
+  selected,
+  onToggle,
+}: {
+  item: RoadmapItem;
+  selected: boolean;
+  onToggle: (hash: string) => void;
+}) {
+  return (
+    <label className="flex items-start gap-2 cursor-pointer group py-1">
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={() => onToggle(item.hash)}
+        className="mt-1 accent-[var(--accent)] flex-shrink-0"
+      />
+      <TypeBadge type={item.type} />
+      <AgeBadge date={item.date} status={item.itemStatus} />
+      <span className="text-sm leading-relaxed flex-1 min-w-0" style={{ color: 'var(--text-secondary)' }}>
+        {item.text}
+      </span>
+      <span className="text-[10px] font-mono flex-shrink-0 truncate max-w-[120px]" style={{ color: 'var(--text-muted)', opacity: 0.5 }}>
+        {item.meetingTitle.slice(0, 30)}
+      </span>
+    </label>
+  );
+}
+
 function RoadmapInner() {
   const [data, setData] = useState<RoadmapResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -551,6 +667,9 @@ function RoadmapInner() {
   const [fetchError, setFetchError] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [triageMode, setTriageMode] = useState(false);
+  const [triageSelected, setTriageSelected] = useState<Set<string>>(new Set());
+  const [triageBatchUpdating, setTriageBatchUpdating] = useState(false);
   const prevCountsRef = useRef<{ done: number; active: number } | null>(null);
   const isInitialRender = useRef(true);
 
@@ -603,6 +722,36 @@ function RoadmapInner() {
       console.error('Failed to update status:', err);
     }
   };
+
+  const toggleTriageSelect = useCallback((hash: string) => {
+    setTriageSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(hash)) next.delete(hash);
+      else next.add(hash);
+      return next;
+    });
+  }, []);
+
+  const handleBatchAction = useCallback(async (status: 'done' | 'stale') => {
+    if (triageSelected.size === 0) return;
+    setTriageBatchUpdating(true);
+    try {
+      const promises = Array.from(triageSelected).map(hash =>
+        fetch('/api/roadmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: hash, status }),
+        })
+      );
+      await Promise.all(promises);
+      setTriageSelected(new Set());
+      await loadData();
+    } catch (err) {
+      console.error('Batch update failed:', err);
+    } finally {
+      setTriageBatchUpdating(false);
+    }
+  }, [triageSelected, loadData]);
 
   if (loading) {
     return (
@@ -738,26 +887,138 @@ function RoadmapInner() {
             </motion.div>
 
             {/* Filter buttons */}
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {(['all', 'actions', 'questions', 'decisions'] as const).map(f => (
                 <button
                   key={f}
-                  onClick={() => setRoadmapFilter(f)}
-                  aria-pressed={roadmapFilter === f}
+                  onClick={() => { setRoadmapFilter(f); if (triageMode) setTriageMode(false); }}
+                  aria-pressed={roadmapFilter === f && !triageMode}
                   className="text-xs px-3 py-1 rounded-full transition-colors"
                   style={{
-                    background: roadmapFilter === f ? 'var(--accent-muted)' : 'transparent',
-                    color: roadmapFilter === f ? 'var(--accent)' : 'var(--text-muted)',
-                    border: `1px solid ${roadmapFilter === f ? 'var(--accent)' : 'var(--border)'}`,
+                    background: roadmapFilter === f && !triageMode ? 'var(--accent-muted)' : 'transparent',
+                    color: roadmapFilter === f && !triageMode ? 'var(--accent)' : 'var(--text-muted)',
+                    border: `1px solid ${roadmapFilter === f && !triageMode ? 'var(--accent)' : 'var(--border)'}`,
                   }}
                 >
                   {f === 'all' ? 'All' : f === 'actions' ? 'Actions' : f === 'questions' ? 'Open Questions' : 'Decisions'}
                 </button>
               ))}
+              <span style={{ color: 'var(--border)' }}>|</span>
+              <button
+                onClick={() => { setTriageMode(!triageMode); setTriageSelected(new Set()); }}
+                aria-pressed={triageMode}
+                className="text-xs px-3 py-1 rounded-full transition-colors"
+                style={{
+                  background: triageMode ? 'rgba(234, 179, 8, 0.15)' : 'transparent',
+                  color: triageMode ? 'var(--warning)' : 'var(--text-muted)',
+                  border: `1px solid ${triageMode ? 'var(--warning)' : 'var(--border)'}`,
+                }}
+              >
+                Triage
+              </button>
             </div>
 
+            {/* Triage mode */}
+            {triageMode && (() => {
+              const triageItems = [...activeActions, ...activeOpen];
+              const clusters = clusterByText(triageItems);
+              const clusteredHashes = new Set(clusters.flatMap(c => c.items.map(i => i.hash)));
+              const unclustered = triageItems.filter(i => !clusteredHashes.has(i.hash));
+
+              return (
+                <div>
+                  <SectionHeader title="Triage" count={triageItems.length} accent="var(--warning)" />
+
+                  {/* Duplicate clusters */}
+                  {clusters.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-xs font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--warning)' }}>
+                        <span>Potential duplicates</span>
+                        <span className="px-1.5 py-0.5 rounded-full tabular-nums" style={{ background: 'rgba(234, 179, 8, 0.12)' }}>
+                          {clusters.length} cluster{clusters.length !== 1 ? 's' : ''}
+                        </span>
+                      </h3>
+                      <div className="space-y-4">
+                        {clusters.map((cluster, ci) => (
+                          <div
+                            key={ci}
+                            className="rounded-lg px-4 py-3"
+                            style={{ background: 'var(--bg-card)', border: '1px solid rgba(234, 179, 8, 0.2)' }}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs font-medium" style={{ color: 'var(--warning)' }}>
+                                {cluster.items.length} similar items
+                              </span>
+                              <button
+                                onClick={() => {
+                                  // Select all in cluster except the first (keep the newest)
+                                  setTriageSelected(prev => {
+                                    const next = new Set(prev);
+                                    cluster.items.slice(1).forEach(i => next.add(i.hash));
+                                    return next;
+                                  });
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded"
+                                style={{ color: 'var(--accent)', background: 'rgba(59, 130, 246, 0.1)' }}
+                              >
+                                Select duplicates
+                              </button>
+                            </div>
+                            <div className="space-y-1">
+                              {cluster.items.map((item, ii) => (
+                                <TriageItemRow
+                                  key={`${ci}-${ii}-${item.hash}`}
+                                  item={item}
+                                  selected={triageSelected.has(item.hash)}
+                                  onToggle={toggleTriageSelect}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Remaining unclustered items */}
+                  {unclustered.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
+                        All items ({unclustered.length})
+                      </h3>
+                      <div
+                        className="rounded-lg px-4 py-3 space-y-1"
+                        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+                      >
+                        {unclustered.map((item, ui) => (
+                          <TriageItemRow
+                            key={`u-${ui}-${item.hash}`}
+                            item={item}
+                            selected={triageSelected.has(item.hash)}
+                            onToggle={toggleTriageSelect}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {triageItems.length === 0 && (
+                    <EmptySection message="No active items to triage. All clean." />
+                  )}
+
+                  <TriageBatchBar
+                    selectedCount={triageSelected.size}
+                    onBatchDone={() => handleBatchAction('done')}
+                    onBatchStale={() => handleBatchAction('stale')}
+                    onClear={() => setTriageSelected(new Set())}
+                    updating={triageBatchUpdating}
+                  />
+                </div>
+              );
+            })()}
+
             {/* In Progress section */}
-            {(roadmapFilter === 'all' || roadmapFilter === 'actions') && (
+            {!triageMode && (roadmapFilter === 'all' || roadmapFilter === 'actions') && (
             <div>
               <SectionHeader title="In Progress" count={activeActions.length} accent="var(--live-green)" />
               {activeActionGroups.length > 0 ? (
@@ -777,7 +1038,7 @@ function RoadmapInner() {
             )}
 
             {/* Open Questions section */}
-            {(roadmapFilter === 'all' || roadmapFilter === 'questions') && (
+            {!triageMode && (roadmapFilter === 'all' || roadmapFilter === 'questions') && (
             <div>
               <SectionHeader title="Open Questions" count={data.counts.openQuestions} accent="var(--warning)" />
               {activeOpenGroups.length > 0 ? (
@@ -797,7 +1058,7 @@ function RoadmapInner() {
             )}
 
             {/* Ideas backlog */}
-            {ideaItems.length > 0 && roadmapFilter === 'all' && (
+            {!triageMode && ideaItems.length > 0 && roadmapFilter === 'all' && (
             <div>
               <SectionHeader title="Ideas" count={ideaItems.length} accent="var(--color-idea)" />
               <div
@@ -812,7 +1073,7 @@ function RoadmapInner() {
             )}
 
             {/* Done section */}
-            {(roadmapFilter === 'all' || roadmapFilter === 'decisions') && (
+            {!triageMode && (roadmapFilter === 'all' || roadmapFilter === 'decisions') && (
             <div>
               <SectionHeader title="Done" count={doneItems.length} accent="var(--accent)" />
               {doneGroups.length > 0 ? (
