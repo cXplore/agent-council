@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 
 const AGENTS = [
-  { id: 'project-manager', label: 'PM', color: '#4ade80' },
-  { id: 'critic', label: 'Critic', color: '#f87171' },
-  { id: 'north-star', label: 'North Star', color: '#a78bfa' },
-  { id: 'architect', label: 'Architect', color: '#60a5fa' },
-  { id: 'developer', label: 'Developer', color: '#fbbf24' },
-  { id: 'designer', label: 'Designer', color: '#f472b6' },
+  { id: 'project-manager', label: 'PM', color: '#5ce8a0' },
+  { id: 'critic', label: 'Critic', color: '#f07070' },
+  { id: 'north-star', label: 'North Star', color: '#d090f0' },
+  { id: 'architect', label: 'Architect', color: '#7cb8f0' },
+  { id: 'developer', label: 'Developer', color: '#e8a060' },
+  { id: 'designer', label: 'Designer', color: '#f080b0' },
 ];
 
 const QUICK_ACTIONS = [

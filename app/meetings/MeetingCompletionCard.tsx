@@ -250,9 +250,9 @@ export default function MeetingCompletionCard({ content, recommendedMeetings, di
                     onClick={() => { if (!isQueued) onQueue(s.type ?? 'strategy-session', s.topic ?? s.text, s.text); }}
                     className="text-xs px-2.5 py-1 rounded-lg transition-colors hover:brightness-110"
                     style={{
-                      background: isQueued ? 'var(--bg-elevated)' : 'rgba(167,139,250,0.12)',
-                      color: isQueued ? 'var(--text-muted)' : '#a78bfa',
-                      border: '1px solid rgba(167,139,250,0.3)',
+                      background: isQueued ? 'var(--bg-elevated)' : 'var(--accent-muted)',
+                      color: isQueued ? 'var(--text-muted)' : 'var(--accent)',
+                      border: '1px solid var(--border-glow)',
                       textDecoration: isQueued ? 'line-through' : undefined,
                       cursor: isQueued ? 'default' : undefined,
                     }}

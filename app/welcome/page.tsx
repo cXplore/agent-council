@@ -7,7 +7,7 @@ function AgentCouncilLogo({ size = 48 }: { size?: number }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width={size} height={size}>
       <rect width="32" height="32" rx="8" fill="#1a1a1e" />
-      <circle cx="16" cy="10" r="3" fill="#7c6dd8" />
+      <circle cx="16" cy="10" r="3" fill="var(--accent)" />
       <circle cx="8" cy="20" r="3" fill="#4ade80" />
       <circle cx="24" cy="20" r="3" fill="#e8a87c" />
       <line x1="16" y1="13" x2="8" y2="17" stroke="#3a3a40" strokeWidth="1.5" />
@@ -79,7 +79,7 @@ const valueProps = [
   {
     title: 'MCP integration',
     description: 'Claude picks up where meetings left off. Decisions and action items feed back into your Claude Code sessions automatically.',
-    color: '#7c6dd8',
+    color: 'var(--accent)',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="16 18 22 12 16 6" />

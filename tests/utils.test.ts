@@ -4,7 +4,7 @@ import { getAgentColor, formatBytes, truncate, slugify } from '../lib/utils';
 describe('getAgentColor', () => {
   it('returns a valid HSL color string', () => {
     const color = getAgentColor('developer');
-    expect(color).toMatch(/^hsl\(\d+, 55%, 65%\)$/);
+    expect(color).toMatch(/^hsl\(\d+, 50%, 68%\)$/);
   });
 
   it('returns consistent color for same name', () => {

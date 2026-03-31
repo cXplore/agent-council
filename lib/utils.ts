@@ -5,7 +5,7 @@ export function getAgentColor(name: string): string {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = (hash >>> 0) % 360;
-  return `hsl(${hue}, 55%, 65%)`;
+  return `hsl(${hue}, 50%, 68%)`;
 }
 
 /** Format a byte size into a human-readable string */

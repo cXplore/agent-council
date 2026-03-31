@@ -1020,7 +1020,7 @@ function AgentsPageInner() {
                 }
               }}
               className="text-xs px-2.5 py-1 rounded"
-              style={{ background: 'var(--accent-muted)', color: '#a78bfa', border: '1px solid var(--border-glow)' }}
+              style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1px solid var(--border-glow)' }}
             >
               ✨ AI suggest teams
             </button>

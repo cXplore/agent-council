@@ -791,7 +791,7 @@ export default function MeetingList(props: MeetingListProps) {
                     onClick={() => setSuggestedExpanded(e => !e)}
                     className="flex items-center gap-3 text-xs px-3 py-2 w-full cursor-pointer hover:brightness-110 transition-colors"
                   >
-                    <span style={{ color: '#a78bfa' }}>
+                    <span style={{ color: 'var(--accent)' }}>
                       {suggestions.length} suggested meeting{suggestions.length !== 1 ? 's' : ''}
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>from completed meeting summaries</span>
@@ -822,7 +822,7 @@ export default function MeetingList(props: MeetingListProps) {
                                 setQueuedSuggestions(prev => new Set([...prev, s.text]));
                               }}
                               className="shrink-0 text-xs px-2 py-0.5 rounded transition-colors hover:brightness-110"
-                              style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+                              style={{ background: 'rgba(167,139,250,0.15)', color: 'var(--accent)', border: '1px solid rgba(167,139,250,0.3)' }}
                             >
                               + Queue
                             </button>

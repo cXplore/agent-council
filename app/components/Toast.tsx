@@ -63,7 +63,7 @@ function ToastItem({ toast: t, onDismiss }: { toast: ToastMessage; onDismiss: (i
   const colors = {
     success: { bg: 'rgba(74, 222, 128, 0.15)', border: 'rgba(74, 222, 128, 0.4)', text: '#4ade80' },
     error: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: '#ef4444' },
-    info: { bg: 'var(--accent-muted)', border: 'var(--border-glow)', text: '#7c6dd8' },
+    info: { bg: 'var(--accent-muted)', border: 'var(--border-glow)', text: 'var(--accent)' },
   };
   const c = colors[t.type];
 
