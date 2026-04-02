@@ -1,4 +1,4 @@
-import { readdir, stat, readFile } from 'node:fs/promises';
+import { readdir, stat, lstat, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ProjectProfile } from '@/lib/types';
 
@@ -82,12 +82,22 @@ async function walk(root: string, rel: string = '', depth: number = 0): Promise<
 
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
 
-    if (entry.isDirectory()) {
+    if (entry.isDirectory() || entry.isSymbolicLink()) {
+      // Resolve symlinks: check if target is a directory, skip to avoid loops
+      if (entry.isSymbolicLink()) {
+        try {
+          const targetStat = await stat(path.join(root, relPath));
+          if (!targetStat.isDirectory()) continue; // symlink to file — skip
+        } catch {
+          continue; // broken symlink — skip
+        }
+        // It's a symlink to a directory — skip to prevent cycles
+        continue;
+      }
       if (SKIP_DIRS.has(entry.name)) {
         if (depth === 0) result.skippedDirs.push(entry.name);
         continue;
       }
-      if (entry.isSymbolicLink()) continue;
       result.dirs.add(relPath);
       const sub = await walk(root, relPath, depth + 1);
       for (const f of sub.files) {

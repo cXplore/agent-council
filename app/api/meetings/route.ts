@@ -287,6 +287,11 @@ export async function PATCH(request: NextRequest) {
 
     const safeName = path.basename(file);
     const filePath = path.join(meetingsDir, safeName);
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(meetingsDir);
+    if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
     let fileContent = await readFile(filePath, 'utf-8');
 
     // Append content if provided (e.g., summary section, agent responses)
@@ -362,6 +367,12 @@ export async function DELETE(request: NextRequest) {
         continue;
       }
       const filePath = path.join(meetingsDir, safeName);
+      const resolvedPath = path.resolve(filePath);
+      const resolvedDir = path.resolve(meetingsDir);
+      if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+        skipped.push({ filename: safeName, reason: 'Invalid path' });
+        continue;
+      }
       try {
         const content = await readFile(filePath, 'utf-8');
         const metadata = parseMetadata(content);
@@ -394,6 +405,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Only .md files can be deleted' }, { status: 400 });
     }
     const filePath = path.join(meetingsDir, safeName);
+    const resolvedPath = path.resolve(filePath);
+    const resolvedDir = path.resolve(meetingsDir);
+    if (!resolvedPath.startsWith(resolvedDir + path.sep) && resolvedPath !== resolvedDir) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    }
 
     const content = await readFile(filePath, 'utf-8');
     const metadata = parseMetadata(content);

@@ -8,7 +8,6 @@ import { createMeetingComponents } from '@/lib/md-components';
 import { getContentForRound } from '@/lib/meeting-utils';
 import MeetingOutcomes, { countOutcomes } from './MeetingOutcomes';
 import MeetingCompletionCard from './MeetingCompletionCard';
-import MeetingSummaryCard from './MeetingSummaryCard';
 import { formatType, formatDuration } from './MeetingListCard';
 import { useToast } from '@/app/components/Toast';
 import type { MeetingData } from './useMeetingData';
@@ -66,7 +65,6 @@ export default function MeetingDetail(props: MeetingDetailProps) {
     setQueuedRecs,
     setDismissedSuggestions,
     setQueuedSuggestions,
-    setViewRound,
     setShowContribDetails,
     setShowTerms,
     setMeetingTerms,

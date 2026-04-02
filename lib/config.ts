@@ -1,6 +1,7 @@
 import { readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { CouncilConfig, ProjectConfig } from './types';
+import type { CouncilConfig, ProjectConfig, UsageSettings } from './types';
+import { USAGE_PROFILES } from './types';
 
 const DEFAULT_CONFIG: CouncilConfig = {
   projects: {},
@@ -200,8 +201,7 @@ export function getProjectConfig(config: CouncilConfig, name: string): { agentsD
 }
 
 /** Get current usage settings with defaults. Handles migration from defaultRounds → maxRounds. */
-export function getUsageSettings(config: CouncilConfig): import('./types').UsageSettings {
-  const { USAGE_PROFILES } = require('./types') as typeof import('./types');
+export function getUsageSettings(config: CouncilConfig): UsageSettings {
   const defaults = { profile: 'standard' as const, ...USAGE_PROFILES.standard };
   if (!config.usage) return defaults;
   // Migrate legacy defaultRounds → maxRounds
@@ -221,8 +221,7 @@ export function getUsageSettings(config: CouncilConfig): import('./types').Usage
 }
 
 /** Update usage settings and persist to config file */
-export async function setUsageSettings(settings: Partial<import('./types').UsageSettings>): Promise<import('./types').UsageSettings> {
-  const { USAGE_PROFILES } = require('./types') as typeof import('./types');
+export async function setUsageSettings(settings: Partial<UsageSettings>): Promise<UsageSettings> {
   const config = await getConfig();
   const current = config.usage ?? { profile: 'standard' as const, ...USAGE_PROFILES.standard };
   const updated = { ...current, ...settings };

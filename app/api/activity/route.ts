@@ -9,7 +9,9 @@ export async function GET(request: Request) {
   const source = url.searchParams.get('source') as ActivityEntry['source'] | null;
 
   try {
-    let entries = await readActivityLog(limit ? parseInt(limit, 10) : undefined);
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const safeLimit = (parsedLimit && Number.isFinite(parsedLimit) && parsedLimit > 0) ? parsedLimit : undefined;
+    let entries = await readActivityLog(safeLimit);
     if (source) {
       entries = entries.filter(e => e.source === source);
     }

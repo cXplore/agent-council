@@ -27,6 +27,24 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Validate path is absolute and exists on disk
+  const nodePath = await import('node:path');
+  const { stat } = await import('node:fs/promises');
+  if (!nodePath.default.isAbsolute(projectPath)) {
+    return new Response(JSON.stringify({ error: 'path must be absolute' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  try {
+    await stat(projectPath);
+  } catch {
+    return new Response(JSON.stringify({ error: 'path does not exist' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const prompt = `You are scanning a project at "${projectPath}" to set up an AI agent team.
 
 Read the project's key files to understand what it does:

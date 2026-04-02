@@ -7,7 +7,7 @@
  * Established by Operator vs Worker design review (2026-03-30).
  */
 
-import { readFile, appendFile, writeFile } from 'node:fs/promises';
+import { readFile, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { getConfig, getActiveProjectConfig } from './config';
@@ -57,12 +57,7 @@ export async function writeActivityEntry(
   };
   const line = JSON.stringify(full) + '\n';
 
-  // Create file if it doesn't exist
-  if (!existsSync(logPath)) {
-    await writeFile(logPath, line, 'utf-8');
-  } else {
-    await appendFile(logPath, line, 'utf-8');
-  }
+  await appendFile(logPath, line, 'utf-8');
 
   return full.id;
 }

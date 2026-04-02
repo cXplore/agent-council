@@ -192,7 +192,6 @@ export default function HomePage() {
             return;
           }
           const icons: Record<string, string> = { good: '●', warn: '◐', bad: '○' };
-          const colors: Record<string, string> = { good: 'green', warn: 'yellow', bad: 'red' };
           const lines = data.checks.map((c: { label: string; status: string; detail: string }) =>
             `- **${c.label}** ${icons[c.status] || '?'} ${c.detail}`
           );

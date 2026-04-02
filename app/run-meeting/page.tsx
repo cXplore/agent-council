@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 const AGENTS = [
@@ -72,7 +72,15 @@ type ProjectBrief = {
   } | null;
 };
 
-export default function RunMeetingPage() {
+export default function RunMeetingPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-white/40">Loading...</div>}>
+      <RunMeetingPage />
+    </Suspense>
+  );
+}
+
+function RunMeetingPage() {
   const searchParams = useSearchParams();
   const projectParam = searchParams.get('project');
   const topicParam = searchParams.get('topic');
